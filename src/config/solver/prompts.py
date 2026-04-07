@@ -1,0 +1,4 @@
+ONESHOT_SOLVER_PROMPT = """"""
+
+
+HYDE_PROMPT = """"""

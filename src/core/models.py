@@ -23,5 +23,6 @@ class Chunk(BaseModel):
 class Embedding(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     vectors: List[float]
+    text: str
     embedder_id: UUID
     chunk_id: UUID

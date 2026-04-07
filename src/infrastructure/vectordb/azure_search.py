@@ -1,9 +1,48 @@
 import os
+from typing import Literal
+from uuid import UUID
 
 from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
 from dotenv import load_dotenv
+from langchain_core.embeddings import Embeddings
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage
+
+from benchmark.models import Document
+from config.solver.prompts import HYDE_PROMPT
 
 load_dotenv()
+
+
+async def retrieve_chunks(
+    embedder: Embeddings,
+    llm: BaseChatModel,
+    query: str,
+    top_k: int,
+    filter: str,
+    hyde: bool, # hypothetical document embeddings
+    hybrid: bool,
+    reranking: Literal["llm", "semantic"],
+) -> list[Document]:
+    search_client = get_azure_search_client()   
+    top = top_k
+
+    if hyde:
+        hyde = await llm.ainvoke([HumanMessage(content=HYDE_PROMPT.format(query=query))])
+        embeddings = await embedder.aembed_query(hyde)
+    if hybrid:
+        chunks = search_client.search(
+            search_text=query,
+            vector_queries=[VectorizedQuery(vector=embeddings)],
+            top=top,
+        )
+    else:
+        chunks = search_client.search(vector_queries=[VectorizedQuery(vector=embeddings)], top=top)
+
+    #TODO: implement reranker
+    return chunks
+
 
 
 def get_azure_search_client() -> SearchClient:
