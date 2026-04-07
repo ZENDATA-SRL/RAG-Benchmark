@@ -18,11 +18,6 @@ class OneShotSolver(BaseSolver):
         embedder: Embeddings,
         solver_config: SolverConfigSchema,
     ) -> str:
-
-        
-        # filter = "" TODO:qui costruisco il filtro per il vector db (solo chunks provenienti da documenti del benchmark gestiti con il chunker, l'embedder e l'ocr configurati)
-                    # Potrebbe convenire cambiare l'intero modello inserendoci questi campi anche se ridondante.
-
         chunks = retrieve_chunks(
             question.query,
             solver_config.top_k,

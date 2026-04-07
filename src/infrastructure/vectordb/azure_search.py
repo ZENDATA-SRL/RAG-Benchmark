@@ -20,13 +20,17 @@ async def retrieve_chunks(
     llm: BaseChatModel,
     query: str,
     top_k: int,
-    filter: str,
     hyde: bool, # hypothetical document embeddings
     hybrid: bool,
     reranking: Literal["llm", "semantic"],
+    benchmark_id: UUID,
+    chunker_id: UUID,
+    embedder_id: UUID,
+    ocr_id: UUID,
 ) -> list[Document]:
     search_client = get_azure_search_client()   
     top = top_k
+    #TODO: qui costruisco il filtro per il vector db (solo chunks provenienti da documenti del benchmark gestiti con il chunker, l'embedder e l'ocr configurati)
 
     if hyde:
         hyde = await llm.ainvoke([HumanMessage(content=HYDE_PROMPT.format(query=query))])

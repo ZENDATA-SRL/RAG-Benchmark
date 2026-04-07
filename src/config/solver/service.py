@@ -8,5 +8,4 @@ async def resolve_solver(solver: SolverConfigSchema) -> SolverConfig:
     solver_object = await repository.get_solver_by_config(solver)
     if solver_object:
         return solver_object
-    solver_config = SolverConfigSchema(strategy=solver.strategy)
-    return await repository.insert_solver_config(solver_config)
+    return await repository.insert_solver_config(solver)
