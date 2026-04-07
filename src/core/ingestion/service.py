@@ -20,6 +20,7 @@ from core.repository import (
     insert_embeddings,
     insert_scan,
 )
+from infrastructure.blob_storage.blob import get_blob_from_url
 
 
 async def process_ingestion(rag_config: RAGConfigSchema, document_id: UUID):
@@ -30,13 +31,14 @@ async def process_ingestion(rag_config: RAGConfigSchema, document_id: UUID):
     chunker_config = await resolve_chunker(rag_config.chunker)
     embedder_config = await resolve_embedder(rag_config.embedder)
     document = await get_document(document_id)
+    document_bytes = await get_blob_from_url(document.blob_url)
 
     scan = await get_scan(ocr_config.id, document_id)
     if not scan:
         ocr = build_ocr(ocr_config)
         scan = Scan(
             ocr_id=ocr_config.id,
-            text=await ocr.extract_text(document.path),
+            text=await ocr.extract_text(document_bytes),
             document_id=document_id,
         )
         await insert_scan(scan)

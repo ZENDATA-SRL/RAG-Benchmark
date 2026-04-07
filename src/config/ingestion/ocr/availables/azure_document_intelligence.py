@@ -16,9 +16,7 @@ class AzureDocumentIntelligenceOCR(BaseOCR):
             ),
         )
 
-    def extract_text(self, file_path: str) -> str:
-        with open(file_path, "rb") as f:
-            document_bytes = f.read()
+    async def extract_text(self, document_bytes: bytes) -> str:
         poller = self._client.begin_analyze_document(
             "prebuilt-document", body=AnalyzeDocumentRequest(document_bytes)
         )

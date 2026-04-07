@@ -1,10 +1,9 @@
 import base64
 from io import BytesIO
-from pathlib import Path
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from pdf2image import convert_from_path
+from pdf2image import convert_from_bytes
 from PIL import Image
 
 from config.ingestion.ocr.base import BaseOCR
@@ -33,15 +32,14 @@ class GeminiOCR(BaseOCR):
             self._llm = build_llm(provider=self._provider, model=self._model)
         return self._llm
 
-    def extract_text(self, file_path: str) -> str:
-        path = Path(file_path)
-        if path.suffix.lower() != ".pdf":
-            with Image.open(path) as im:
-                return self._ocr(im)
-        parts: list[str] = []
-        for im in convert_from_path(path):
-            parts.append(self._ocr(im))
-        return "\n\n".join(p for p in parts if p)
+    async def extract_text(self, document_bytes: bytes) -> str:
+        if document_bytes[:4] == b"%PDF":
+            parts: list[str] = []
+            for im in convert_from_bytes(document_bytes):
+                parts.append(self._ocr(im))
+            return "\n\n".join(p for p in parts if p)
+        with Image.open(BytesIO(document_bytes)) as im:
+            return self._ocr(im)
 
     def _ocr(self, image: Image.Image) -> str:
         buffer = BytesIO()
