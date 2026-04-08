@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from src.benchmark.schemas import Chunk
+from src.dataset.schemas import Chunk
 
 
 class BaseChunker(ABC):

@@ -3,7 +3,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
-from benchmark.models import Question
+from src.dataset.models import QuestionORM as Question
 from config.solver.base import BaseSolver
 from config.solver.prompts import ONESHOT_SOLVER_PROMPT
 from config.solver.schemas import SolverConfigSchema

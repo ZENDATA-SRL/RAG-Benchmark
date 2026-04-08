@@ -2,9 +2,12 @@ import os
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from dotenv import load_dotenv
 
 
 def get_database_url() -> str:
+    # Allow running via uvicorn without exporting env vars.
+    load_dotenv(override=True)
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError(

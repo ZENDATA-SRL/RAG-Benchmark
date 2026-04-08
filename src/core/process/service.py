@@ -5,15 +5,15 @@
 
 from uuid import UUID
 
-from src.benchmark.repository import get_benchmark, get_document
 from src.config.ingestion.chunker.service import build_chunker, get_chunker_by_id
 from src.config.ingestion.embedder.service import build_embedder, get_embedder_by_id
 from src.config.ingestion.ocr.service import build_ocr, get_ocr_by_id
 from src.config.schemas import RAGConfigSchema
 from src.config.service import resolve_rag_config
-from src.benchmark.models import ChunkORM, EmbeddingORM, ScanORM
-from src.benchmark.schemas import Chunk
-from src.benchmark.service import (
+from src.dataset.models import ChunkORM, EmbeddingORM, ScanORM
+from src.dataset.repository import get_dataset, get_document
+from src.dataset.schemas import Chunk
+from src.dataset.service import (
     get_chunks,
     get_embeddings,
     get_scan,
@@ -81,9 +81,9 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
         await insert_embeddings(embeddings)
 
 
-async def run_process(rag_config_schema: RAGConfigSchema, benchmark_id: UUID):
-    benchmark = await get_benchmark(benchmark_id)
-    if benchmark is None:
-        raise ValueError(f"Benchmark {benchmark_id} not found")
-    for document in benchmark.documents:
+async def run_process(rag_config_schema: RAGConfigSchema, dataset_id: UUID):
+    dataset = await get_dataset(dataset_id)
+    if dataset is None:
+        raise ValueError(f"Dataset {dataset_id} not found")
+    for document in dataset.documents:
         await process_ingestion(rag_config_schema, document.id)

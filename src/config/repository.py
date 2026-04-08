@@ -33,6 +33,13 @@ class RAGRepository:
         async with SessionLocal() as session:
             return await session.get(RAGConfigORM, rag_config_id)
 
+    async def get_rag_configs(self) -> list[RAGConfigORM]:
+        SessionLocal = get_sessionmaker()
+        async with SessionLocal() as session:
+            stmt = select(RAGConfigORM).order_by(RAGConfigORM.id.asc())
+            rows = (await session.scalars(stmt)).all()
+            return list(rows)
+
     async def insert_rag_config(
         self,
         ocr_id: UUID,

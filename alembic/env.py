@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from infrastructure.database.base import Base
-from infrastructure.database.models import (  # noqa: F401
-    BenchmarkORM,
-    ChunkORM,
+from alembic import context
+from dotenv import load_dotenv
+from src.infrastructure.database.base import Base
+from src.infrastructure.database.models import (  # noqa: F401
     ChunkerConfigORM,
+    ChunkORM,
+    DatasetORM,
     DocumentORM,
     EmbeddingConfigORM,
     EmbeddingORM,
@@ -29,6 +31,11 @@ config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+load_dotenv()
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
 
@@ -70,4 +77,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())
-

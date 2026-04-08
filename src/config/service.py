@@ -42,3 +42,9 @@ async def get_rag_config_by_id(rag_config_id: UUID) -> RAGConfig:
     if obj is None:
         raise ValueError(f"RAG config {rag_config_id} not found")
     return RAGConfig.model_validate(obj)
+
+
+async def get_rag_configs() -> list[RAGConfig]:
+    repository = get_rag_repository()
+    rows = await repository.get_rag_configs()
+    return [RAGConfig.model_validate(r) for r in rows]

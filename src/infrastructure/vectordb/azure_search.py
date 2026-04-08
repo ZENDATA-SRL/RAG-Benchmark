@@ -9,7 +9,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
-from benchmark.models import Document
+from src.dataset.models import DocumentORM as Document
 from config.solver.prompts import HYDE_PROMPT
 
 load_dotenv()
@@ -23,14 +23,14 @@ async def retrieve_chunks(
     hyde: bool, # hypothetical document embeddings
     hybrid: bool,
     reranking: Literal["llm", "semantic"],
-    benchmark_id: UUID,
+    dataset_id: UUID,
     chunker_id: UUID,
     embedder_id: UUID,
     ocr_id: UUID,
 ) -> list[Document]:
     search_client = get_azure_search_client()   
     top = top_k
-    #TODO: qui costruisco il filtro per il vector db (solo chunks provenienti da documenti del benchmark gestiti con il chunker, l'embedder e l'ocr configurati)
+    # TODO: build vector DB filter (chunks from dataset docs with chosen configs)
 
     if hyde:
         hyde = await llm.ainvoke([HumanMessage(content=HYDE_PROMPT.format(query=query))])

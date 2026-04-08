@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
-from benchmark.models import Question
+from src.dataset.models import QuestionORM as Question
 from config.solver.base import BaseSolver
 from config.solver.prompts import (
     PLANNED_MULTIHOP_EXECUTION_PROMPT,

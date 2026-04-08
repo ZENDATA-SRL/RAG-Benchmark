@@ -1,10 +1,10 @@
 from uuid import UUID
 
+from sqlalchemy import select
+
 from src.config.llms.models import LLMConfigORM
 from src.config.llms.schemas import LLMConfigSchema
 from src.infrastructure.database.db import get_sessionmaker
-
-from sqlalchemy import select
 
 
 class LLMRepository:

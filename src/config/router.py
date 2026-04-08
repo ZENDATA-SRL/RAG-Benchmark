@@ -7,7 +7,7 @@ from src.config.ingestion.embedder.router import router as embedder_router
 from src.config.ingestion.ocr.router import router as ocr_router
 from src.config.llms.router import router as llm_router
 from src.config.schemas import RAGConfig, RAGConfigSchema
-from src.config.service import get_rag_config_by_id, resolve_rag_config
+from src.config.service import get_rag_config_by_id, get_rag_configs, resolve_rag_config
 from src.config.solver.router import router as solver_router
 
 router = APIRouter(prefix="/config", tags=["config"])
@@ -16,6 +16,11 @@ router = APIRouter(prefix="/config", tags=["config"])
 @router.post("/rag")
 async def resolve_rag_config_route(rag_config: RAGConfigSchema) -> RAGConfig:
     return await resolve_rag_config(rag_config)
+
+
+@router.get("/rag")
+async def get_rag_configs_route() -> list[RAGConfig]:
+    return await get_rag_configs()
 
 
 @router.get("/rag/{rag_config_id}")

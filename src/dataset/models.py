@@ -9,22 +9,20 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.infrastructure.database.base import Base
 
 
-class BenchmarkORM(Base):
-    __tablename__ = "benchmarks"
+class DatasetORM(Base):
+    __tablename__ = "datasets"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     documents: Mapped[list["DocumentORM"]] = relationship(
-        back_populates="benchmark", cascade="all, delete-orphan"
+        back_populates="dataset", cascade="all, delete-orphan"
     )  # noqa: F821  # type: ignore[name-defined]
     questions: Mapped[list["QuestionORM"]] = relationship(
-        back_populates="benchmark", cascade="all, delete-orphan"
+        back_populates="dataset", cascade="all, delete-orphan"
     )  # noqa: F821  # type: ignore[name-defined]
 
 
@@ -35,18 +33,17 @@ class DocumentORM(Base):
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
-    path: Mapped[str] = mapped_column(String, nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
     blob_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
 
-    benchmark_id: Mapped[uuid.UUID] = mapped_column(
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("benchmarks.id", ondelete="CASCADE"),
+        ForeignKey("datasets.id", ondelete="CASCADE"),
         nullable=False,
     )
 
-    benchmark: Mapped["BenchmarkORM"] = relationship(back_populates="documents")  # noqa: F821  # type: ignore[name-defined]
-    questions: Mapped[list["QuestionORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]s
+    dataset: Mapped["DatasetORM"] = relationship(back_populates="documents")  # noqa: F821  # type: ignore[name-defined]
+    questions: Mapped[list["QuestionORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="document", cascade="all, delete-orphan"
     )  # noqa: F821  # type: ignore[name-defined]
     scans: Mapped[list["ScanORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
@@ -68,14 +65,14 @@ class QuestionORM(Base):
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
     )
-    benchmark_id: Mapped[uuid.UUID] = mapped_column(
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("benchmarks.id", ondelete="CASCADE"),
+        ForeignKey("datasets.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     document: Mapped["DocumentORM"] = relationship(back_populates="questions")  # noqa: F821  # type: ignore[name-defined]
-    benchmark: Mapped["BenchmarkORM"] = relationship(back_populates="questions")  # noqa: F821  # type: ignore[name-defined]
+    dataset: Mapped["DatasetORM"] = relationship(back_populates="questions")  # noqa: F821  # type: ignore[name-defined]
 
 
 class ScanORM(Base):
@@ -151,3 +148,4 @@ class EmbeddingORM(Base):
 
     chunk: Mapped["ChunkORM"] = relationship(back_populates="embeddings")  # noqa: F821  # type: ignore[name-defined]
     embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="embeddings")  # noqa: F821  # type: ignore[name-defined]
+

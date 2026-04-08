@@ -1,13 +1,35 @@
 from uuid import UUID
 
+import os
+
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
+from dotenv import load_dotenv
+from langchain_openai import AzureChatOpenAI
 
 from src.config.llms.repository import get_llm_repository
 from src.config.llms.schemas import LLMConfig, LLMConfigSchema
 
 
 def build_llm(provider: str, model: str) -> BaseChatModel:
+    if provider == "openai":
+        # Treat "openai" as Azure OpenAI for this project.
+        load_dotenv(override=True)
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        if not api_version:
+            raise RuntimeError("OPENAI_API_VERSION is not set for Azure OpenAI.")
+        if not azure_deployment:
+            raise RuntimeError("AZURE_OPENAI_DEPLOYMENT is not set for Azure OpenAI.")
+
+        # Keep the selected model name for tracing/token counting,
+        # while using Azure deployment for routing.
+        return AzureChatOpenAI(
+            azure_deployment=azure_deployment,
+            api_version=api_version,
+            model=model,
+        )
+
     return init_chat_model(model=model, model_provider=provider)
 
 

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from benchmark.models import Question
+from src.dataset.models import QuestionORM as Question
 from config.solver.schemas import SolverConfigSchema
 
 

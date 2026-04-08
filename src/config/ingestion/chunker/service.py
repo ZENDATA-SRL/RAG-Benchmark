@@ -11,7 +11,7 @@ from langchain_text_splitters import (
 from src.config.ingestion.chunker.base import BaseChunker
 from src.config.ingestion.chunker.repository import get_chunker_repository
 from src.config.ingestion.chunker.schemas import ChunkerConfig, ChunkerConfigSchema
-from src.benchmark.schemas import Chunk
+from src.dataset.schemas import Chunk
 
 _SPLITTER_BUILDERS: dict[str, Callable[..., TextSplitter]] = {
     "character": CharacterTextSplitter,
