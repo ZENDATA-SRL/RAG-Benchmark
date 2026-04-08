@@ -1,8 +1,13 @@
+from uuid import UUID
+
 from config.llms.models import LLMConfig
 from config.llms.schemas import LLMConfigSchema
 
 
 class LLMRepository:
+    async def get_llm_by_id(self, llm_id: UUID) -> LLMConfig | None:
+        pass
+
     async def get_llm_by_config(self, llm: LLMConfigSchema) -> LLMConfig | None:
         pass
 

@@ -29,7 +29,7 @@ class OneShotSolver(BaseSolver):
         passages: list[str] = []
         for doc in chunks:
             if isinstance(doc, dict):
-                key = "azuz" #TODO: Devo cambiare il tipo di doc in base a come ho configurato il vector db
+                key = "azuz" #TODO: Devo cambiare il tipo dove ho messo i vettori in base a come ho configurato il vector db
                 text = doc.get(key)
                 if isinstance(text, str) and text.strip():
                     passages.append(text.strip())

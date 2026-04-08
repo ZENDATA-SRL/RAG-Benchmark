@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from langchain.embeddings import init_embeddings
 from langchain_core.embeddings import Embeddings
 
@@ -17,8 +19,9 @@ async def resolve_embedder(embedder: EmbeddingConfigSchema) -> EmbeddingConfig:
     embedder_object = await repository.get_embedder_by_config(embedder)
     if embedder_object:
         return embedder_object
-    embedder_config = EmbeddingConfigSchema(
-        provider=embedder.provider,
-        model=embedder.model,
-    )
-    return await repository.insert_embedder_config(embedder_config)
+    return await repository.insert_embedder_config(embedder)
+
+
+async def get_embedder_by_id(embedder_id: UUID) -> EmbeddingConfig:
+    repository = get_embedder_repository()
+    return await repository.get_embedder_by_id(embedder_id)

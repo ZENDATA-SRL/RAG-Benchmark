@@ -1,8 +1,13 @@
+from uuid import UUID
+
 from config.ingestion.chunker.models import ChunkerConfig
 from config.ingestion.chunker.schemas import ChunkerConfigSchema
 
 
 class ChunkerRepository:
+    async def get_chunker_by_id(self, chunker_id: UUID) -> ChunkerConfig | None:
+        pass
+
     async def get_chunker_by_config(
         self, chunker: ChunkerConfigSchema
     ) -> ChunkerConfig | None:

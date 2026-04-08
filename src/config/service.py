@@ -1,11 +1,13 @@
+from uuid import UUID
+
 from config.ingestion.chunker.service import resolve_chunker
 from config.ingestion.embedder.service import resolve_embedder
 from config.ingestion.ocr.service import resolve_ocr
 from config.llms.service import resolve_llm
-from config.solver.service import resolve_solver
 from config.models import RAGConfig
 from config.repository import get_rag_repository
 from config.schemas import RAGConfigSchema
+from config.solver.service import resolve_solver
 
 
 async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
@@ -33,3 +35,8 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         solver_id=solver.id,
     )
     return rag_config
+
+
+async def get_rag_config_by_id(rag_config_id: UUID) -> RAGConfig:
+    repository = get_rag_repository()
+    return await repository.get_rag_config_by_id(rag_config_id)

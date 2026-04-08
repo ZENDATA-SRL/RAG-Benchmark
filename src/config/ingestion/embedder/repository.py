@@ -1,8 +1,13 @@
+from uuid import UUID
+
 from config.ingestion.embedder.models import EmbeddingConfig
 from config.ingestion.embedder.schemas import EmbeddingConfigSchema
 
 
 class EmbedderRepository:
+    async def get_embedder_by_id(self, embedder_id: UUID) -> EmbeddingConfig | None:
+        pass
+
     async def get_embedder_by_config(
         self, embedder: EmbeddingConfigSchema
     ) -> EmbeddingConfig | None:

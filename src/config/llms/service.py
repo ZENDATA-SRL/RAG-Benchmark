@@ -1,3 +1,4 @@
+from uuid import UUID
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -15,8 +16,9 @@ async def resolve_llm(llm: LLMConfigSchema) -> LLMConfig:
     llm_object = await repository.get_llm_by_config(llm)
     if llm_object:
         return llm_object
-    llm_config = LLMConfigSchema(
-        provider=llm.provider,
-        model=llm.model,
-    )
-    return await repository.insert_llm_config(llm_config)
+    return await repository.insert_llm_config(llm)
+
+
+async def get_llm_by_id(llm_id: UUID) -> LLMConfig:
+    repository = get_llm_repository()
+    return await repository.get_llm_by_id(llm_id)

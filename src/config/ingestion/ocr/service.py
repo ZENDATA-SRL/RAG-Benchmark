@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from config.ingestion.ocr.availables.azure_document_intelligence import (
     AzureDocumentIntelligenceOCR,
 )
@@ -14,8 +16,12 @@ async def resolve_ocr(ocr: OCRConfigSchema) -> OCRConfig:
     ocr_object = await repository.get_ocr_by_config(ocr)
     if ocr_object:
         return ocr_object
-    ocr_config = OCRConfigSchema(model=ocr.model)
-    return await repository.insert_ocr_config(ocr_config)
+    return await repository.insert_ocr_config(ocr)
+
+
+async def get_ocr_by_id(ocr_id: UUID) -> OCRConfig:
+    repository = get_ocr_repository()
+    return await repository.get_ocr_by_id(ocr_id)
 
 
 def build_ocr(ocr: OCRConfigSchema) -> BaseOCR:

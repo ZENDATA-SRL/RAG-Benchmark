@@ -74,10 +74,9 @@ async def resolve_chunker(chunker: ChunkerConfigSchema) -> ChunkerConfig:
     chunker_object = await repository.get_chunker_by_config(chunker)
     if chunker_object:
         return chunker_object
-    else:
-        chunker_config = ChunkerConfigSchema(
-            strategy=chunker.strategy,
-            chunk_size=chunker.chunk_size,
-            overlap_size=chunker.overlap_size,
-        )
-        return await repository.insert_chunker_config(chunker_config)
+    return await repository.insert_chunker_config(chunker)
+
+
+async def get_chunker_by_id(chunker_id: UUID) -> ChunkerConfig:
+    repository = get_chunker_repository()
+    return await repository.get_chunker_by_id(chunker_id)
