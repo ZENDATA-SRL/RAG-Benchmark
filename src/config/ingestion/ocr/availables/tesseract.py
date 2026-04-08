@@ -4,7 +4,7 @@ import pytesseract
 from pdf2image import convert_from_bytes
 from PIL import Image
 
-from config.ingestion.ocr.base import BaseOCR
+from src.config.ingestion.ocr.base import BaseOCR
 
 
 class TesseractOCR(BaseOCR):

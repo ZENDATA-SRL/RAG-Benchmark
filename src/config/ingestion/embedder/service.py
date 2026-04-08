@@ -3,8 +3,8 @@ from uuid import UUID
 from langchain.embeddings import init_embeddings
 from langchain_core.embeddings import Embeddings
 
-from config.ingestion.embedder.repository import get_embedder_repository
-from config.ingestion.embedder.schemas import EmbeddingConfig, EmbeddingConfigSchema
+from src.config.ingestion.embedder.repository import get_embedder_repository
+from src.config.ingestion.embedder.schemas import EmbeddingConfig, EmbeddingConfigSchema
 
 
 def build_embedder(embedder_config: EmbeddingConfigSchema) -> Embeddings:

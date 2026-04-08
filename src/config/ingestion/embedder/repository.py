@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from config.ingestion.embedder.models import EmbeddingConfigORM
-from config.ingestion.embedder.schemas import EmbeddingConfigSchema
-from infrastructure.database.db import get_sessionmaker
-
 from sqlalchemy import select
+
+from src.config.ingestion.embedder.models import EmbeddingConfigORM
+from src.config.ingestion.embedder.schemas import EmbeddingConfigSchema
+from src.infrastructure.database.db import get_sessionmaker
 
 
 class EmbedderRepository:

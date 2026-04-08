@@ -1,13 +1,13 @@
 from uuid import UUID
 
-from config.ingestion.ocr.availables.azure_document_intelligence import (
+from src.config.ingestion.ocr.availables.azure_document_intelligence import (
     AzureDocumentIntelligenceOCR,
 )
-from config.ingestion.ocr.availables.easyocr import GeminiOCR
-from config.ingestion.ocr.availables.pypdf import PypdfOCR
-from config.ingestion.ocr.base import BaseOCR
-from config.ingestion.ocr.repository import get_ocr_repository
-from config.ingestion.ocr.schemas import OCRConfig, OCRConfigSchema
+from src.config.ingestion.ocr.availables.easyocr import GeminiOCR
+from src.config.ingestion.ocr.availables.pypdf import PypdfOCR
+from src.config.ingestion.ocr.base import BaseOCR
+from src.config.ingestion.ocr.repository import get_ocr_repository
+from src.config.ingestion.ocr.schemas import OCRConfig, OCRConfigSchema
 
 
 async def resolve_ocr(ocr: OCRConfigSchema) -> OCRConfig:

@@ -1,9 +1,10 @@
 from uuid import UUID
-from config.solver.models import SolverConfigORM
-from config.solver.schemas import SolverConfigSchema
-from infrastructure.database.db import get_sessionmaker
 
 from sqlalchemy import select
+
+from src.config.solver.models import SolverConfigORM
+from src.config.solver.schemas import SolverConfigSchema
+from src.infrastructure.database.db import get_sessionmaker
 
 
 class SolverRepository:

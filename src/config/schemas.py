@@ -2,11 +2,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from config.ingestion.chunker.schemas import ChunkerConfigSchema
-from config.ingestion.embedder.schemas import EmbeddingConfigSchema
-from config.ingestion.ocr.schemas import OCRConfigSchema
-from config.llms.schemas import LLMConfigSchema
-from config.solver.schemas import SolverConfigSchema
+from src.config.ingestion.chunker.schemas import ChunkerConfigSchema
+from src.config.ingestion.embedder.schemas import EmbeddingConfigSchema
+from src.config.ingestion.ocr.schemas import OCRConfigSchema
+from src.config.llms.schemas import LLMConfigSchema
+from src.config.solver.schemas import SolverConfigSchema
 
 
 class RAGConfigSchema(BaseModel):

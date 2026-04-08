@@ -1,7 +1,7 @@
 from uuid import UUID
-from config.solver.models import SolverConfigORM
-from config.solver.repository import get_solver_repository
-from config.solver.schemas import SolverConfig, SolverConfigSchema
+
+from src.config.solver.repository import get_solver_repository
+from src.config.solver.schemas import SolverConfig, SolverConfigSchema
 
 
 async def resolve_solver(solver: SolverConfigSchema) -> SolverConfig:

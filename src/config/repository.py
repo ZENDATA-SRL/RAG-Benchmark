@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from config.models import RAGConfigORM
-from infrastructure.database.db import get_sessionmaker
-
 from sqlalchemy import select
+
+from src.config.models import RAGConfigORM
+from src.infrastructure.database.db import get_sessionmaker
 
 
 class RAGRepository:

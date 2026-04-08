@@ -2,7 +2,7 @@ from io import BytesIO
 
 from pypdf import PdfReader
 
-from config.ingestion.ocr.base import BaseOCR
+from src.config.ingestion.ocr.base import BaseOCR
 
 
 class PypdfOCR(BaseOCR):

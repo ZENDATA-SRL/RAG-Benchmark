@@ -4,7 +4,7 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
 from azure.core.credentials import AzureKeyCredential
 
-from config.ingestion.ocr.base import BaseOCR
+from src.config.ingestion.ocr.base import BaseOCR
 
 
 class AzureDocumentIntelligenceOCR(BaseOCR):

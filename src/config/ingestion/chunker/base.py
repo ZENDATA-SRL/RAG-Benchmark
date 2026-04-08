@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List
 from uuid import UUID
 
-from core.models import Chunk
+from src.benchmark.schemas import Chunk
 
 
 class BaseChunker(ABC):
@@ -11,8 +10,6 @@ class BaseChunker(ABC):
         self.overlap_size = overlap_size
 
     @abstractmethod
-    def extract_chunks(
-        self, text: str, scan_id: UUID, chunker_id: UUID
-    ) -> List[Chunk]:
+    def extract_chunks(self, text: str, scan_id: UUID, chunker_id: UUID) -> list[Chunk]:
         """Chunker carries sizes for execution; persisted recipe is ConfigInput.chunking."""
         pass

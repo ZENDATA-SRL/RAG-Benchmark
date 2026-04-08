@@ -6,8 +6,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pdf2image import convert_from_bytes
 from PIL import Image
 
-from config.ingestion.ocr.base import BaseOCR
-from config.llms.service import build_llm
+from src.config.ingestion.ocr.base import BaseOCR
+from src.config.llms.service import build_llm
 
 _TEXT_EXTRACTION_PROMPT = (
     "Extract all visible text from this image. Preserve reading order and line breaks "

@@ -4,13 +4,15 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from infrastructure.database.base import Base
+from src.infrastructure.database.base import Base
 
 
 class RAGConfigORM(Base):
     __tablename__ = "rag_configs"
 
-    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     ocr_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
@@ -38,8 +40,8 @@ class RAGConfigORM(Base):
         nullable=False,
     )
 
-    ocr: Mapped["OCRConfigORM"] = relationship(back_populates="rag_configs")
-    chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="rag_configs")
-    embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="rag_configs")
-    llm: Mapped["LLMConfigORM"] = relationship(back_populates="rag_configs")
-    solver: Mapped["SolverConfigORM"] = relationship(back_populates="rag_configs")
+    ocr: Mapped["OCRConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
+    chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
+    embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
+    llm: Mapped["LLMConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
+    solver: Mapped["SolverConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]

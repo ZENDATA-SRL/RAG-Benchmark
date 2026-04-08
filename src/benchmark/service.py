@@ -1,19 +1,26 @@
-from datetime import datetime, timezone
 from io import BytesIO
 from typing import List
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
 
-from benchmark.repository import (
+from src.benchmark.repository import (
     find_document_by_name_and_url,
+    get_chunks as get_chunks_orm,
+    get_embeddings as get_embeddings_orm,
     get_benchmark,
     insert_document,
+    insert_chunks as insert_chunks_orm,
+    insert_embeddings as insert_embeddings_orm,
+    get_scan as get_scan_orm,
     insert_question,
+    insert_scan as insert_scan_orm,
 )
-from benchmark.models import BenchmarkORM, DocumentORM, QuestionORM
-from infrastructure.blob_storage.blob import insert_blob
+from src.benchmark.models import DocumentORM, QuestionORM
+from src.benchmark.models import ChunkORM, EmbeddingORM, ScanORM
+from src.benchmark.schemas import Chunk, Embedding, Scan
+from src.infrastructure.blob_storage.blob import insert_blob
 
 _XLSX_COLUMNS = ("query", "answer", "filename", "file_url")
 
@@ -82,7 +89,11 @@ async def ingest_document(
 ) -> DocumentORM:
     benchmark = await get_benchmark(benchmark_id)
     raw = await file.read()
-    blob_url = insert_blob(container_name=f"{benchmark.name}_{benchmark.created_at.strftime("%Y%m%d")}", blob_name=file.filename, blob_content=raw)
+    blob_url = insert_blob(
+        container_name=f"{benchmark.name}_{benchmark.created_at.strftime('%Y%m%d')}",
+        blob_name=file.filename,
+        blob_content=raw,
+    )
     document = DocumentORM(
         name=file.filename,
         path=file.filename,
@@ -115,3 +126,36 @@ async def ingest_benchmark(file: UploadFile, benchmark_id: UUID) -> List[Questio
         questions.append(q)
 
     return questions
+
+
+async def get_scan(ocr_id: UUID, document_id: UUID) -> Scan | None:
+    obj = await get_scan_orm(ocr_id=ocr_id, document_id=document_id)
+    if obj is None:
+        return None
+    return Scan.model_validate(obj)
+
+
+async def insert_scan(scan: ScanORM) -> None:
+    await insert_scan_orm(scan)
+
+
+async def get_chunks(chunker_id: UUID, scan_id: UUID) -> list[Chunk]:
+    rows = await get_chunks_orm(chunker_id=chunker_id, scan_id=scan_id)
+    return [Chunk.model_validate(r) for r in rows]
+
+
+async def insert_chunks(chunker_id: UUID, chunks: list[ChunkORM]) -> None:
+    await insert_chunks_orm(chunker_id=chunker_id, chunks=chunks)
+
+
+async def get_embeddings(
+    embedder_id: UUID, chunker_id: UUID, scan_id: UUID
+) -> list[Embedding]:
+    rows = await get_embeddings_orm(
+        embedder_id=embedder_id, chunker_id=chunker_id, scan_id=scan_id
+    )
+    return [Embedding.model_validate(r) for r in rows]
+
+
+async def insert_embeddings(embeddings: list[EmbeddingORM]) -> None:
+    await insert_embeddings_orm(embeddings=embeddings)

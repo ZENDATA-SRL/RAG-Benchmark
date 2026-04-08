@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from config.ingestion.ocr.models import OCRConfigORM
-from config.ingestion.ocr.schemas import OCRConfigSchema
-from infrastructure.database.db import get_sessionmaker
-
 from sqlalchemy import select
+
+from src.config.ingestion.ocr.models import OCRConfigORM
+from src.config.ingestion.ocr.schemas import OCRConfigSchema
+from src.infrastructure.database.db import get_sessionmaker
 
 
 class OCRRepository:

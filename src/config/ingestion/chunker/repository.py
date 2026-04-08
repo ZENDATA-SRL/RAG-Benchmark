@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from config.ingestion.chunker.models import ChunkerConfigORM
-from config.ingestion.chunker.schemas import ChunkerConfigSchema
-from infrastructure.database.db import get_sessionmaker
-
 from sqlalchemy import select
+
+from src.config.ingestion.chunker.models import ChunkerConfigORM
+from src.config.ingestion.chunker.schemas import ChunkerConfigSchema
+from src.infrastructure.database.db import get_sessionmaker
 
 
 class ChunkerRepository:
@@ -27,7 +27,9 @@ class ChunkerRepository:
             )
             return await session.scalar(stmt)
 
-    async def insert_chunker_config(self, chunker: ChunkerConfigSchema) -> ChunkerConfigORM:
+    async def insert_chunker_config(
+        self, chunker: ChunkerConfigSchema
+    ) -> ChunkerConfigORM:
         SessionLocal = get_sessionmaker()
         async with SessionLocal() as session:
             obj = ChunkerConfigORM(

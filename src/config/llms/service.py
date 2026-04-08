@@ -1,10 +1,10 @@
 from uuid import UUID
+
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from config.llms.models import LLMConfigORM
-from config.llms.repository import get_llm_repository
-from config.llms.schemas import LLMConfig, LLMConfigSchema
+from src.config.llms.repository import get_llm_repository
+from src.config.llms.schemas import LLMConfig, LLMConfigSchema
 
 
 def build_llm(provider: str, model: str) -> BaseChatModel:

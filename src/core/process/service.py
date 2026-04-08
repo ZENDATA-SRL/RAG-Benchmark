@@ -5,14 +5,15 @@
 
 from uuid import UUID
 
-from benchmark.repository import get_document
-from config.ingestion.chunker.service import build_chunker, get_chunker_by_id
-from config.ingestion.embedder.service import build_embedder, get_embedder_by_id
-from config.ingestion.ocr.service import build_ocr, get_ocr_by_id
-from config.schemas import RAGConfigSchema
-from config.service import resolve_rag_config
-from core.models import ChunkORM, EmbeddingORM, ScanORM
-from core.service import (
+from src.benchmark.repository import get_benchmark, get_document
+from src.config.ingestion.chunker.service import build_chunker, get_chunker_by_id
+from src.config.ingestion.embedder.service import build_embedder, get_embedder_by_id
+from src.config.ingestion.ocr.service import build_ocr, get_ocr_by_id
+from src.config.schemas import RAGConfigSchema
+from src.config.service import resolve_rag_config
+from src.benchmark.models import ChunkORM, EmbeddingORM, ScanORM
+from src.benchmark.schemas import Chunk
+from src.benchmark.service import (
     get_chunks,
     get_embeddings,
     get_scan,
@@ -20,7 +21,7 @@ from core.service import (
     insert_embeddings,
     insert_scan,
 )
-from infrastructure.blob_storage.blob import get_blob_from_url
+from src.infrastructure.blob_storage.blob import get_blob_from_url
 
 
 async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUID):
@@ -46,15 +47,19 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
     chunks = await get_chunks(chunker_config.id, scan.id)
     if not chunks:
         chunker = build_chunker(chunker_config)
+        extracted: list[Chunk] = chunker.extract_chunks(
+            scan.text, scan.id, chunker_config.id
+        )
         chunks = [
             ChunkORM(
-                scan_id=scan.id,
-                chunker_id=chunker_config.id,
+                id=chunk.id,
+                scan_id=chunk.scan_id,
+                chunker_id=chunk.chunker_id,
                 start_index=chunk.start_index,
                 end_index=chunk.end_index,
                 text=chunk.text,
             )
-            for chunk in chunker.extract_chunks(scan.text, scan.id, chunker_config.id)
+            for chunk in extracted
         ]
         await insert_chunks(chunker_config.id, chunks)
 
@@ -74,3 +79,11 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
                 )
             )
         await insert_embeddings(embeddings)
+
+
+async def run_process(rag_config_schema: RAGConfigSchema, benchmark_id: UUID):
+    benchmark = await get_benchmark(benchmark_id)
+    if benchmark is None:
+        raise ValueError(f"Benchmark {benchmark_id} not found")
+    for document in benchmark.documents:
+        await process_ingestion(rag_config_schema, document.id)

@@ -8,11 +8,10 @@ from langchain_text_splitters import (
     TextSplitter,
 )
 
-from config.ingestion.chunker.base import BaseChunker
-from config.ingestion.chunker.models import ChunkerConfigORM
-from config.ingestion.chunker.repository import get_chunker_repository
-from config.ingestion.chunker.schemas import ChunkerConfig, ChunkerConfigSchema
-from core.models import ChunkORM
+from src.config.ingestion.chunker.base import BaseChunker
+from src.config.ingestion.chunker.repository import get_chunker_repository
+from src.config.ingestion.chunker.schemas import ChunkerConfig, ChunkerConfigSchema
+from src.benchmark.schemas import Chunk
 
 _SPLITTER_BUILDERS: dict[str, Callable[..., TextSplitter]] = {
     "character": CharacterTextSplitter,
@@ -36,10 +35,10 @@ class LangChainChunker(BaseChunker):
 
     def extract_chunks(
         self, text: str, scan_id: UUID, chunker_id: UUID
-    ) -> list[ChunkORM]:
+    ) -> list[Chunk]:
         docs = self._splitter.create_documents([text])
         return [
-            ChunkORM(
+            Chunk(
                 id=uuid4(),
                 scan_id=scan_id,
                 chunker_id=chunker_id,
