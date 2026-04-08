@@ -1,27 +1,55 @@
+import uuid
 from datetime import datetime
-from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-
-class Document(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
-    name: str
-    path: str
-    url: str
-    blob_url: str | None = None
-    benchmark_id: UUID
+from infrastructure.database.base import Base
 
 
-class Question(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
-    query: str
-    answer: str
-    document_id: UUID
-    benchmark_id: UUID
+class Benchmark(Base):
+    __tablename__ = "benchmarks"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    documents: Mapped[list["Document"]] = relationship(back_populates="benchmark", cascade="all, delete-orphan")
+    questions: Mapped[list["Question"]] = relationship(back_populates="benchmark", cascade="all, delete-orphan")
 
 
-class Benchmark(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
-    name: str
-    created_at: datetime
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    path: Mapped[str] = mapped_column(String, nullable=False)
+    url: Mapped[str] = mapped_column(String, nullable=False)
+    blob_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+
+    benchmark_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("benchmarks.id", ondelete="CASCADE"), nullable=False
+    )
+
+    benchmark: Mapped["Benchmark"] = relationship(back_populates="documents")
+    questions: Mapped[list["Question"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    scans: Mapped[list["Scan"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    query: Mapped[str] = mapped_column(String, nullable=False)
+    answer: Mapped[str] = mapped_column(String, nullable=False)
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    )
+    benchmark_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("benchmarks.id", ondelete="CASCADE"), nullable=False
+    )
+
+    document: Mapped["Document"] = relationship(back_populates="questions")
+    benchmark: Mapped["Benchmark"] = relationship(back_populates="questions")
