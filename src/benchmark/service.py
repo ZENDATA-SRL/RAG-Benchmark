@@ -6,8 +6,13 @@ from uuid import UUID, uuid4
 from fastapi import UploadFile
 from openpyxl import load_workbook
 
-from repository import get_benchmark, insert_document, find_document_by_name_and_url, insert_question
-from benchmark.models import Benchmark, Document, Question
+from benchmark.repository import (
+    find_document_by_name_and_url,
+    get_benchmark,
+    insert_document,
+    insert_question,
+)
+from benchmark.models import BenchmarkORM, DocumentORM, QuestionORM
 from infrastructure.blob_storage.blob import insert_blob
 
 _XLSX_COLUMNS = ("query", "answer", "filename", "file_url")
@@ -72,27 +77,35 @@ def _parse_xlsx_rows(data: bytes) -> list[tuple[str, str, str, str]]:
         wb.close()
 
 
-async def ingest_document(file: UploadFile, file_url: str, benchmark_id: UUID) -> Document:
+async def ingest_document(
+    file: UploadFile, file_url: str, benchmark_id: UUID
+) -> DocumentORM:
     benchmark = await get_benchmark(benchmark_id)
     raw = await file.read()
     blob_url = insert_blob(container_name=f"{benchmark.name}_{benchmark.created_at.strftime("%Y%m%d")}", blob_name=file.filename, blob_content=raw)
-    document = Document(name=file.filename, path=file.filename, url=file_url, benchmark_id=benchmark_id, blob_url=blob_url)
+    document = DocumentORM(
+        name=file.filename,
+        path=file.filename,
+        url=file_url,
+        benchmark_id=benchmark_id,
+        blob_url=blob_url,
+    )
     await insert_document(document)
     return document
 
 
-async def ingest_benchmark(file: UploadFile, benchmark_id: UUID) -> List[Question]:
+async def ingest_benchmark(file: UploadFile, benchmark_id: UUID) -> List[QuestionORM]:
     benchmark = await get_benchmark(benchmark_id)
     if benchmark is None:
         raise ValueError(f"Benchmark {benchmark_id} not found")
     raw = await file.read()
     rows = _parse_xlsx_rows(raw)
-    questions: list[Question] = []
+    questions: list[QuestionORM] = []
     for i, (query, answer, filename, file_url) in enumerate(rows, start=2):
         doc = await find_document_by_name_and_url(filename, file_url, benchmark_id)
         if doc is None:
             raise DocumentNotFoundError(i, filename, file_url)
-        q = Question(
+        q = QuestionORM(
             query=query,
             answer=answer,
             document_id=doc.id,

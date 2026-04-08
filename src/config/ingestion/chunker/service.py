@@ -9,10 +9,10 @@ from langchain_text_splitters import (
 )
 
 from config.ingestion.chunker.base import BaseChunker
-from config.ingestion.chunker.models import ChunkerConfig
+from config.ingestion.chunker.models import ChunkerConfigORM
 from config.ingestion.chunker.repository import get_chunker_repository
-from config.ingestion.chunker.schemas import ChunkerConfigSchema
-from core.models import Chunk
+from config.ingestion.chunker.schemas import ChunkerConfig, ChunkerConfigSchema
+from core.models import ChunkORM
 
 _SPLITTER_BUILDERS: dict[str, Callable[..., TextSplitter]] = {
     "character": CharacterTextSplitter,
@@ -34,10 +34,12 @@ class LangChainChunker(BaseChunker):
         super().__init__(chunk_size, overlap_size)
         self._splitter = splitter
 
-    def extract_chunks(self, text: str, scan_id: UUID, chunker_id: UUID) -> list[Chunk]:
+    def extract_chunks(
+        self, text: str, scan_id: UUID, chunker_id: UUID
+    ) -> list[ChunkORM]:
         docs = self._splitter.create_documents([text])
         return [
-            Chunk(
+            ChunkORM(
                 id=uuid4(),
                 scan_id=scan_id,
                 chunker_id=chunker_id,
@@ -73,10 +75,14 @@ async def resolve_chunker(chunker: ChunkerConfigSchema) -> ChunkerConfig:
     repository = get_chunker_repository()
     chunker_object = await repository.get_chunker_by_config(chunker)
     if chunker_object:
-        return chunker_object
-    return await repository.insert_chunker_config(chunker)
+        return ChunkerConfig.model_validate(chunker_object)
+    created = await repository.insert_chunker_config(chunker)
+    return ChunkerConfig.model_validate(created)
 
 
 async def get_chunker_by_id(chunker_id: UUID) -> ChunkerConfig:
     repository = get_chunker_repository()
-    return await repository.get_chunker_by_id(chunker_id)
+    obj = await repository.get_chunker_by_id(chunker_id)
+    if obj is None:
+        raise ValueError(f"Chunker config {chunker_id} not found")
+    return ChunkerConfig.model_validate(obj)

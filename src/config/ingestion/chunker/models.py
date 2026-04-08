@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from infrastructure.database.base import Base
 
 
-class ChunkerConfig(Base):
+class ChunkerConfigORM(Base):
     __tablename__ = "chunker_configs"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -15,5 +15,5 @@ class ChunkerConfig(Base):
     chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
     overlap_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    rag_configs: Mapped[list["RAGConfig"]] = relationship(back_populates="chunker")
-    chunks: Mapped[list["Chunk"]] = relationship(back_populates="chunker")
+    rag_configs: Mapped[list["RAGConfigORM"]] = relationship(back_populates="chunker")
+    chunks: Mapped[list["ChunkORM"]] = relationship(back_populates="chunker")

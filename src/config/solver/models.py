@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from infrastructure.database.base import Base
 
 
-class SolverConfig(Base):
+class SolverConfigORM(Base):
     __tablename__ = "solver_configs"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -18,7 +18,7 @@ class SolverConfig(Base):
     hybrid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     strategy: Mapped[str] = mapped_column(String, nullable=False, default="")
 
-    rag_configs: Mapped[list["RAGConfig"]] = relationship(back_populates="solver")
+    rag_configs: Mapped[list["RAGConfigORM"]] = relationship(back_populates="solver")
 
     # Keep a lightweight runtime type hint for call sites that used Literal before.
     RerankingStrategy = Literal["llm", "semantic"]

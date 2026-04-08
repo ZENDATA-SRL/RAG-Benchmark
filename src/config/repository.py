@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from config.models import RAGConfig
+from config.models import RAGConfigORM
 from infrastructure.database.db import get_sessionmaker
 
 from sqlalchemy import select
@@ -14,24 +14,24 @@ class RAGRepository:
         embedder_id: UUID,
         llm_id: UUID,
         solver_id: UUID,
-    ) -> RAGConfig | None:
+    ) -> RAGConfigORM | None:
         SessionLocal = get_sessionmaker()
         async with SessionLocal() as session:
             stmt = (
-                select(RAGConfig)
-                .where(RAGConfig.ocr_id == ocr_id)
-                .where(RAGConfig.chunker_id == chunker_id)
-                .where(RAGConfig.embedder_id == embedder_id)
-                .where(RAGConfig.llm_id == llm_id)
-                .where(RAGConfig.solver_id == solver_id)
+                select(RAGConfigORM)
+                .where(RAGConfigORM.ocr_id == ocr_id)
+                .where(RAGConfigORM.chunker_id == chunker_id)
+                .where(RAGConfigORM.embedder_id == embedder_id)
+                .where(RAGConfigORM.llm_id == llm_id)
+                .where(RAGConfigORM.solver_id == solver_id)
                 .limit(1)
             )
             return await session.scalar(stmt)
 
-    async def get_rag_config_by_id(self, rag_config_id: UUID) -> RAGConfig | None:
+    async def get_rag_config_by_id(self, rag_config_id: UUID) -> RAGConfigORM | None:
         SessionLocal = get_sessionmaker()
         async with SessionLocal() as session:
-            return await session.get(RAGConfig, rag_config_id)
+            return await session.get(RAGConfigORM, rag_config_id)
 
     async def insert_rag_config(
         self,
@@ -40,10 +40,10 @@ class RAGRepository:
         embedder_id: UUID,
         llm_id: UUID,
         solver_id: UUID,
-    ) -> RAGConfig:
+    ) -> RAGConfigORM:
         SessionLocal = get_sessionmaker()
         async with SessionLocal() as session:
-            obj = RAGConfig(
+            obj = RAGConfigORM(
                 ocr_id=ocr_id,
                 chunker_id=chunker_id,
                 embedder_id=embedder_id,

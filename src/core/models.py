@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from infrastructure.database.base import Base
 
 
-class Scan(Base):
+class ScanORM(Base):
     __tablename__ = "scans"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -19,12 +19,12 @@ class Scan(Base):
     )
     text: Mapped[str] = mapped_column(String, nullable=False)
 
-    ocr: Mapped["OCRConfig"] = relationship()
-    document: Mapped["Document"] = relationship(back_populates="scans")
-    chunks: Mapped[list["Chunk"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
+    ocr: Mapped["OCRConfigORM"] = relationship()
+    document: Mapped["DocumentORM"] = relationship(back_populates="scans")
+    chunks: Mapped[list["ChunkORM"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
 
 
-class Chunk(Base):
+class ChunkORM(Base):
     __tablename__ = "chunks"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -38,14 +38,14 @@ class Chunk(Base):
     end_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
 
-    scan: Mapped["Scan"] = relationship(back_populates="chunks")
-    chunker: Mapped["ChunkerConfig"] = relationship(back_populates="chunks")
-    embeddings: Mapped[list["Embedding"]] = relationship(
+    scan: Mapped["ScanORM"] = relationship(back_populates="chunks")
+    chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="chunks")
+    embeddings: Mapped[list["EmbeddingORM"]] = relationship(
         back_populates="chunk", cascade="all, delete-orphan"
     )
 
 
-class Embedding(Base):
+class EmbeddingORM(Base):
     __tablename__ = "embeddings"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -58,5 +58,5 @@ class Embedding(Base):
     text: Mapped[str] = mapped_column(String, nullable=False)
     vectors: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
 
-    chunk: Mapped["Chunk"] = relationship(back_populates="embeddings")
-    embedder: Mapped["EmbeddingConfig"] = relationship(back_populates="embeddings")
+    chunk: Mapped["ChunkORM"] = relationship(back_populates="embeddings")
+    embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="embeddings")

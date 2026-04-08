@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from infrastructure.database.base import Base
 
 
-class RAGConfig(Base):
+class RAGConfigORM(Base):
     __tablename__ = "rag_configs"
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -38,8 +38,8 @@ class RAGConfig(Base):
         nullable=False,
     )
 
-    ocr: Mapped["OCRConfig"] = relationship(back_populates="rag_configs")
-    chunker: Mapped["ChunkerConfig"] = relationship(back_populates="rag_configs")
-    embedder: Mapped["EmbeddingConfig"] = relationship(back_populates="rag_configs")
-    llm: Mapped["LLMConfig"] = relationship(back_populates="rag_configs")
-    solver: Mapped["SolverConfig"] = relationship(back_populates="rag_configs")
+    ocr: Mapped["OCRConfigORM"] = relationship(back_populates="rag_configs")
+    chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="rag_configs")
+    embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="rag_configs")
+    llm: Mapped["LLMConfigORM"] = relationship(back_populates="rag_configs")
+    solver: Mapped["SolverConfigORM"] = relationship(back_populates="rag_configs")

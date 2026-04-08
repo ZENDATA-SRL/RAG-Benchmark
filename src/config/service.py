@@ -4,9 +4,9 @@ from config.ingestion.chunker.service import resolve_chunker
 from config.ingestion.embedder.service import resolve_embedder
 from config.ingestion.ocr.service import resolve_ocr
 from config.llms.service import resolve_llm
-from config.models import RAGConfig
+from config.models import RAGConfigORM
 from config.repository import get_rag_repository
-from config.schemas import RAGConfigSchema
+from config.schemas import RAGConfig, RAGConfigSchema
 from config.solver.service import resolve_solver
 
 
@@ -26,7 +26,7 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         solver_id=solver.id,
     )
     if rag_config:
-        return rag_config
+        return RAGConfig.model_validate(rag_config)
     rag_config = await repository.insert_rag_config(
         ocr_id=ocr.id,
         chunker_id=chunker.id,
@@ -34,9 +34,12 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         llm_id=llm.id,
         solver_id=solver.id,
     )
-    return rag_config
+    return RAGConfig.model_validate(rag_config)
 
 
 async def get_rag_config_by_id(rag_config_id: UUID) -> RAGConfig:
     repository = get_rag_repository()
-    return await repository.get_rag_config_by_id(rag_config_id)
+    obj = await repository.get_rag_config_by_id(rag_config_id)
+    if obj is None:
+        raise ValueError(f"RAG config {rag_config_id} not found")
+    return RAGConfig.model_validate(obj)
