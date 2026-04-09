@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.models import AnswerORM
 from src.infrastructure.database.base import Base
 
 
@@ -16,14 +16,19 @@ class DatasetORM(Base):
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
-    documents: Mapped[list["DocumentORM"]] = relationship(
+    documents: Mapped[list["DocumentORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="dataset", cascade="all, delete-orphan"
-    )  # noqa: F821  # type: ignore[name-defined]
-    questions: Mapped[list["QuestionORM"]] = relationship(
+    )
+    questions: Mapped[list["QuestionORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="dataset", cascade="all, delete-orphan"
-    )  # noqa: F821  # type: ignore[name-defined]
+    )
+    experiments: Mapped[list["ExperimentORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="dataset", cascade="all, delete-orphan"
+    )
 
 
 class DocumentORM(Base):
@@ -73,79 +78,19 @@ class QuestionORM(Base):
 
     document: Mapped["DocumentORM"] = relationship(back_populates="questions")  # noqa: F821  # type: ignore[name-defined]
     dataset: Mapped["DatasetORM"] = relationship(back_populates="questions")  # noqa: F821  # type: ignore[name-defined]
-
-
-class ScanORM(Base):
-    __tablename__ = "scans"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    answers: Mapped[list["AnswerORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="question", cascade="all, delete-orphan"
     )
-    ocr_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("ocr_configs.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("documents.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    text: Mapped[str] = mapped_column(String, nullable=False)
-
-    ocr: Mapped["OCRConfigORM"] = relationship()  # noqa: F821  # type: ignore[name-defined]
-    document: Mapped["DocumentORM"] = relationship(back_populates="scans")  # noqa: F821  # type: ignore[name-defined]
-    chunks: Mapped[list["ChunkORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="scan", cascade="all, delete-orphan"
+    evaluations: Mapped[list["EvaluationORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="question", cascade="all, delete-orphan"
     )
 
 
-class ChunkORM(Base):
-    __tablename__ = "chunks"
+# Scan / chunk / embedding live in `src.core.models`.
+# Re-exported here for backwards compatibility and to ensure they are registered
+# on the shared SQLAlchemy `Base` metadata when `src.dataset.models` is imported.
+from src.core.models import ScanORM  # noqa: E402
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    scan_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("scans.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    chunker_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("chunker_configs.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
-    start_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    end_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    text: Mapped[str] = mapped_column(String, nullable=False)
-
-    scan: Mapped["ScanORM"] = relationship(back_populates="chunks")  # noqa: F821  # type: ignore[name-defined]
-    chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="chunks")  # noqa: F821  # type: ignore[name-defined]
-    embeddings: Mapped[list["EmbeddingORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="chunk", cascade="all, delete-orphan"
-    )
-
-
-class EmbeddingORM(Base):
-    __tablename__ = "embeddings"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    chunk_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("chunks.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    embedder_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("embedding_configs.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
-    text: Mapped[str] = mapped_column(String, nullable=False)
-    vectors: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-
-    chunk: Mapped["ChunkORM"] = relationship(back_populates="embeddings")  # noqa: F821  # type: ignore[name-defined]
-    embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="embeddings")  # noqa: F821  # type: ignore[name-defined]
-
+# Ensure eval models are registered on the shared SQLAlchemy `Base` registry
+# when `src.dataset.models` is imported directly.
+from src.evals.models import EvaluationORM  # noqa: E402,F401

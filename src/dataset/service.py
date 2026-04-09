@@ -7,11 +7,8 @@ from fastapi import UploadFile
 from openpyxl import load_workbook
 
 from src.dataset.models import (
-    ChunkORM,
     DocumentORM,
-    EmbeddingORM,
     QuestionORM,
-    ScanORM,
 )
 from src.dataset.repository import (
     find_document_by_name_and_url,
@@ -21,26 +18,8 @@ from src.dataset.repository import (
     insert_document,
     insert_question,
 )
-from src.dataset.repository import (
-    get_chunks as get_chunks_orm,
-)
-from src.dataset.repository import (
-    get_embeddings as get_embeddings_orm,
-)
-from src.dataset.repository import (
-    get_scan as get_scan_orm,
-)
-from src.dataset.repository import (
-    insert_chunks as insert_chunks_orm,
-)
-from src.dataset.repository import (
-    insert_embeddings as insert_embeddings_orm,
-)
-from src.dataset.repository import (
-    insert_scan as insert_scan_orm,
-)
-from src.dataset.schemas import Chunk, Embedding, Scan
 from src.infrastructure.blob_storage.blob import insert_blob
+
 
 _XLSX_COLUMNS = ("query", "answer", "filename", "file_url")
 _DOCUMENTS_XLSX_COLUMNS = ("file_name", "file_url")
@@ -159,7 +138,9 @@ def _upload_file_from_bytes(*, filename: str, content: bytes) -> UploadFile:
     return UploadFile(filename=filename, file=BytesIO(content))
 
 
-async def ingest_documents_from_xlsx(file: UploadFile, dataset_id: UUID) -> list[DocumentORM]:
+async def ingest_documents_from_xlsx(
+    file: UploadFile, dataset_id: UUID
+) -> list[DocumentORM]:
     dataset = await get_dataset(dataset_id)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
@@ -179,10 +160,14 @@ async def ingest_documents_from_xlsx(file: UploadFile, dataset_id: UUID) -> list
                 resp = await client.get(file_url)
                 resp.raise_for_status()
             except httpx.HTTPError as e:
-                raise ValueError(f"Row {i}: failed to download {file_url!r}: {e}") from e
+                raise ValueError(
+                    f"Row {i}: failed to download {file_url!r}: {e}"
+                ) from e
 
             upload = _upload_file_from_bytes(filename=file_name, content=resp.content)
-            doc = await ingest_document(file=upload, file_url=file_url, dataset_id=dataset_id)
+            doc = await ingest_document(
+                file=upload, file_url=file_url, dataset_id=dataset_id
+            )
             docs.append(doc)
 
     return docs
@@ -202,7 +187,9 @@ async def get_questions(dataset_id: UUID) -> list[QuestionORM]:
     return await get_questions_by_dataset(dataset_id)
 
 
-async def ingest_document(file: UploadFile, file_url: str, dataset_id: UUID) -> DocumentORM:
+async def ingest_document(
+    file: UploadFile, file_url: str, dataset_id: UUID
+) -> DocumentORM:
     dataset = await get_dataset(dataset_id)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
@@ -223,7 +210,9 @@ async def ingest_document(file: UploadFile, file_url: str, dataset_id: UUID) -> 
     return document
 
 
-async def ingest_dataset_questions(file: UploadFile, dataset_id: UUID) -> List[QuestionORM]:
+async def ingest_dataset_questions(
+    file: UploadFile, dataset_id: UUID
+) -> List[QuestionORM]:
     dataset = await get_dataset(dataset_id)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
@@ -244,37 +233,3 @@ async def ingest_dataset_questions(file: UploadFile, dataset_id: UUID) -> List[Q
         questions.append(q)
 
     return questions
-
-
-async def get_scan(ocr_id: UUID, document_id: UUID) -> Scan | None:
-    obj = await get_scan_orm(ocr_id=ocr_id, document_id=document_id)
-    if obj is None:
-        return None
-    return Scan.model_validate(obj)
-
-
-async def insert_scan(scan: ScanORM) -> None:
-    await insert_scan_orm(scan)
-
-
-async def get_chunks(chunker_id: UUID, scan_id: UUID) -> list[Chunk]:
-    rows = await get_chunks_orm(chunker_id=chunker_id, scan_id=scan_id)
-    return [Chunk.model_validate(r) for r in rows]
-
-
-async def insert_chunks(chunker_id: UUID, chunks: list[ChunkORM]) -> None:
-    await insert_chunks_orm(chunker_id=chunker_id, chunks=chunks)
-
-
-async def get_embeddings(
-    embedder_id: UUID, chunker_id: UUID, scan_id: UUID
-) -> list[Embedding]:
-    rows = await get_embeddings_orm(
-        embedder_id=embedder_id, chunker_id=chunker_id, scan_id=scan_id
-    )
-    return [Embedding.model_validate(r) for r in rows]
-
-
-async def insert_embeddings(embeddings: list[EmbeddingORM]) -> None:
-    await insert_embeddings_orm(embeddings=embeddings)
-

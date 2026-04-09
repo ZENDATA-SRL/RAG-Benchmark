@@ -11,7 +11,7 @@ from langchain_text_splitters import (
 from src.config.ingestion.chunker.base import BaseChunker
 from src.config.ingestion.chunker.repository import get_chunker_repository
 from src.config.ingestion.chunker.schemas import ChunkerConfig, ChunkerConfigSchema
-from src.dataset.schemas import Chunk
+from src.core.schemas import Chunk
 
 _SPLITTER_BUILDERS: dict[str, Callable[..., TextSplitter]] = {
     "character": CharacterTextSplitter,
@@ -33,9 +33,7 @@ class LangChainChunker(BaseChunker):
         super().__init__(chunk_size, overlap_size)
         self._splitter = splitter
 
-    def extract_chunks(
-        self, text: str, scan_id: UUID, chunker_id: UUID
-    ) -> list[Chunk]:
+    def extract_chunks(self, text: str, scan_id: UUID, chunker_id: UUID) -> list[Chunk]:
         docs = self._splitter.create_documents([text])
         return [
             Chunk(

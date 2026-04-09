@@ -7,6 +7,7 @@ from pdf2image import convert_from_bytes
 from PIL import Image
 
 from src.config.ingestion.ocr.base import BaseOCR
+from src.config.llms.schemas import LLMConfigSchema
 from src.config.llms.service import build_llm
 
 _TEXT_EXTRACTION_PROMPT = (
@@ -29,7 +30,9 @@ class GeminiOCR(BaseOCR):
 
     def _get_llm(self) -> BaseChatModel:
         if self._llm is None:
-            self._llm = build_llm(provider=self._provider, model=self._model)
+            self._llm = build_llm(
+                LLMConfigSchema(provider=self._provider, model=self._model)
+            )
         return self._llm
 
     async def extract_text(self, document_bytes: bytes) -> str:

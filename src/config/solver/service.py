@@ -1,5 +1,8 @@
 from uuid import UUID
 
+from src.config.solver.availables.planned_multihop import PlannedMultihopSolver
+from src.config.solver.availables.single_shot import OneShotSolver
+from src.config.solver.base import BaseSolver
 from src.config.solver.repository import get_solver_repository
 from src.config.solver.schemas import SolverConfig, SolverConfigSchema
 
@@ -19,3 +22,11 @@ async def get_solver_by_id(solver_id: UUID) -> SolverConfig:
     if obj is None:
         raise ValueError(f"Solver config {solver_id} not found")
     return SolverConfig.model_validate(obj)
+
+
+def build_solver(solver: SolverConfigSchema) -> BaseSolver:
+    if solver.strategy == "single_shot":
+        return OneShotSolver(solver)
+    elif solver.strategy == "planned_multihop":
+        return PlannedMultihopSolver(solver)
+    raise ValueError(f"Solver strategy {solver.strategy} not found")

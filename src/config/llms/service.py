@@ -1,18 +1,17 @@
+import os
 from uuid import UUID
 
-import os
-
+from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
-from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI
 
 from src.config.llms.repository import get_llm_repository
 from src.config.llms.schemas import LLMConfig, LLMConfigSchema
 
 
-def build_llm(provider: str, model: str) -> BaseChatModel:
-    if provider == "openai":
+def build_llm(llm_config: LLMConfigSchema) -> BaseChatModel:
+    if llm_config.provider == "openai":
         # Treat "openai" as Azure OpenAI for this project.
         load_dotenv(override=True)
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
@@ -27,10 +26,10 @@ def build_llm(provider: str, model: str) -> BaseChatModel:
         return AzureChatOpenAI(
             azure_deployment=azure_deployment,
             api_version=api_version,
-            model=model,
+            model=llm_config.model,
         )
 
-    return init_chat_model(model=model, model_provider=provider)
+    return init_chat_model(model=llm_config.model, model_provider=llm_config.provider)
 
 
 async def resolve_llm(llm: LLMConfigSchema) -> LLMConfig:

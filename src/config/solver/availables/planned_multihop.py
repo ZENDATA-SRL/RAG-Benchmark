@@ -7,14 +7,15 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
-from src.dataset.models import QuestionORM as Question
-from config.solver.base import BaseSolver
-from config.solver.prompts import (
+from src.config.solver.base import BaseSolver
+from src.config.solver.prompts import (
     PLANNED_MULTIHOP_EXECUTION_PROMPT,
     PLANNED_MULTIHOP_PLANNING_PROMPT,
 )
-from config.solver.schemas import SolverConfigSchema
-from infrastructure.vectordb.azure_search import retrieve_chunks
+from src.config.solver.schemas import SolverConfigSchema
+from src.core.schemas import Chunk
+from src.dataset.models import QuestionORM as Question
+from src.infrastructure.vectordb.azure_search import retrieve_chunks
 
 
 class VectorDbSubqueryPlan(BaseModel):
@@ -30,6 +31,11 @@ class PlannedMultihopState(TypedDict, total=False):
     question: str
     subqueries: list[str]
     answer: str
+
+
+class PlannedMultihopSolverResult(TypedDict, total=False):
+    answer: str
+    chunks: list[Chunk]
 
 
 def _normalize_message_content(content: object) -> str:
@@ -48,7 +54,7 @@ class PlannedMultihopSolver(BaseSolver):
         llm: BaseChatModel,
         embedder: Embeddings,
         solver_config: SolverConfigSchema,
-    ) -> str:
+    ) -> tuple[str, list[Chunk]]:
         planner_llm = llm.with_structured_output(VectorDbSubqueryPlan)
 
         async def planning(state: PlannedMultihopState) -> dict[str, list[str]]:
@@ -66,11 +72,14 @@ class PlannedMultihopSolver(BaseSolver):
                 queries = [state["question"]]
             return {"subqueries": queries}
 
-        async def execution(state: PlannedMultihopState) -> dict[str, str]:
+        async def execution(
+            state: PlannedMultihopState,
+        ) -> PlannedMultihopSolverResult:
             subqueries = state.get("subqueries") or [state["question"]]
             passages: list[str] = []
             seen: set[str] = set()
 
+            total_chunks: list[Chunk] = []
             for sub_q in subqueries:
                 chunks = retrieve_chunks(
                     sub_q,
@@ -79,6 +88,7 @@ class PlannedMultihopSolver(BaseSolver):
                     solver_config.hybrid,
                     embedder,
                 )
+
                 if asyncio.iscoroutine(chunks):
                     chunks = await chunks
 
@@ -89,6 +99,7 @@ class PlannedMultihopSolver(BaseSolver):
                         if isinstance(text, str) and text.strip():
                             t = text.strip()
                             if t not in seen:
+                                total_chunks.append(doc)
                                 seen.add(t)
                                 passages.append(t)
 
@@ -99,7 +110,7 @@ class PlannedMultihopSolver(BaseSolver):
             )
             response = await llm.ainvoke([HumanMessage(content=prompt)])
             text = _normalize_message_content(response.content)
-            return {"answer": str(text).strip()}
+            return {"answer": str(text).strip(), "chunks": total_chunks}
 
         graph = StateGraph(PlannedMultihopState)
         graph.add_node("planning", planning)
@@ -110,4 +121,4 @@ class PlannedMultihopSolver(BaseSolver):
 
         app = graph.compile()
         final = await app.ainvoke({"question": question.query})
-        return str(final.get("answer", "")).strip()
+        return final["answer"], final["chunks"]

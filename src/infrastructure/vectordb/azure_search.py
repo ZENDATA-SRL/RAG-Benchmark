@@ -9,8 +9,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from src.config.solver.prompts import HYDE_PROMPT
 from src.dataset.models import DocumentORM as Document
-from config.solver.prompts import HYDE_PROMPT
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ async def retrieve_chunks(
     llm: BaseChatModel,
     query: str,
     top_k: int,
-    hyde: bool, # hypothetical document embeddings
+    hyde: bool,  # hypothetical document embeddings
     hybrid: bool,
     reranking: Literal["llm", "semantic"],
     dataset_id: UUID,
@@ -28,12 +28,14 @@ async def retrieve_chunks(
     embedder_id: UUID,
     ocr_id: UUID,
 ) -> list[Document]:
-    search_client = get_azure_search_client()   
+    search_client = get_azure_search_client()
     top = top_k
     # TODO: build vector DB filter (chunks from dataset docs with chosen configs)
 
     if hyde:
-        hyde = await llm.ainvoke([HumanMessage(content=HYDE_PROMPT.format(query=query))])
+        hyde = await llm.ainvoke(
+            [HumanMessage(content=HYDE_PROMPT.format(query=query))]
+        )
         embeddings = await embedder.aembed_query(hyde)
     if hybrid:
         chunks = search_client.search(
@@ -42,11 +44,12 @@ async def retrieve_chunks(
             top=top,
         )
     else:
-        chunks = search_client.search(vector_queries=[VectorizedQuery(vector=embeddings)], top=top)
+        chunks = search_client.search(
+            vector_queries=[VectorizedQuery(vector=embeddings)], top=top
+        )
 
-    #TODO: implement reranker
+    # TODO: implement reranker
     return chunks
-
 
 
 def get_azure_search_client() -> SearchClient:

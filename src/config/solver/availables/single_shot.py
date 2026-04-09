@@ -1,13 +1,13 @@
-
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from src.config.solver.base import BaseSolver
+from src.config.solver.prompts import ONESHOT_SOLVER_PROMPT
+from src.config.solver.schemas import SolverConfigSchema
+from src.core.schemas import Chunk
 from src.dataset.models import QuestionORM as Question
-from config.solver.base import BaseSolver
-from config.solver.prompts import ONESHOT_SOLVER_PROMPT
-from config.solver.schemas import SolverConfigSchema
-from infrastructure.vectordb.azure_search import retrieve_chunks
+from src.infrastructure.vectordb.azure_search import retrieve_chunks
 
 
 class OneShotSolver(BaseSolver):
@@ -17,19 +17,19 @@ class OneShotSolver(BaseSolver):
         llm: BaseChatModel,
         embedder: Embeddings,
         solver_config: SolverConfigSchema,
-    ) -> str:
+    ) -> tuple[str, list[Chunk]]:
         chunks = retrieve_chunks(
             question.query,
             solver_config.top_k,
             solver_config.reranking,
-            solver_config.hybrid, 
-            embedder
+            solver_config.hybrid,
+            embedder,
         )
 
         passages: list[str] = []
         for doc in chunks:
             if isinstance(doc, dict):
-                key = "azuz" #TODO: Devo cambiare il tipo dove ho messo i vettori in base a come ho configurato il vector db
+                key = "azuz"  # TODO: Devo cambiare il tipo dove ho messo i vettori in base a come ho configurato il vector db
                 text = doc.get(key)
                 if isinstance(text, str) and text.strip():
                     passages.append(text.strip())
@@ -45,5 +45,4 @@ class OneShotSolver(BaseSolver):
                 for part in text
             )
 
-        
-        return str(text).strip()
+        return str(text).strip(), chunks
