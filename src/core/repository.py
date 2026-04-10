@@ -98,6 +98,19 @@ async def insert_experiment(experiment: ExperimentORM) -> Experiment:
         return Experiment.model_validate(experiment)
 
 
+async def update_experiment(experiment: Experiment) -> Experiment:
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        orm = await session.get(ExperimentORM, experiment.id)
+        if orm is None:
+            raise ValueError(f"Experiment {experiment.id} not found")
+        orm.dataset_run_id = experiment.dataset_run_id
+        orm.langfuse_experiment_id = experiment.langfuse_experiment_id
+        await session.commit()
+        await session.refresh(orm)
+        return Experiment.model_validate(orm)
+
+
 async def get_answers(experiment_id: UUID) -> list[AnswerORM]:
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:

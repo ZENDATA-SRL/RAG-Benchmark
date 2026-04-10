@@ -4,6 +4,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import UploadFile
+from langfuse import get_client
 from openpyxl import load_workbook
 
 from src.dataset.models import (
@@ -19,7 +20,6 @@ from src.dataset.repository import (
     insert_question,
 )
 from src.infrastructure.blob_storage.blob import insert_blob
-
 
 _XLSX_COLUMNS = ("query", "answer", "filename", "file_url")
 _DOCUMENTS_XLSX_COLUMNS = ("file_name", "file_url")
@@ -218,6 +218,9 @@ async def ingest_dataset_questions(
         raise ValueError(f"Dataset {dataset_id} not found")
     raw = await file.read()
     rows = _parse_xlsx_rows(raw)
+    dataset_name = dataset.name
+    langfuse_client = get_client()
+    langfuse_client.create_dataset(name=dataset_name)
     questions: list[QuestionORM] = []
     for i, (query, answer, filename, file_url) in enumerate(rows, start=2):
         doc = await find_document_by_name_and_url(filename, file_url, dataset_id)
@@ -231,5 +234,11 @@ async def ingest_dataset_questions(
         )
         await insert_question(q)
         questions.append(q)
+        langfuse_client.create_dataset_item(
+            dataset_name=dataset_name,
+            input=query,
+            expected_output=answer,
+            metadata={"id": q.id},
+        )
 
     return questions

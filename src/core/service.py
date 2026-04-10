@@ -6,6 +6,8 @@
 from datetime import datetime
 from uuid import UUID
 
+from langfuse import get_client
+
 from src.config.ingestion.chunker.service import build_chunker, get_chunker_by_id
 from src.config.ingestion.embedder.service import build_embedder, get_embedder_by_id
 from src.config.ingestion.ocr.service import build_ocr, get_ocr_by_id
@@ -13,7 +15,7 @@ from src.config.llms.service import build_llm
 from src.config.schemas import RAGConfigSchema
 from src.config.service import resolve_rag_config
 from src.config.solver.service import build_solver
-from src.core.models import ChunkORM, EmbeddingORM, ScanORM
+from src.core.models import AnswerORM, ChunkORM, EmbeddingORM, ExperimentORM, ScanORM
 from src.core.repository import (
     get_chunks as get_chunks_orm,
 )
@@ -29,6 +31,7 @@ from src.core.repository import (
 from src.core.repository import (
     insert_answer,
     insert_experiment,
+    update_experiment,
 )
 from src.core.repository import (
     insert_chunks as insert_chunks_orm,
@@ -39,8 +42,8 @@ from src.core.repository import (
 from src.core.repository import (
     insert_scan as insert_scan_orm,
 )
-from src.core.schemas import Answer, Chunk, Embedding, Experiment, Scan
-from src.dataset.repository import get_dataset, get_document
+from src.core.schemas import Chunk, Embedding, Experiment, Scan
+from src.dataset.repository import get_dataset, get_document, get_question
 from src.infrastructure.blob_storage.blob import get_blob_from_url
 
 
@@ -150,29 +153,50 @@ async def run_process(rag_config_schema: RAGConfigSchema, dataset_id: UUID):
 async def run_experiment(
     rag_config_schema: RAGConfigSchema, dataset_id: UUID, experiment_name: str
 ):
-    dataset = await get_dataset(dataset_id)
-    if dataset is None:
+    dataset_obj = await get_dataset(dataset_id)
+    if dataset_obj is None:
         raise ValueError(f"Dataset {dataset_id} not found")
+    rag_config = await resolve_rag_config(rag_config_schema)
     solver = build_solver(rag_config_schema.solver)
 
     experiment = await insert_experiment(
-        Experiment(
+        ExperimentORM(
             dataset_id=dataset_id,
+            ragconfig_id=rag_config.id,
             name=experiment_name,
             created_at=datetime.now(),
         )
     )
-    for question in dataset.questions:
+
+    async def task_function_call(*, item, **kwargs):
+        question_id = item.metadata["id"]
+        question = await get_question(question_id)
+        if question is None:
+            raise ValueError(f"Question {question_id} not found")
         answer_text = await solver.answer_question(
             question=question,
             llm=build_llm(rag_config_schema.llm),
             embedder=build_embedder(rag_config_schema.embedder),
             solver_config=rag_config_schema.solver,
         )
-        answer = Answer(
+        answer = AnswerORM(
             experiment_id=experiment.id,
             question_id=question.id,
             answer=answer_text,
         )
+
         await insert_answer(answer)
+        return answer_text
+
+    langfuse_client = get_client()
+    dataset = langfuse_client.get_dataset(dataset_obj.name)
+    if dataset is None:
+        raise ValueError(f"Dataset {dataset_obj.name} - {dataset_id} not found")
+    result = dataset.run_experiment(
+        name=experiment_name, task=task_function_call, max_concurrency=1
+    )
+    experiment.dataset_run_id = result.dataset_run_id
+    experiment.langfuse_experiment_id = result.experiment_id
+    await update_experiment(experiment)
+
     return experiment

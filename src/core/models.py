@@ -101,12 +101,28 @@ class ExperimentORM(Base):
         ForeignKey("datasets.id", ondelete="CASCADE"),
         nullable=False,
     )
+    ragconfig_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("rag_configs.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
+    dataset_run_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    langfuse_experiment_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     dataset: Mapped["DatasetORM"] = relationship(back_populates="experiments")  # noqa: F821  # type: ignore[name-defined]
+    rag_config: Mapped["RAGConfigORM"] = relationship()  # noqa: F821  # type: ignore[name-defined]
     answers: Mapped[list["AnswerORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="experiment", cascade="all, delete-orphan"
+    )
+    rag_evaluations: Mapped[list["RagEvaluationORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="experiment", cascade="all, delete-orphan"
+    )
+    langfuse_evaluation: Mapped["LangfuseEvaluationORM | None"] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="experiment",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
 
 
@@ -130,12 +146,8 @@ class AnswerORM(Base):
 
     experiment: Mapped["ExperimentORM"] = relationship(back_populates="answers")  # noqa: F821  # type: ignore[name-defined]
     question: Mapped["QuestionORM"] = relationship(back_populates="answers")  # noqa: F821  # type: ignore[name-defined]
-    evaluations: Mapped[list["EvaluationORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="answer", cascade="all, delete-orphan"
-    )
 
 
 # Ensure eval models are registered on the same SQLAlchemy `Base` registry
-# when `src.core.models` is imported directly (prevents relationship resolution
-# errors like "failed to locate a name ('EvaluationORM')").
-from src.evals.models import EvaluationORM  # noqa: E402,F401
+# when `src.core.models` is imported directly.
+from src.evals.models import LangfuseEvaluationORM, RagEvaluationORM  # noqa: E402,F401

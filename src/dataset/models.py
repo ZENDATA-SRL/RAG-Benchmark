@@ -81,9 +81,6 @@ class QuestionORM(Base):
     answers: Mapped[list["AnswerORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="question", cascade="all, delete-orphan"
     )
-    evaluations: Mapped[list["EvaluationORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="question", cascade="all, delete-orphan"
-    )
 
 
 # Scan / chunk / embedding live in `src.core.models`.
@@ -93,4 +90,4 @@ from src.core.models import ScanORM  # noqa: E402
 
 # Ensure eval models are registered on the shared SQLAlchemy `Base` registry
 # when `src.dataset.models` is imported directly.
-from src.evals.models import EvaluationORM  # noqa: E402,F401
+from src.evals.models import LangfuseEvaluationORM, RagEvaluationORM  # noqa: E402,F401

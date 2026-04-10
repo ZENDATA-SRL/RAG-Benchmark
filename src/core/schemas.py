@@ -39,7 +39,10 @@ class Experiment(BaseModel):
 
     id: UUID
     dataset_id: UUID
+    ragconfig_id: UUID
     name: str
+    dataset_run_id: str | None = None
+    langfuse_experiment_id: str | None = None
     created_at: datetime
 
 

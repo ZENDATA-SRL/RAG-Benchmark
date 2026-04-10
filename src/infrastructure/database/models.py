@@ -28,4 +28,4 @@ from src.dataset.models import (  # noqa: F401
 )
 
 # Evals models
-from src.evals.models import BenchmarkORM, EvaluationORM  # noqa: F401
+from src.evals.models import LangfuseEvaluationORM, RagEvaluationORM  # noqa: F401
