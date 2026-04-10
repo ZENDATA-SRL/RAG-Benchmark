@@ -39,6 +39,18 @@ async def find_document_by_name_and_url(
         return await session.scalar(stmt)
 
 
+async def find_document_by_name(name: str, dataset_id: UUID) -> DocumentORM | None:
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        stmt = (
+            select(DocumentORM)
+            .where(DocumentORM.name == name)
+            .where(DocumentORM.dataset_id == dataset_id)
+            .limit(1)
+        )
+        return await session.scalar(stmt)
+
+
 async def insert_document(document: DocumentORM) -> None:
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:

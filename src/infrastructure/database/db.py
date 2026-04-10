@@ -1,8 +1,16 @@
+import logging
 import os
 from collections.abc import AsyncIterator
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from dotenv import load_dotenv
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def get_database_url() -> str:
@@ -10,6 +18,10 @@ def get_database_url() -> str:
     load_dotenv(override=True)
     url = os.getenv("DATABASE_URL")
     if not url:
+        logger.error(
+            "db.config.missing_database_url",
+            extra={"event": "db.config.missing_database_url"},
+        )
         raise RuntimeError(
             "DATABASE_URL is not set. Expected something like "
             "'postgresql+asyncpg://user:pass@host:5432/dbname'."
@@ -28,6 +40,10 @@ _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
+        logger.debug(
+            "db.engine.create",
+            extra={"event": "db.engine.create"},
+        )
         _engine = create_engine()
     return _engine
 
@@ -35,6 +51,10 @@ def get_engine() -> AsyncEngine:
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     global _sessionmaker
     if _sessionmaker is None:
+        logger.debug(
+            "db.sessionmaker.create",
+            extra={"event": "db.sessionmaker.create"},
+        )
         _sessionmaker = async_sessionmaker(
             bind=get_engine(),
             expire_on_commit=False,

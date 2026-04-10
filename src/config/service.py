@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from src.config.ingestion.chunker.service import resolve_chunker
@@ -7,6 +8,8 @@ from src.config.llms.service import resolve_llm
 from src.config.repository import get_rag_repository
 from src.config.schemas import RAGConfig, RAGConfigSchema
 from src.config.solver.service import resolve_solver
+
+logger = logging.getLogger(__name__)
 
 
 async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
@@ -25,7 +28,15 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         solver_id=solver.id,
     )
     if rag_config:
-        return RAGConfig.model_validate(rag_config)
+        out = RAGConfig.model_validate(rag_config)
+        logger.debug(
+            "config.resolve_rag_config.reused",
+            extra={
+                "event": "config.resolve_rag_config.reused",
+                "rag_config_id": str(out.id),
+            },
+        )
+        return out
     rag_config = await repository.insert_rag_config(
         ocr_id=ocr.id,
         chunker_id=chunker.id,
@@ -33,7 +44,15 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         llm_id=llm.id,
         solver_id=solver.id,
     )
-    return RAGConfig.model_validate(rag_config)
+    out = RAGConfig.model_validate(rag_config)
+    logger.debug(
+        "config.resolve_rag_config.inserted",
+        extra={
+            "event": "config.resolve_rag_config.inserted",
+            "rag_config_id": str(out.id),
+        },
+    )
+    return out
 
 
 async def get_rag_config_by_id(rag_config_id: UUID) -> RAGConfig:

@@ -1,6 +1,6 @@
-from uuid import UUID
-
+import logging
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -17,8 +17,10 @@ from src.dataset.service import (
     get_documents,
     get_questions,
     ingest_dataset_questions,
-    ingest_documents_from_xlsx,
+    ingest_documents_from_file,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dataset", tags=["dataset"])
 
@@ -27,6 +29,14 @@ router = APIRouter(prefix="/dataset", tags=["dataset"])
 async def create_dataset_route(payload: DatasetCreate) -> Dataset:
     obj = DatasetORM(name=payload.name, created_at=datetime.now(timezone.utc))
     await insert_dataset(obj)
+    logger.info(
+        "dataset.created",
+        extra={
+            "event": "dataset.created",
+            "dataset_id": str(obj.id),
+            "name": payload.name,
+        },
+    )
     return Dataset.model_validate(obj)
 
 
@@ -43,7 +53,18 @@ async def get_datasets_route():
 async def delete_dataset_route(dataset_id: UUID):
     deleted = await delete_dataset(dataset_id)
     if not deleted:
+        logger.warning(
+            "dataset.route.delete.not_found",
+            extra={
+                "event": "dataset.route.delete.not_found",
+                "dataset_id": str(dataset_id),
+            },
+        )
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+    logger.info(
+        "dataset.deleted",
+        extra={"event": "dataset.deleted", "dataset_id": str(dataset_id)},
+    )
     return {"deleted": True}
 
 
@@ -52,6 +73,14 @@ async def get_documents_route(dataset_id: UUID):
     try:
         docs = await get_documents(dataset_id)
     except ValueError as e:
+        logger.warning(
+            "dataset.route.documents.not_found",
+            extra={
+                "event": "dataset.route.documents.not_found",
+                "dataset_id": str(dataset_id),
+                "detail": str(e),
+            },
+        )
         raise HTTPException(status_code=404, detail=str(e)) from e
     return [
         {
@@ -70,6 +99,14 @@ async def get_questions_route(dataset_id: UUID):
     try:
         questions = await get_questions(dataset_id)
     except ValueError as e:
+        logger.warning(
+            "dataset.route.questions.not_found",
+            extra={
+                "event": "dataset.route.questions.not_found",
+                "dataset_id": str(dataset_id),
+                "detail": str(e),
+            },
+        )
         raise HTTPException(status_code=404, detail=str(e)) from e
     return [
         {
@@ -90,13 +127,44 @@ async def ingest_document_route(
 ):
     dataset = await get_dataset(dataset_id)
     if dataset is None:
+        logger.warning(
+            "dataset.route.ingest_documents.dataset_missing",
+            extra={
+                "event": "dataset.route.ingest_documents.dataset_missing",
+                "dataset_id": str(dataset_id),
+            },
+        )
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
+    logger.info(
+        "dataset.route.ingest_documents.start",
+        extra={
+            "event": "dataset.route.ingest_documents.start",
+            "dataset_id": str(dataset_id),
+            "upload_filename": file.filename,
+        },
+    )
     try:
-        docs = await ingest_documents_from_xlsx(file=file, dataset_id=dataset_id)
+        docs = await ingest_documents_from_file(file=file, dataset_id=dataset_id)
     except ValueError as e:
+        logger.warning(
+            "dataset.route.ingest_documents.bad_request",
+            extra={
+                "event": "dataset.route.ingest_documents.bad_request",
+                "dataset_id": str(dataset_id),
+                "detail": str(e),
+            },
+        )
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    logger.info(
+        "dataset.route.ingest_documents.done",
+        extra={
+            "event": "dataset.route.ingest_documents.done",
+            "dataset_id": str(dataset_id),
+            "inserted": len(docs),
+        },
+    )
     return {"inserted": len(docs), "document_ids": [d.id for d in docs]}
 
 
@@ -107,14 +175,53 @@ async def ingest_dataset_questions_route(
 ):
     dataset = await get_dataset(dataset_id)
     if dataset is None:
+        logger.warning(
+            "dataset.route.ingest_questions.dataset_missing",
+            extra={
+                "event": "dataset.route.ingest_questions.dataset_missing",
+                "dataset_id": str(dataset_id),
+            },
+        )
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
+    logger.info(
+        "dataset.route.ingest_questions.start",
+        extra={
+            "event": "dataset.route.ingest_questions.start",
+            "dataset_id": str(dataset_id),
+            "upload_filename": file.filename,
+        },
+    )
     try:
         questions = await ingest_dataset_questions(file=file, dataset_id=dataset_id)
     except DocumentNotFoundError as e:
+        logger.warning(
+            "dataset.route.ingest_questions.document_missing",
+            extra={
+                "event": "dataset.route.ingest_questions.document_missing",
+                "dataset_id": str(dataset_id),
+                "detail": str(e),
+            },
+        )
         raise HTTPException(status_code=400, detail=str(e)) from e
     except ValueError as e:
+        logger.warning(
+            "dataset.route.ingest_questions.bad_request",
+            extra={
+                "event": "dataset.route.ingest_questions.bad_request",
+                "dataset_id": str(dataset_id),
+                "detail": str(e),
+            },
+        )
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    logger.info(
+        "dataset.route.ingest_questions.done",
+        extra={
+            "event": "dataset.route.ingest_questions.done",
+            "dataset_id": str(dataset_id),
+            "inserted": len(questions),
+        },
+    )
     return {"inserted": len(questions), "question_ids": [q.id for q in questions]}
 

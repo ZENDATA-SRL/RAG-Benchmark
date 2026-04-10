@@ -3,6 +3,8 @@
 # I will load the config from db with the selected id and, with each field of the config I will instantiate the corresponding class
 
 
+import logging
+import time
 from datetime import datetime
 from uuid import UUID
 
@@ -46,6 +48,8 @@ from src.core.schemas import Chunk, Embedding, Experiment, Scan
 from src.dataset.repository import get_dataset, get_document, get_question
 from src.infrastructure.blob_storage.blob import get_blob_from_url
 
+logger = logging.getLogger(__name__)
+
 
 async def get_scan(ocr_id: UUID, document_id: UUID) -> Scan | None:
     obj = await get_scan_orm(ocr_id=ocr_id, document_id=document_id)
@@ -86,7 +90,30 @@ async def get_experiments() -> list[Experiment]:
 
 
 async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUID):
+    try:
+        await _do_process_ingestion(rag_config_schema, document_id)
+    except Exception:
+        logger.exception(
+            "core.process_ingestion.failed",
+            extra={
+                "event": "core.process_ingestion.failed",
+                "document_id": str(document_id),
+            },
+        )
+        raise
+
+
+async def _do_process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUID):
+    t0 = time.perf_counter()
     rag_config = await resolve_rag_config(rag_config_schema)
+    logger.debug(
+        "core.process_ingestion.start",
+        extra={
+            "event": "core.process_ingestion.start",
+            "document_id": str(document_id),
+            "rag_config_id": str(rag_config.id),
+        },
+    )
 
     ### TODO: Fix the redundant DB calls.
     ocr_config = await get_ocr_by_id(rag_config.ocr_id)
@@ -95,8 +122,11 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
     document = await get_document(document_id)
     document_bytes = await get_blob_from_url(document.blob_url)
 
+    ocr_ms: float | None = None
     scan = await get_scan(ocr_config.id, document_id)
+    scan_cache_hit = bool(scan)
     if not scan:
+        t_ocr = time.perf_counter()
         ocr = build_ocr(ocr_config)
         scan = ScanORM(
             ocr_id=ocr_config.id,
@@ -104,9 +134,31 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
             document_id=document_id,
         )
         await insert_scan(scan)
+        ocr_ms = round((time.perf_counter() - t_ocr) * 1000, 2)
+        logger.debug(
+            "core.process_ingestion.ocr_done",
+            extra={
+                "event": "core.process_ingestion.ocr_done",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+                "duration_ms": ocr_ms,
+            },
+        )
+    else:
+        logger.debug(
+            "core.process_ingestion.ocr_skip",
+            extra={
+                "event": "core.process_ingestion.ocr_skip",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+            },
+        )
 
+    ch_ms: float | None = None
     chunks = await get_chunks(chunker_config.id, scan.id)
+    chunk_cache_hit = bool(chunks)
     if not chunks:
+        t_ch = time.perf_counter()
         chunker = build_chunker(chunker_config)
         extracted: list[Chunk] = chunker.extract_chunks(
             scan.text, scan.id, chunker_config.id
@@ -123,11 +175,36 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
             for chunk in extracted
         ]
         await insert_chunks(chunker_config.id, chunks)
+        ch_ms = round((time.perf_counter() - t_ch) * 1000, 2)
+        logger.debug(
+            "core.process_ingestion.chunk_done",
+            extra={
+                "event": "core.process_ingestion.chunk_done",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+                "chunk_count": len(chunks),
+                "duration_ms": ch_ms,
+            },
+        )
+    else:
+        logger.debug(
+            "core.process_ingestion.chunk_skip",
+            extra={
+                "event": "core.process_ingestion.chunk_skip",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+                "chunk_count": len(chunks),
+            },
+        )
 
+    emb_ms: float | None = None
+    embedding_count: int
     embedded_chunks = await get_embeddings(
         embedder_config.id, chunker_config.id, scan.id
     )
+    embed_cache_hit = bool(embedded_chunks)
     if not embedded_chunks:
+        t_emb = time.perf_counter()
         embedder = build_embedder(embedder_config)
         embeddings = []
         for chunk in chunks:
@@ -140,14 +217,77 @@ async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUI
                 )
             )
         await insert_embeddings(embeddings)
+        emb_ms = round((time.perf_counter() - t_emb) * 1000, 2)
+        embedding_count = len(embeddings)
+        logger.debug(
+            "core.process_ingestion.embed_done",
+            extra={
+                "event": "core.process_ingestion.embed_done",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+                "embedding_count": embedding_count,
+                "duration_ms": emb_ms,
+            },
+        )
+    else:
+        embedding_count = len(embedded_chunks)
+        logger.debug(
+            "core.process_ingestion.embed_skip",
+            extra={
+                "event": "core.process_ingestion.embed_skip",
+                "document_id": str(document_id),
+                "scan_id": str(scan.id),
+                "embedding_count": embedding_count,
+            },
+        )
+
+    total_ms = round((time.perf_counter() - t0) * 1000, 2)
+    logger.debug(
+        "core.process_ingestion.complete",
+        extra={
+            "event": "core.process_ingestion.complete",
+            "document_id": str(document_id),
+            "rag_config_id": str(rag_config.id),
+            "scan_id": str(scan.id),
+            "duration_ms": total_ms,
+            "ocr_ms": ocr_ms,
+            "chunk_ms": ch_ms,
+            "embed_ms": emb_ms,
+            "chunk_count": len(chunks),
+            "embedding_count": embedding_count,
+            "scan_cache_hit": scan_cache_hit,
+            "chunk_cache_hit": chunk_cache_hit,
+            "embed_cache_hit": embed_cache_hit,
+        },
+    )
 
 
 async def run_process(rag_config_schema: RAGConfigSchema, dataset_id: UUID):
     dataset = await get_dataset(dataset_id)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
+    doc_count = len(dataset.documents)
+    t_batch = time.perf_counter()
+    logger.debug(
+        "core.run_process.start",
+        extra={
+            "event": "core.run_process.start",
+            "dataset_id": str(dataset_id),
+            "document_count": doc_count,
+        },
+    )
     for document in dataset.documents:
         await process_ingestion(rag_config_schema, document.id)
+    batch_ms = round((time.perf_counter() - t_batch) * 1000, 2)
+    logger.info(
+        "core.run_process.complete",
+        extra={
+            "event": "core.run_process.complete",
+            "dataset_id": str(dataset_id),
+            "document_count": doc_count,
+            "duration_ms": batch_ms,
+        },
+    )
 
 
 async def run_experiment(
@@ -167,36 +307,90 @@ async def run_experiment(
             created_at=datetime.now(),
         )
     )
+    logger.debug(
+        "core.run_experiment.start",
+        extra={
+            "event": "core.run_experiment.start",
+            "dataset_id": str(dataset_id),
+            "experiment_id": str(experiment.id),
+            "experiment_name": experiment_name,
+            "rag_config_id": str(rag_config.id),
+        },
+    )
 
     async def task_function_call(*, item, **kwargs):
         question_id = item.metadata["id"]
         question = await get_question(question_id)
         if question is None:
             raise ValueError(f"Question {question_id} not found")
-        answer_text = await solver.answer_question(
-            question=question,
-            llm=build_llm(rag_config_schema.llm),
-            embedder=build_embedder(rag_config_schema.embedder),
-            solver_config=rag_config_schema.solver,
-        )
-        answer = AnswerORM(
-            experiment_id=experiment.id,
-            question_id=question.id,
-            answer=answer_text,
-        )
-
-        await insert_answer(answer)
+        try:
+            answer_text = await solver.answer_question(
+                question=question,
+                llm=build_llm(rag_config_schema.llm),
+                embedder=build_embedder(rag_config_schema.embedder),
+                solver_config=rag_config_schema.solver,
+            )
+            answer = AnswerORM(
+                experiment_id=experiment.id,
+                question_id=question.id,
+                answer=answer_text,
+            )
+            await insert_answer(answer)
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.exception(
+                "core.run_experiment.question_failed",
+                extra={
+                    "event": "core.run_experiment.question_failed",
+                    "experiment_id": str(experiment.id),
+                    "question_id": str(question_id),
+                },
+            )
+            raise RuntimeError(
+                f"Failed to answer or store question {question_id}: {e}"
+            ) from e
         return answer_text
 
     langfuse_client = get_client()
     dataset = langfuse_client.get_dataset(dataset_obj.name)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_obj.name} - {dataset_id} not found")
-    result = dataset.run_experiment(
-        name=experiment_name, task=task_function_call, max_concurrency=1
+    t_exp = time.perf_counter()
+    try:
+        result = dataset.run_experiment(
+            name=experiment_name, task=task_function_call, max_concurrency=1
+        )
+        experiment.dataset_run_id = result.dataset_run_id
+        experiment.langfuse_experiment_id = result.experiment_id
+        await update_experiment(experiment)
+    except Exception:
+        logger.exception(
+            "core.run_experiment.langfuse_or_persist_failed",
+            extra={
+                "event": "core.run_experiment.langfuse_or_persist_failed",
+                "dataset_id": str(dataset_id),
+                "experiment_id": str(experiment.id),
+                "experiment_name": experiment_name,
+            },
+        )
+        raise
+    exp_ms = round((time.perf_counter() - t_exp) * 1000, 2)
+    logger.info(
+        "core.run_experiment.complete",
+        extra={
+            "event": "core.run_experiment.complete",
+            "dataset_id": str(dataset_id),
+            "experiment_id": str(experiment.id),
+            "experiment_name": experiment_name,
+            "dataset_run_id": str(result.dataset_run_id)
+            if result.dataset_run_id
+            else None,
+            "langfuse_experiment_id": str(result.experiment_id)
+            if result.experiment_id
+            else None,
+            "duration_ms": exp_ms,
+        },
     )
-    experiment.dataset_run_id = result.dataset_run_id
-    experiment.langfuse_experiment_id = result.experiment_id
-    await update_experiment(experiment)
 
     return experiment

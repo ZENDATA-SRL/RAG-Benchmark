@@ -5,9 +5,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.dataset.router import router as dataset_router
 from src.config.router import router as config_router
 from src.core.router import router as core_router
+from src.dataset.router import router as dataset_router
+from src.infrastructure.logging_config import configure_logging
+
+configure_logging()
 
 app = FastAPI(title="RAG Dataset")
 
