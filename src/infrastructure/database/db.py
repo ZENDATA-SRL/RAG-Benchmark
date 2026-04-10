@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from collections.abc import AsyncIterator
 
 from dotenv import load_dotenv
@@ -33,35 +34,36 @@ def create_engine(database_url: str | None = None) -> AsyncEngine:
     return create_async_engine(database_url or get_database_url(), pool_pre_ping=True)
 
 
-_engine: AsyncEngine | None = None
-_sessionmaker: async_sessionmaker[AsyncSession] | None = None
+_tls = threading.local()
 
 
 def get_engine() -> AsyncEngine:
-    global _engine
-    if _engine is None:
+    engine = getattr(_tls, "engine", None)
+    if engine is None:
         logger.debug(
             "db.engine.create",
-            extra={"event": "db.engine.create"},
+            extra={"event": "db.engine.create", "thread": threading.get_ident()},
         )
-        _engine = create_engine()
-    return _engine
+        engine = create_engine()
+        _tls.engine = engine
+    return engine
 
 
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
-    global _sessionmaker
-    if _sessionmaker is None:
+    sm = getattr(_tls, "sessionmaker", None)
+    if sm is None:
         logger.debug(
             "db.sessionmaker.create",
-            extra={"event": "db.sessionmaker.create"},
+            extra={"event": "db.sessionmaker.create", "thread": threading.get_ident()},
         )
-        _sessionmaker = async_sessionmaker(
+        sm = async_sessionmaker(
             bind=get_engine(),
             expire_on_commit=False,
             autoflush=False,
             autocommit=False,
         )
-    return _sessionmaker
+        _tls.sessionmaker = sm
+    return sm
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:

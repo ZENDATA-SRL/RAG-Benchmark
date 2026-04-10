@@ -1,6 +1,7 @@
-from io import BytesIO, StringIO
 import csv
 import logging
+from datetime import datetime, timezone
+from io import BytesIO, StringIO
 from typing import List
 from urllib.parse import urlparse
 from uuid import UUID
@@ -22,7 +23,11 @@ from src.dataset.repository import (
     insert_document,
     insert_question,
 )
-from src.infrastructure.blob_storage.blob import insert_blob
+from src.infrastructure.blob_storage.blob import (
+    azure_safe_container_name,
+    insert_blob,
+    normalize_storage_segment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +37,7 @@ _DOCUMENTS_XLSX_COLUMNS = ("file_name", "file_url")
 
 class DocumentNotFoundError(LookupError):
     def __init__(self, row_index: int, name: str) -> None:
-        super().__init__(
-            f"Row {row_index}: no document matches filename={name!r}"
-        )
+        super().__init__(f"Row {row_index}: no document matches filename={name!r}")
         self.row_index = row_index
         self.name = name
 
@@ -222,7 +225,9 @@ def _file_ext(filename: str | None) -> str:
     return parts[-1].lower() if len(parts) == 2 else ""
 
 
-def _parse_questions_rows(*, raw: bytes, filename: str | None) -> list[tuple[str, str, str]]:
+def _parse_questions_rows(
+    *, raw: bytes, filename: str | None
+) -> list[tuple[str, str, str]]:
     ext = _file_ext(filename)
     if ext == "csv":
         return _parse_csv_rows(raw)
@@ -314,8 +319,8 @@ async def ingest_documents_from_file(
                     f"Row {i}: failed to download {file_url!r}: {e}"
                 ) from e
 
-            stored_name = f"{dataset.name}_{file_name}"
-            upload = _upload_file_from_bytes(filename=stored_name, content=resp.content)
+            norm_file = normalize_storage_segment(file_name, default="document")
+            upload = _upload_file_from_bytes(filename=norm_file, content=resp.content)
             try:
                 doc = await ingest_document(
                     file=upload, file_url=file_url, dataset_id=dataset_id
@@ -332,9 +337,7 @@ async def ingest_documents_from_file(
                         "url_host": _url_host(file_url),
                     },
                 )
-                raise ValueError(
-                    f"Row {i}: failed to store document: {e}"
-                ) from e
+                raise ValueError(f"Row {i}: failed to store document: {e}") from e
             docs.append(doc)
             logger.debug(
                 "dataset.ingest_documents.row_stored",
@@ -396,9 +399,16 @@ async def ingest_document(
         raise
 
     try:
+        file_part = normalize_storage_segment(
+            file.filename or "upload", default="upload"
+        )
+        ds_part = normalize_storage_segment(dataset.name, default="dataset")
+        blob_name = f"{ds_part}-{file_part}"
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+        container_name = azure_safe_container_name(f"{ds_part}-{ts}")
         blob_url = insert_blob(
-            container_name=f"{dataset.name}_{dataset.created_at.strftime('%Y%m%d')}",
-            blob_name=file.filename,
+            container_name=container_name,
+            blob_name=blob_name,
             blob_content=raw,
         )
     except Exception:
@@ -413,7 +423,7 @@ async def ingest_document(
         raise
 
     document = DocumentORM(
-        name=file.filename,
+        name=blob_name,
         url=file_url,
         dataset_id=dataset_id,
         blob_url=blob_url,
@@ -489,7 +499,10 @@ async def ingest_dataset_questions(
 
     questions: list[QuestionORM] = []
     for i, (query, answer, filename) in enumerate(rows, start=2):
-        stored_doc_name = f"{dataset.name}_{filename}"
+        stored_doc_name = (
+            f"{normalize_storage_segment(dataset.name, default='dataset')}-"
+            f"{normalize_storage_segment(filename, default='document')}"
+        )
         doc = await find_document_by_name(stored_doc_name, dataset_id)
         if doc is None:
             raise DocumentNotFoundError(i, filename)

@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
+from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -81,7 +83,6 @@ class EmbeddingORM(Base):
         ForeignKey("embedding_configs.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    text: Mapped[str] = mapped_column(String, nullable=False)
     vectors: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
 
     chunk: Mapped["ChunkORM"] = relationship(back_populates="embeddings")  # noqa: F821  # type: ignore[name-defined]

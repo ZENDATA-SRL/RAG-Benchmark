@@ -1,4 +1,3 @@
-import asyncio
 from typing import TypedDict
 
 from langchain_core.embeddings import Embeddings
@@ -7,12 +6,15 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
+from uuid import UUID
+
+from src.config.schemas import RAGConfig, RAGConfigSchema
 from src.config.solver.base import BaseSolver
+from src.config.solver.schemas import SolverConfigSchema
 from src.config.solver.prompts import (
     PLANNED_MULTIHOP_EXECUTION_PROMPT,
     PLANNED_MULTIHOP_PLANNING_PROMPT,
 )
-from src.config.solver.schemas import SolverConfigSchema
 from src.core.schemas import Chunk
 from src.dataset.models import QuestionORM as Question
 from src.infrastructure.vectordb.azure_search import retrieve_chunks
@@ -48,12 +50,17 @@ def _normalize_message_content(content: object) -> str:
 
 
 class PlannedMultihopSolver(BaseSolver):
+    def __init__(self, solver_config: SolverConfigSchema) -> None:
+        self._solver_config = solver_config
+
     async def answer_question(
         self,
         question: Question,
         llm: BaseChatModel,
         embedder: Embeddings,
-        solver_config: SolverConfigSchema,
+        rag_config: RAGConfigSchema,
+        dataset_id: UUID,
+        rag_config_record: RAGConfig,
     ) -> tuple[str, list[Chunk]]:
         planner_llm = llm.with_structured_output(VectorDbSubqueryPlan)
 
@@ -80,28 +87,28 @@ class PlannedMultihopSolver(BaseSolver):
             seen: set[str] = set()
 
             total_chunks: list[Chunk] = []
+            rerank = rag_config.solver.reranking or None
             for sub_q in subqueries:
-                chunks = retrieve_chunks(
-                    sub_q,
-                    solver_config.top_k,
-                    solver_config.reranking,
-                    solver_config.hybrid,
-                    embedder,
+                chunks = await retrieve_chunks(
+                    embedder=embedder,
+                    llm=llm,
+                    query=sub_q,
+                    top_k=rag_config.solver.top_k,
+                    hyde=rag_config.solver.hyde,
+                    hybrid=rag_config.solver.hybrid,
+                    reranking=rerank,
+                    dataset_id=dataset_id,
+                    chunker_id=rag_config_record.chunker_id,
+                    embedder_id=rag_config_record.embedder_id,
+                    ocr_id=rag_config_record.ocr_id,
                 )
 
-                if asyncio.iscoroutine(chunks):
-                    chunks = await chunks
-
                 for doc in chunks:
-                    if isinstance(doc, dict):
-                        key = "azuz"  # TODO: align with vector DB payload shape
-                        text = doc.get(key)
-                        if isinstance(text, str) and text.strip():
-                            t = text.strip()
-                            if t not in seen:
-                                total_chunks.append(doc)
-                                seen.add(t)
-                                passages.append(t)
+                    t = (doc.text or "").strip()
+                    if t and t not in seen:
+                        total_chunks.append(doc)
+                        seen.add(t)
+                        passages.append(t)
 
             context = "\n\n".join(passages)
             prompt = PLANNED_MULTIHOP_EXECUTION_PROMPT.format(

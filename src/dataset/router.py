@@ -34,7 +34,7 @@ async def create_dataset_route(payload: DatasetCreate) -> Dataset:
         extra={
             "event": "dataset.created",
             "dataset_id": str(obj.id),
-            "name": payload.name,
+            "dataset_name": payload.name,
         },
     )
     return Dataset.model_validate(obj)
@@ -224,4 +224,3 @@ async def ingest_dataset_questions_route(
         },
     )
     return {"inserted": len(questions), "question_ids": [q.id for q in questions]}
-

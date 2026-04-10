@@ -45,7 +45,12 @@ from src.core.repository import (
     insert_scan as insert_scan_orm,
 )
 from src.core.schemas import Chunk, Embedding, Experiment, Scan
-from src.dataset.repository import get_dataset, get_document, get_question
+from src.dataset.repository import (
+    get_dataset,
+    get_document,
+    get_documents_by_dataset,
+    get_question,
+)
 from src.infrastructure.blob_storage.blob import get_blob_from_url
 
 logger = logging.getLogger(__name__)
@@ -208,7 +213,7 @@ async def _do_process_ingestion(rag_config_schema: RAGConfigSchema, document_id:
         embedder = build_embedder(embedder_config)
         embeddings = []
         for chunk in chunks:
-            vectors = await embedder.aembed_query([chunk.text])
+            vectors = await embedder.aembed_query(chunk.text)
             embeddings.append(
                 EmbeddingORM(
                     chunk_id=chunk.id,
@@ -217,6 +222,9 @@ async def _do_process_ingestion(rag_config_schema: RAGConfigSchema, document_id:
                 )
             )
         await insert_embeddings(embeddings)
+        # TODO: here I need to store them in the vector db as well
+        # NOTE: once I created the element for the vector db I can delete the postgres embeddings instance
+
         emb_ms = round((time.perf_counter() - t_emb) * 1000, 2)
         embedding_count = len(embeddings)
         logger.debug(
@@ -266,7 +274,8 @@ async def run_process(rag_config_schema: RAGConfigSchema, dataset_id: UUID):
     dataset = await get_dataset(dataset_id)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
-    doc_count = len(dataset.documents)
+    documents = await get_documents_by_dataset(dataset_id)
+    doc_count = len(documents)
     t_batch = time.perf_counter()
     logger.debug(
         "core.run_process.start",
@@ -276,7 +285,7 @@ async def run_process(rag_config_schema: RAGConfigSchema, dataset_id: UUID):
             "document_count": doc_count,
         },
     )
-    for document in dataset.documents:
+    for document in documents:
         await process_ingestion(rag_config_schema, document.id)
     batch_ms = round((time.perf_counter() - t_batch) * 1000, 2)
     logger.info(
@@ -324,11 +333,13 @@ async def run_experiment(
         if question is None:
             raise ValueError(f"Question {question_id} not found")
         try:
-            answer_text = await solver.answer_question(
+            answer_text, _chunks = await solver.answer_question(
                 question=question,
                 llm=build_llm(rag_config_schema.llm),
                 embedder=build_embedder(rag_config_schema.embedder),
-                solver_config=rag_config_schema.solver,
+                rag_config=rag_config_schema,
+                dataset_id=dataset_id,
+                rag_config_record=rag_config,
             )
             answer = AnswerORM(
                 experiment_id=experiment.id,

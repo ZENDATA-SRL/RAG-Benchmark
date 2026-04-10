@@ -30,7 +30,6 @@ class Embedding(BaseModel):
     id: UUID
     chunk_id: UUID
     embedder_id: UUID
-    text: str
     vectors: list[float]
 
 

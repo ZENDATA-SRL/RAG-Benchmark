@@ -1,7 +1,9 @@
+from abc import ABC
 import os
 from typing import Literal
 from uuid import UUID
 
+from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizedQuery
 from dotenv import load_dotenv
@@ -12,9 +14,9 @@ from sqlalchemy import select
 
 from src.config.solver.prompts import HYDE_PROMPT
 from src.core.models import ChunkORM, ScanORM
-from src.core.schemas import Embedding
 from src.dataset.models import DocumentORM as DocumentORM
 from src.infrastructure.database.db import get_sessionmaker
+from src.infrastructure.vectordb.models import EmbeddedChunk
 
 load_dotenv()
 
@@ -61,7 +63,7 @@ async def retrieve_chunks(
     chunker_id: UUID,
     embedder_id: UUID,
     ocr_id: UUID,
-) -> list[Embedding]:
+) -> list[EmbeddedChunk]:
     search_client = get_azure_search_client()
     top = top_k
     chunk_ids = await _chunk_ids_for_dataset(
@@ -98,7 +100,15 @@ async def retrieve_chunks(
         )
 
     # TODO: implement reranker
-    return chunks
+    return [
+        EmbeddedChunk(
+            id=chunk.id,
+            chunk_id=chunk.chunk_id,
+            embedding_id=chunk.embedding_id,
+            text=chunk.text,
+        )
+        for chunk in chunks
+    ]
 
 
 def get_azure_search_client() -> SearchClient:
@@ -109,4 +119,12 @@ def get_azure_search_client() -> SearchClient:
         raise ValueError(
             "AZURE_SEARCH_ENDPOINT, AZURE_SEARCH_KEY, and AZURE_SEARCH_INDEX_NAME must be set"
         )
-    return SearchClient(endpoint, key, index_name)
+    return SearchClient(
+        endpoint=endpoint, index_name=index_name, credential=AzureKeyCredential(key)
+    )
+
+
+class VectorDB(ABC):
+    # This will become a base class where I'll implement Azure Search and Chroma.
+    # The alternative is langchain adapters. 
+    # NOTE: this is fundamental to make it OSS

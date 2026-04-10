@@ -9,7 +9,7 @@ from src.config.ingestion.embedder.schemas import EmbeddingConfig, EmbeddingConf
 
 def build_embedder(embedder_config: EmbeddingConfigSchema) -> Embeddings:
     return init_embeddings(
-        model=embedder_config.model, model_provider=embedder_config.provider
+        model=embedder_config.model, provider=embedder_config.provider
     )
 
 

@@ -1,7 +1,10 @@
+from uuid import UUID
+
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from src.config.schemas import RAGConfig, RAGConfigSchema
 from src.config.solver.base import BaseSolver
 from src.config.solver.prompts import ONESHOT_SOLVER_PROMPT
 from src.config.solver.schemas import SolverConfigSchema
@@ -11,29 +14,39 @@ from src.infrastructure.vectordb.azure_search import retrieve_chunks
 
 
 class OneShotSolver(BaseSolver):
+    def __init__(self, solver_config: SolverConfigSchema) -> None:
+        self._solver_config = solver_config
+
     async def answer_question(
         self,
         question: Question,
         llm: BaseChatModel,
         embedder: Embeddings,
-        solver_config: SolverConfigSchema,
+        rag_config: RAGConfigSchema,
+        dataset_id: UUID,
+        rag_config_record: RAGConfig,
     ) -> tuple[str, list[Chunk]]:
-        chunks = retrieve_chunks(
-            question.query,
-            solver_config.top_k,
-            solver_config.reranking,
-            solver_config.hybrid,
-            embedder,
+        rerank = rag_config.solver.reranking or None
+        chunks = await retrieve_chunks(
+            embedder=embedder,
+            llm=llm,
+            query=question.query,
+            top_k=rag_config.solver.top_k,
+            hyde=rag_config.solver.hyde,
+            hybrid=rag_config.solver.hybrid,
+            reranking=rerank,
+            dataset_id=dataset_id,
+            chunker_id=rag_config_record.chunker_id,
+            embedder_id=rag_config_record.embedder_id,
+            ocr_id=rag_config_record.ocr_id,
         )
 
         passages: list[str] = []
         for doc in chunks:
-            if isinstance(doc, dict):
-                key = "azuz"  # TODO: Devo cambiare il tipo dove ho messo i vettori in base a come ho configurato il vector db
-                text = doc.get(key)
-                if isinstance(text, str) and text.strip():
-                    passages.append(text.strip())
-                    break
+            t = (doc.text or "").strip()
+            if t:
+                passages.append(t)
+                break
 
         context = "\n\n".join(passages)
         prompt = ONESHOT_SOLVER_PROMPT.format(question=question.query, context=context)
