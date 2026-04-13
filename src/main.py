@@ -2,8 +2,12 @@
 # Core RAG dataset API: config resolution (RAG, solver, LLM, OCR, chunker, embedder).
 ##
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from src.infrastructure.langfuse_client import shutdown_langfuse_client
 
 from src.config.router import router as config_router
 from src.core.router import router as core_router
@@ -12,7 +16,25 @@ from src.infrastructure.logging_config import configure_logging
 
 configure_logging()
 
-app = FastAPI(title="RAG Dataset")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """
+    Ensure external clients close cleanly on shutdown/reload.
+
+    This prevents "Task exception was never retrieved" / "Event loop is closed"
+    warnings from late HTTP client finalizers when running with `uvicorn --reload`.
+    """
+
+    yield
+
+    try:
+        shutdown_langfuse_client()
+    except Exception:
+        # Best-effort cleanup; shutdown should not block app exit.
+        pass
+
+
+app = FastAPI(title="RAG Dataset", lifespan=lifespan)
 
 app.include_router(config_router)
 app.include_router(dataset_router)

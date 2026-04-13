@@ -11,6 +11,8 @@ from src.config.solver.schemas import SolverConfigSchema
 
 
 class RAGConfigSchema(BaseModel):
+    # Human-friendly label for the resolved/persisted config.
+    name: str
     ocr: OCRConfigSchema
     chunker: ChunkerConfigSchema
     embedder: EmbeddingConfigSchema
@@ -23,6 +25,7 @@ class RAGConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    name: str
     ocr_id: UUID
     chunker_id: UUID
     embedder_id: UUID

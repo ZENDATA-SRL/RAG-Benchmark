@@ -7,6 +7,32 @@ from src.infrastructure.database.db import get_sessionmaker
 
 
 class RAGRepository:
+    async def get_rag_config_by_config_and_name(
+        self,
+        *,
+        name: str,
+        ocr_id: UUID,
+        chunker_id: UUID,
+        embedder_id: UUID,
+        vectordb_id: UUID,
+        llm_id: UUID,
+        solver_id: UUID,
+    ) -> RAGConfigORM | None:
+        SessionLocal = get_sessionmaker()
+        async with SessionLocal() as session:
+            stmt = (
+                select(RAGConfigORM)
+                .where(RAGConfigORM.name == name)
+                .where(RAGConfigORM.ocr_id == ocr_id)
+                .where(RAGConfigORM.chunker_id == chunker_id)
+                .where(RAGConfigORM.embedder_id == embedder_id)
+                .where(RAGConfigORM.vectordb_id == vectordb_id)
+                .where(RAGConfigORM.llm_id == llm_id)
+                .where(RAGConfigORM.solver_id == solver_id)
+                .limit(1)
+            )
+            return await session.scalar(stmt)
+
     async def get_rag_config_by_config(
         self,
         ocr_id: UUID,
@@ -44,6 +70,7 @@ class RAGRepository:
 
     async def insert_rag_config(
         self,
+        name: str,
         ocr_id: UUID,
         chunker_id: UUID,
         embedder_id: UUID,
@@ -54,6 +81,7 @@ class RAGRepository:
         SessionLocal = get_sessionmaker()
         async with SessionLocal() as session:
             obj = RAGConfigORM(
+                name=name,
                 ocr_id=ocr_id,
                 chunker_id=chunker_id,
                 embedder_id=embedder_id,
@@ -65,7 +93,6 @@ class RAGRepository:
             await session.commit()
             await session.refresh(obj)
             return obj
-
 
 def get_rag_repository() -> RAGRepository:
     return RAGRepository()

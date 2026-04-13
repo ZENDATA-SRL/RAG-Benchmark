@@ -2,6 +2,7 @@ import os
 from typing import Literal
 from uuid import UUID
 
+from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -15,6 +16,8 @@ from src.infrastructure.vectordb.utils import (
     chunk_ids_for_dataset,
     embedded_chunks_for_chunk_ids,
 )
+
+load_dotenv()
 
 
 class ChromaVectorDB(BaseVectorDB):
@@ -59,7 +62,9 @@ class ChromaVectorDB(BaseVectorDB):
             hyde_msg = await llm.ainvoke(
                 [HumanMessage(content=HYDE_PROMPT.format(query=query))]
             )
-            docs = vector_db.similarity_search(query=hyde_msg.content, k=top_k, filter=filter)
+            docs = vector_db.similarity_search(
+                query=hyde_msg.content, k=top_k, filter=filter
+            )
         else:
             docs = vector_db.similarity_search(query=query, k=top_k, filter=filter)
 
@@ -75,7 +80,9 @@ class ChromaVectorDB(BaseVectorDB):
             for doc in docs
         ]
 
-    async def upload_chunks(self, *, chunks: list[EmbeddedChunk], embedder: Embeddings) -> None:
+    async def upload_chunks(
+        self, *, chunks: list[EmbeddedChunk], embedder: Embeddings
+    ) -> None:
         if not chunks:
             return
         vector_db: Chroma = _get_vector_db(embedder, self._cfg)
@@ -100,7 +107,9 @@ class ChromaVectorDB(BaseVectorDB):
         chunk_ids: list[UUID],
         embedder_id: UUID,
     ) -> None:
-        embedded = await embedded_chunks_for_chunk_ids(chunk_ids=chunk_ids, embedder_id=embedder_id)
+        embedded = await embedded_chunks_for_chunk_ids(
+            chunk_ids=chunk_ids, embedder_id=embedder_id
+        )
         if not embedded:
             return
 
@@ -116,15 +125,19 @@ class ChromaVectorDB(BaseVectorDB):
 
 
 def _get_vector_db(embedder: Embeddings, cfg: VectorDBConfigSchema) -> Chroma:
-    collection_name = cfg.config.get("collection_name") or os.getenv("VECTORSTORE_COLLECTION_NAME")
+    collection_name = cfg.config.get("collection_name") or os.getenv(
+        "VECTORSTORE_COLLECTION_NAME"
+    )
+
     host = cfg.config.get("host") or os.getenv("VECTORSTORE_HOST")
-    port = cfg.config.get("port") or os.getenv("VECTORSTORE_PORT")
-    ssl = cfg.config.get("ssl") if "ssl" in cfg.config else os.getenv("VECTORSTORE_SSL")
+    port_raw = cfg.config.get("port") or os.getenv("VECTORSTORE_PORT")
+    port = int(port_raw) if port_raw is not None and str(port_raw).strip() else None
+
     return Chroma(
         collection_name=collection_name,
         embedding_function=embedder,
         host=host,
         port=port,
-        ssl=ssl,
+        # Default to plain HTTP for local Chroma.
+        ssl=False,
     )
-

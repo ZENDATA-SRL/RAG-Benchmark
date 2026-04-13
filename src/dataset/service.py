@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import UploadFile
-from langfuse import get_client
+from src.infrastructure.langfuse_client import get_langfuse_client
 from openpyxl import load_workbook
 
 from src.dataset.models import (
@@ -483,7 +483,7 @@ async def ingest_dataset_questions(
         },
     )
     dataset_name = dataset.name
-    langfuse_client = get_client()
+    langfuse_client = get_langfuse_client()
     try:
         langfuse_client.create_dataset(name=dataset_name)
     except Exception as e:

@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from uuid import UUID
 
-from langfuse import get_client
+from src.infrastructure.langfuse_client import get_langfuse_client
 
 from src.config.ingestion.chunker.service import build_chunker, get_chunker_by_id
 from src.config.ingestion.embedder.service import build_embedder, get_embedder_by_id
@@ -17,7 +17,14 @@ from src.config.llms.service import build_llm
 from src.config.schemas import RAGConfigSchema
 from src.config.service import resolve_rag_config
 from src.config.solver.service import build_solver
-from src.core.models import AnswerORM, ChunkORM, EmbeddingORM, ExperimentORM, ScanORM
+from src.core.models import (
+    AnswerChunkORM,
+    AnswerORM,
+    ChunkORM,
+    EmbeddingORM,
+    ExperimentORM,
+    ScanORM,
+)
 from src.core.repository import (
     get_chunks as get_chunks_orm,
 )
@@ -27,11 +34,13 @@ from src.core.repository import (
 from src.core.repository import (
     get_experiments as get_experiments_orm,
 )
+from src.core.repository import get_question_document_chunk_coverage as get_qdcc_orm
 from src.core.repository import (
     get_scan as get_scan_orm,
 )
 from src.core.repository import (
     insert_answer,
+    insert_answer_chunks,
     insert_experiment,
     update_experiment,
 )
@@ -44,7 +53,13 @@ from src.core.repository import (
 from src.core.repository import (
     insert_scan as insert_scan_orm,
 )
-from src.core.schemas import Chunk, Embedding, Experiment, Scan
+from src.core.schemas import (
+    Chunk,
+    Embedding,
+    Experiment,
+    QuestionDocumentChunkCoverage,
+    Scan,
+)
 from src.dataset.repository import (
     get_dataset,
     get_document,
@@ -92,6 +107,29 @@ async def insert_embeddings(embeddings: list[EmbeddingORM]) -> None:
 async def get_experiments() -> list[Experiment]:
     rows = await get_experiments_orm()
     return [Experiment.model_validate(r) for r in rows]
+
+
+async def get_question_document_chunk_coverage(
+    experiment_id: UUID,
+) -> list[QuestionDocumentChunkCoverage]:
+    rows = await get_qdcc_orm(experiment_id)
+    result: list[QuestionDocumentChunkCoverage] = []
+    for r in rows:
+        total = int(r.get("total_answer_chunks") or 0)
+        from_doc = int(r.get("answer_chunks_from_document") or 0)
+        result.append(
+            QuestionDocumentChunkCoverage(
+                question_id=r["question_id"],
+                question=r["question"],
+                document_id=r["document_id"],
+                document_name=r["document_name"],
+                document_url=r["document_url"],
+                total_answer_chunks=total,
+                answer_chunks_from_document=from_doc,
+                has_document_chunks=from_doc > 0,
+            )
+        )
+    return result
 
 
 async def process_ingestion(rag_config_schema: RAGConfigSchema, document_id: UUID):
@@ -346,6 +384,21 @@ async def run_experiment(
                 answer=answer_text,
             )
             await insert_answer(answer)
+            seen_chunk_ids: set[UUID] = set()
+            answer_chunks: list[AnswerChunkORM] = []
+            for ch in _chunks:
+                chunk_id: UUID = getattr(ch, "chunk_id", ch.id)
+                if chunk_id in seen_chunk_ids:
+                    continue
+                seen_chunk_ids.add(chunk_id)
+                answer_chunks.append(
+                    AnswerChunkORM(
+                        answer_id=answer.id,
+                        chunk_id=chunk_id,
+                        text=ch.text,
+                    )
+                )
+            await insert_answer_chunks(answer_chunks)
         except ValueError:
             raise
         except Exception as e:
@@ -362,7 +415,7 @@ async def run_experiment(
             ) from e
         return answer_text
 
-    langfuse_client = get_client()
+    langfuse_client = get_langfuse_client()
     dataset = langfuse_client.get_dataset(dataset_obj.name)
     if dataset is None:
         raise ValueError(f"Dataset {dataset_obj.name} - {dataset_id} not found")

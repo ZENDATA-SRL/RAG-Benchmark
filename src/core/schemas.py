@@ -61,3 +61,20 @@ class AnswerChunk(BaseModel):
     answer_id: UUID
     chunk_id: UUID
     text: str
+
+
+class QuestionDocumentChunkCoverage(BaseModel):
+    """
+    Computed view (not persisted):
+    For a given experiment, indicates whether the answer used chunks
+    from the same document the question belongs to.
+    """
+
+    question_id: UUID
+    question: str
+    document_id: UUID
+    document_name: str
+    document_url: str
+    total_answer_chunks: int
+    answer_chunks_from_document: int
+    has_document_chunks: bool

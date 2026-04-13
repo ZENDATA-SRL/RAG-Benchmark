@@ -1,4 +1,5 @@
 from typing import TypedDict
+from uuid import UUID
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -6,18 +7,16 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
-from uuid import UUID
-
+from src.config.ingestion.vectordb.service import build_vectordb
 from src.config.schemas import RAGConfig, RAGConfigSchema
 from src.config.solver.base import BaseSolver
-from src.config.solver.schemas import SolverConfigSchema
 from src.config.solver.prompts import (
     PLANNED_MULTIHOP_EXECUTION_PROMPT,
     PLANNED_MULTIHOP_PLANNING_PROMPT,
 )
+from src.config.solver.schemas import SolverConfigSchema
 from src.core.schemas import Chunk
 from src.dataset.models import QuestionORM as Question
-from src.config.ingestion.vectordb.service import build_vectordb
 
 
 class VectorDbSubqueryPlan(BaseModel):
@@ -33,6 +32,7 @@ class PlannedMultihopState(TypedDict, total=False):
     question: str
     subqueries: list[str]
     answer: str
+    chunks: list[Chunk]
 
 
 class PlannedMultihopSolverResult(TypedDict, total=False):

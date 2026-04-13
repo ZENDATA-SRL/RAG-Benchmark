@@ -58,7 +58,9 @@ class AzureSearchVectorDB(BaseVectorDB):
             embedder_id=embedder_id,
         )
 
-        chunk_id_filter = f"search.in(chunk_id, '{','.join([str(x) for x in chunk_ids])}', ',')"
+        chunk_id_filter = (
+            f"search.in(chunk_id, '{','.join([str(x) for x in chunk_ids])}', ',')"
+        )
 
         if hyde:
             hyde_msg = await llm.ainvoke(
@@ -97,7 +99,9 @@ class AzureSearchVectorDB(BaseVectorDB):
             )
         return out
 
-    async def upload_chunks(self, *, chunks: list[EmbeddedChunk], embedder: Embeddings) -> None:
+    async def upload_chunks(
+        self, *, chunks: list[EmbeddedChunk], embedder: Embeddings
+    ) -> None:
         if not chunks:
             return
         search_client = _get_azure_search_client(self._cfg)
@@ -122,7 +126,9 @@ class AzureSearchVectorDB(BaseVectorDB):
         chunk_ids: list[UUID],
         embedder_id: UUID,
     ) -> None:
-        embedded = await embedded_chunks_for_chunk_ids(chunk_ids=chunk_ids, embedder_id=embedder_id)
+        embedded = await embedded_chunks_for_chunk_ids(
+            chunk_ids=chunk_ids, embedder_id=embedder_id
+        )
         if not embedded:
             return
 
@@ -141,19 +147,22 @@ def _azure_existing_ids(search_client: SearchClient, ids: list[str]) -> set[str]
         return set()
     # Assumes index has key field named `id`.
     id_filter = f"search.in(id, '{','.join(ids)}', ',')"
-    results = search_client.search(search_text="*", top=len(ids), filter=id_filter, select=["id"])
+    results = search_client.search(
+        search_text="*", top=len(ids), filter=id_filter, select=["id"]
+    )
     return {str(r.get("id")) for r in results}
 
 
 def _get_azure_search_client(cfg: VectorDBConfigSchema) -> SearchClient:
     endpoint = cfg.config.get("endpoint") or os.getenv("AZURE_SEARCH_ENDPOINT")
     key = cfg.config.get("key") or os.getenv("AZURE_SEARCH_KEY")
-    index_name = cfg.config.get("index_name") or os.getenv("VECTORSTORE_COLLECTION_NAME")
+    index_name = cfg.config.get("index_name") or os.getenv(
+        "VECTORSTORE_COLLECTION_NAME"
+    )
     if not endpoint or not key or not index_name:
         raise ValueError(
-            "Azure Search requires endpoint/key/index_name (or env AZURE_SEARCH_ENDPOINT/AZURE_SEARCH_KEY/VECTORSTORE_COLLECTION_NAME)"
+            "Azure Search requires endpoint/key/index_name (or env AZURE_SEARCH_ENDPOINT/AZURE_SEARCH_KEY/AZURE_SEARCH_INDEX_NAME)"
         )
     return SearchClient(
         endpoint=endpoint, index_name=index_name, credential=AzureKeyCredential(key)
     )
-

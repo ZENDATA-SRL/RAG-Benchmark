@@ -1,9 +1,7 @@
 import uuid
 from datetime import datetime
-from uuid import UUID
 
-from pydantic import BaseModel
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -63,6 +61,9 @@ class ChunkORM(Base):
         back_populates="chunks"
     )
     embeddings: Mapped[list["EmbeddingORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="chunk", cascade="all, delete-orphan"
+    )
+    answer_chunks: Mapped[list["AnswerChunkORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="chunk", cascade="all, delete-orphan"
     )
 
@@ -147,6 +148,32 @@ class AnswerORM(Base):
 
     experiment: Mapped["ExperimentORM"] = relationship(back_populates="answers")  # noqa: F821  # type: ignore[name-defined]
     question: Mapped["QuestionORM"] = relationship(back_populates="answers")  # noqa: F821  # type: ignore[name-defined]
+    chunks: Mapped[list["AnswerChunkORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="answer", cascade="all, delete-orphan"
+    )
+
+
+class AnswerChunkORM(Base):
+    __tablename__ = "answer_chunks"
+    __table_args__ = (UniqueConstraint("answer_id", "chunk_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    answer_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("answers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("chunks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False)
+
+    answer: Mapped["AnswerORM"] = relationship(back_populates="chunks")  # type: ignore[name-defined]
+    chunk: Mapped["ChunkORM"] = relationship(back_populates="answer_chunks")  # type: ignore[name-defined]
 
 
 # Ensure eval models are registered on the same SQLAlchemy `Base` registry

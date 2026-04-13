@@ -1,9 +1,17 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 
 from src.core.schemas import Experiment
-from src.core.models import AnswerORM, ChunkORM, EmbeddingORM, ExperimentORM, ScanORM
+from src.core.models import (
+    AnswerChunkORM,
+    AnswerORM,
+    ChunkORM,
+    EmbeddingORM,
+    ExperimentORM,
+    ScanORM,
+)
+from src.dataset.models import DocumentORM, QuestionORM
 from src.infrastructure.database.db import get_sessionmaker
 
 
@@ -125,3 +133,55 @@ async def insert_answer(answer: AnswerORM) -> None:
         session.add(answer)
         await session.commit()
         await session.refresh(answer)
+
+
+async def insert_answer_chunks(answer_chunks: list[AnswerChunkORM]) -> None:
+    if not answer_chunks:
+        return
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        session.add_all(answer_chunks)
+        await session.commit()
+
+
+async def get_question_document_chunk_coverage(experiment_id: UUID) -> list[dict]:
+    """
+    Computed stats (not persisted) for an experiment:
+    for each question, report whether answer used chunks from that question's document.
+    """
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        used_from_doc = case(
+            (ScanORM.document_id == QuestionORM.document_id, AnswerChunkORM.id),
+            else_=None,
+        )
+        stmt = (
+            select(
+                QuestionORM.id.label("question_id"),
+                QuestionORM.query.label("question"),
+                DocumentORM.id.label("document_id"),
+                DocumentORM.name.label("document_name"),
+                DocumentORM.url.label("document_url"),
+                func.count(func.distinct(AnswerChunkORM.id)).label("total_answer_chunks"),
+                func.count(func.distinct(used_from_doc)).label(
+                    "answer_chunks_from_document"
+                ),
+            )
+            .select_from(AnswerORM)
+            .join(QuestionORM, AnswerORM.question_id == QuestionORM.id)
+            .join(DocumentORM, QuestionORM.document_id == DocumentORM.id)
+            .outerjoin(AnswerChunkORM, AnswerChunkORM.answer_id == AnswerORM.id)
+            .outerjoin(ChunkORM, AnswerChunkORM.chunk_id == ChunkORM.id)
+            .outerjoin(ScanORM, ChunkORM.scan_id == ScanORM.id)
+            .where(AnswerORM.experiment_id == experiment_id)
+            .group_by(
+                QuestionORM.id,
+                QuestionORM.query,
+                DocumentORM.id,
+                DocumentORM.name,
+                DocumentORM.url,
+            )
+            .order_by(QuestionORM.id.asc())
+        )
+        rows = (await session.execute(stmt)).mappings().all()
+        return [dict(r) for r in rows]

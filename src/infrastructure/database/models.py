@@ -16,6 +16,7 @@ from src.config.solver.models import SolverConfigORM  # noqa: F401
 
 # Core artifact + experiment models
 from src.core.models import (  # noqa: F401
+    AnswerChunkORM,
     AnswerORM,
     ChunkORM,
     EmbeddingORM,

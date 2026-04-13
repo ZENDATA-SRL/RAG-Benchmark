@@ -5,7 +5,12 @@ from fastapi import APIRouter, HTTPException
 
 from src.config.schemas import RAGConfigSchema
 from src.core.repository import get_answers, get_experiment_by_id
-from src.core.service import get_experiments, run_experiment, run_process
+from src.core.service import (
+    get_experiments,
+    get_question_document_chunk_coverage,
+    run_experiment,
+    run_process,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +159,22 @@ async def get_answers_route(experiment_id: UUID):
         )
         raise HTTPException(status_code=404, detail=str(e)) from e
     return answers
+
+
+@router.get("/experiment/{experiment_id}/question-document-chunk-coverage")
+async def get_question_document_chunk_coverage_route(experiment_id: UUID):
+    try:
+        return await get_question_document_chunk_coverage(experiment_id)
+    except ValueError as e:
+        logger.warning(
+            "core.route.get_question_document_chunk_coverage.not_found",
+            extra={
+                "event": "core.route.get_question_document_chunk_coverage.not_found",
+                "experiment_id": str(experiment_id),
+                "detail": str(e),
+            },
+        )
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.get("/experiments")

@@ -22,7 +22,8 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
     llm = await resolve_llm(config.llm)
     solver = await resolve_solver(config.solver)
 
-    rag_config = await repository.get_rag_config_by_config(
+    rag_config = await repository.get_rag_config_by_config_and_name(
+        name=config.name,
         ocr_id=ocr.id,
         chunker_id=chunker.id,
         embedder_id=embedder.id,
@@ -41,6 +42,7 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         )
         return out
     rag_config = await repository.insert_rag_config(
+        name=config.name,
         ocr_id=ocr.id,
         chunker_id=chunker.id,
         embedder_id=embedder.id,
