@@ -4,6 +4,7 @@ from uuid import UUID
 from src.config.ingestion.chunker.service import resolve_chunker
 from src.config.ingestion.embedder.service import resolve_embedder
 from src.config.ingestion.ocr.service import resolve_ocr
+from src.config.ingestion.vectordb.service import resolve_vectordb
 from src.config.llms.service import resolve_llm
 from src.config.repository import get_rag_repository
 from src.config.schemas import RAGConfig, RAGConfigSchema
@@ -17,6 +18,7 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
     ocr = await resolve_ocr(config.ocr)
     chunker = await resolve_chunker(config.chunker)
     embedder = await resolve_embedder(config.embedder)
+    vectordb = await resolve_vectordb(config.vectordb)
     llm = await resolve_llm(config.llm)
     solver = await resolve_solver(config.solver)
 
@@ -24,6 +26,7 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         ocr_id=ocr.id,
         chunker_id=chunker.id,
         embedder_id=embedder.id,
+        vectordb_id=vectordb.id,
         llm_id=llm.id,
         solver_id=solver.id,
     )
@@ -41,6 +44,7 @@ async def resolve_rag_config(config: RAGConfigSchema) -> RAGConfig:
         ocr_id=ocr.id,
         chunker_id=chunker.id,
         embedder_id=embedder.id,
+        vectordb_id=vectordb.id,
         llm_id=llm.id,
         solver_id=solver.id,
     )

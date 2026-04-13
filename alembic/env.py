@@ -24,6 +24,7 @@ from src.infrastructure.database.models import (  # noqa: F401
     RAGConfigORM,
     ScanORM,
     SolverConfigORM,
+    VectorDBConfigORM,
 )
 
 # Alembic Config object (values from alembic.ini)

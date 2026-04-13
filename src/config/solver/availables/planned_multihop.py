@@ -17,7 +17,7 @@ from src.config.solver.prompts import (
 )
 from src.core.schemas import Chunk
 from src.dataset.models import QuestionORM as Question
-from src.infrastructure.vectordb.azure_search import retrieve_chunks
+from src.config.ingestion.vectordb.service import build_vectordb
 
 
 class VectorDbSubqueryPlan(BaseModel):
@@ -88,8 +88,9 @@ class PlannedMultihopSolver(BaseSolver):
 
             total_chunks: list[Chunk] = []
             rerank = rag_config.solver.reranking or None
+            vectordb = build_vectordb(rag_config.vectordb)
             for sub_q in subqueries:
-                chunks = await retrieve_chunks(
+                chunks = await vectordb.retrieve_chunks(
                     embedder=embedder,
                     llm=llm,
                     query=sub_q,

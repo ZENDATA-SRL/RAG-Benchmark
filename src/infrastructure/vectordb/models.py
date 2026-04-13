@@ -1,11 +1,19 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
 class EmbeddedChunk(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    """
+    Canonical payload stored/retrieved from vector DB.
+
+    `id` is the identifier used inside the vector DB. We use the embedding row id
+    so it's stable and unique per (chunk, embedder) pair.
+    """
+
+    id: UUID
     chunk_id: UUID
     embedding_id: UUID
     text: str
-    vectors: list[float]
+    vectors: list[float] = Field(default_factory=list)
+

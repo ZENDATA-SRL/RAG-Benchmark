@@ -222,8 +222,7 @@ async def _do_process_ingestion(rag_config_schema: RAGConfigSchema, document_id:
                 )
             )
         await insert_embeddings(embeddings)
-        # TODO: here I need to store them in the vector db as well
-        # NOTE: once I created the element for the vector db I can delete the postgres embeddings instance
+        # Vector DB ingestion is intentionally lazy and happens during retrieval.
 
         emb_ms = round((time.perf_counter() - t_emb) * 1000, 2)
         embedding_count = len(embeddings)

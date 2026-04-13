@@ -10,7 +10,7 @@ from src.config.solver.prompts import ONESHOT_SOLVER_PROMPT
 from src.config.solver.schemas import SolverConfigSchema
 from src.core.schemas import Chunk
 from src.dataset.models import QuestionORM as Question
-from src.infrastructure.vectordb.azure_search import retrieve_chunks
+from src.config.ingestion.vectordb.service import build_vectordb
 
 
 class OneShotSolver(BaseSolver):
@@ -27,7 +27,8 @@ class OneShotSolver(BaseSolver):
         rag_config_record: RAGConfig,
     ) -> tuple[str, list[Chunk]]:
         rerank = rag_config.solver.reranking or None
-        chunks = await retrieve_chunks(
+        vectordb = build_vectordb(rag_config.vectordb)
+        chunks = await vectordb.retrieve_chunks(
             embedder=embedder,
             llm=llm,
             query=question.query,

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from src.config.ingestion.chunker.router import router as chunker_router
 from src.config.ingestion.embedder.router import router as embedder_router
 from src.config.ingestion.ocr.router import router as ocr_router
+from src.config.ingestion.vectordb.router import router as vectordb_router
 from src.config.llms.router import router as llm_router
 from src.config.schemas import RAGConfig, RAGConfigSchema
 from src.config.service import get_rag_config_by_id, get_rag_configs, resolve_rag_config
@@ -34,3 +35,4 @@ router.include_router(llm_router)
 router.include_router(ocr_router)
 router.include_router(chunker_router)
 router.include_router(embedder_router)
+router.include_router(vectordb_router)

@@ -29,6 +29,11 @@ class RAGConfigORM(Base):
         ForeignKey("embedding_configs.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    vectordb_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("vectordb_configs.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     llm_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("llm_configs.id", ondelete="RESTRICT"),
@@ -43,5 +48,6 @@ class RAGConfigORM(Base):
     ocr: Mapped["OCRConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
     chunker: Mapped["ChunkerConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
     embedder: Mapped["EmbeddingConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
+    vectordb: Mapped["VectorDBConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
     llm: Mapped["LLMConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]
     solver: Mapped["SolverConfigORM"] = relationship(back_populates="rag_configs")  # noqa: F821  # type: ignore[name-defined]

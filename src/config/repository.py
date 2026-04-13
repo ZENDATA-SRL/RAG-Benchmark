@@ -12,6 +12,7 @@ class RAGRepository:
         ocr_id: UUID,
         chunker_id: UUID,
         embedder_id: UUID,
+        vectordb_id: UUID,
         llm_id: UUID,
         solver_id: UUID,
     ) -> RAGConfigORM | None:
@@ -22,6 +23,7 @@ class RAGRepository:
                 .where(RAGConfigORM.ocr_id == ocr_id)
                 .where(RAGConfigORM.chunker_id == chunker_id)
                 .where(RAGConfigORM.embedder_id == embedder_id)
+                .where(RAGConfigORM.vectordb_id == vectordb_id)
                 .where(RAGConfigORM.llm_id == llm_id)
                 .where(RAGConfigORM.solver_id == solver_id)
                 .limit(1)
@@ -45,6 +47,7 @@ class RAGRepository:
         ocr_id: UUID,
         chunker_id: UUID,
         embedder_id: UUID,
+        vectordb_id: UUID,
         llm_id: UUID,
         solver_id: UUID,
     ) -> RAGConfigORM:
@@ -54,6 +57,7 @@ class RAGRepository:
                 ocr_id=ocr_id,
                 chunker_id=chunker_id,
                 embedder_id=embedder_id,
+                vectordb_id=vectordb_id,
                 llm_id=llm_id,
                 solver_id=solver_id,
             )
