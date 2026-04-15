@@ -8,8 +8,6 @@ import time
 from datetime import datetime
 from uuid import UUID
 
-from src.infrastructure.langfuse_client import get_langfuse_client
-
 from src.config.ingestion.chunker.service import build_chunker, get_chunker_by_id
 from src.config.ingestion.embedder.service import build_embedder, get_embedder_by_id
 from src.config.ingestion.ocr.service import build_ocr, get_ocr_by_id
@@ -67,6 +65,7 @@ from src.dataset.repository import (
     get_question,
 )
 from src.infrastructure.blob_storage.blob import get_blob_from_url
+from src.infrastructure.langfuse_client import get_langfuse_client
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +421,10 @@ async def run_experiment(
     t_exp = time.perf_counter()
     try:
         result = dataset.run_experiment(
-            name=experiment_name, task=task_function_call, max_concurrency=1
+            name=experiment_name,
+            run_name=experiment_name,
+            task=task_function_call,
+            max_concurrency=1,
         )
         experiment.dataset_run_id = result.dataset_run_id
         experiment.langfuse_experiment_id = result.experiment_id

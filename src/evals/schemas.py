@@ -1,8 +1,8 @@
 from pydantic import BaseModel
 
-from config.schemas import RAGConfig
-from core.schemas import Answer
-from dataset.schemas import Dataset
+from src.config.schemas import RAGConfig
+from src.core.schemas import Answer
+from src.dataset.schemas import Dataset
 
 
 class Score(BaseModel):

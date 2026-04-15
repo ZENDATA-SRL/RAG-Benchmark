@@ -30,3 +30,4 @@ from src.dataset.models import (  # noqa: F401
 )
 
 # Evals models
+from src.evals.models import EvaluatorORM, ScoreORM, TraceORM  # noqa: F401

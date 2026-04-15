@@ -7,14 +7,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.infrastructure.langfuse_client import shutdown_langfuse_client
-
+import src.infrastructure.database.models as _orm_models  # noqa: F401
 from src.config.router import router as config_router
 from src.core.router import router as core_router
 from src.dataset.router import router as dataset_router
+from src.evals.router import router as evals_router
+from src.infrastructure.langfuse_client import shutdown_langfuse_client
 from src.infrastructure.logging_config import configure_logging
 
 configure_logging()
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -39,6 +41,7 @@ app = FastAPI(title="RAG Dataset", lifespan=lifespan)
 app.include_router(config_router)
 app.include_router(dataset_router)
 app.include_router(core_router)
+app.include_router(evals_router)
 
 
 app.add_middleware(
