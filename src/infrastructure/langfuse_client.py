@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from langfuse import get_client
+from langfuse import Langfuse, get_client
 
 _client = None
 
 
-def get_langfuse_client():
+def get_langfuse_client() -> Langfuse:
     """
     Return a cached Langfuse client instance.
 
@@ -27,4 +27,3 @@ def shutdown_langfuse_client() -> None:
         _client.shutdown()
     finally:
         _client = None
-

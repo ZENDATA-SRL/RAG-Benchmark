@@ -1,8 +1,8 @@
 from uuid import UUID
 
 from sqlalchemy import case, func, select
+from sqlalchemy.orm import selectinload
 
-from src.core.schemas import Experiment
 from src.core.models import (
     AnswerChunkORM,
     AnswerORM,
@@ -11,6 +11,7 @@ from src.core.models import (
     ExperimentORM,
     ScanORM,
 )
+from src.core.schemas import Experiment
 from src.dataset.models import DocumentORM, QuestionORM
 from src.infrastructure.database.db import get_sessionmaker
 
@@ -127,6 +128,19 @@ async def get_answers(experiment_id: UUID) -> list[AnswerORM]:
         return list(rows)
 
 
+async def get_answer_by_question_and_experiment_id(
+    question_id: UUID, experiment_id: UUID
+) -> AnswerORM | None:
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        return await session.scalar(
+            select(AnswerORM)
+            .where(AnswerORM.question_id == question_id)
+            .where(AnswerORM.experiment_id == experiment_id)
+            .limit(1)
+        )
+
+
 async def insert_answer(answer: AnswerORM) -> None:
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:
@@ -162,7 +176,9 @@ async def get_question_document_chunk_coverage(experiment_id: UUID) -> list[dict
                 DocumentORM.id.label("document_id"),
                 DocumentORM.name.label("document_name"),
                 DocumentORM.url.label("document_url"),
-                func.count(func.distinct(AnswerChunkORM.id)).label("total_answer_chunks"),
+                func.count(func.distinct(AnswerChunkORM.id)).label(
+                    "total_answer_chunks"
+                ),
                 func.count(func.distinct(used_from_doc)).label(
                     "answer_chunks_from_document"
                 ),
@@ -185,3 +201,18 @@ async def get_question_document_chunk_coverage(experiment_id: UUID) -> list[dict
         )
         rows = (await session.execute(stmt)).mappings().all()
         return [dict(r) for r in rows]
+
+
+async def get_experiments_by_dataset_id(dataset_id: UUID) -> list[ExperimentORM]:
+    SessionLocal = get_sessionmaker()
+    async with SessionLocal() as session:
+        stmt = (
+            select(ExperimentORM)
+            .where(ExperimentORM.dataset_id == dataset_id)
+            .options(
+                selectinload(ExperimentORM.rag_config),
+                selectinload(ExperimentORM.answers).selectinload(AnswerORM.trace),
+            )
+        )
+        rows = (await session.scalars(stmt)).all()
+        return list(rows)

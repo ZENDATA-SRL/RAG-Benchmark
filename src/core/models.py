@@ -118,14 +118,6 @@ class ExperimentORM(Base):
     answers: Mapped[list["AnswerORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="experiment", cascade="all, delete-orphan"
     )
-    rag_evaluations: Mapped[list["RagEvaluationORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="experiment", cascade="all, delete-orphan"
-    )
-    langfuse_evaluation: Mapped["LangfuseEvaluationORM | None"] = relationship(  # noqa: F821  # type: ignore[name-defined]
-        back_populates="experiment",
-        cascade="all, delete-orphan",
-        uselist=False,
-    )
 
 
 class AnswerORM(Base):
@@ -151,6 +143,11 @@ class AnswerORM(Base):
     chunks: Mapped[list["AnswerChunkORM"]] = relationship(  # noqa: F821  # type: ignore[name-defined]
         back_populates="answer", cascade="all, delete-orphan"
     )
+    trace: Mapped["TraceORM | None"] = relationship(  # noqa: F821  # type: ignore[name-defined]
+        back_populates="answer",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class AnswerChunkORM(Base):
@@ -174,8 +171,3 @@ class AnswerChunkORM(Base):
 
     answer: Mapped["AnswerORM"] = relationship(back_populates="chunks")  # type: ignore[name-defined]
     chunk: Mapped["ChunkORM"] = relationship(back_populates="answer_chunks")  # type: ignore[name-defined]
-
-
-# Ensure eval models are registered on the same SQLAlchemy `Base` registry
-# when `src.core.models` is imported directly.
-from src.evals.models import LangfuseEvaluationORM, RagEvaluationORM  # noqa: E402,F401

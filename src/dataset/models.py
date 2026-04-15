@@ -90,4 +90,3 @@ from src.core.models import ScanORM  # noqa: E402
 
 # Ensure eval models are registered on the shared SQLAlchemy `Base` registry
 # when `src.dataset.models` is imported directly.
-from src.evals.models import LangfuseEvaluationORM, RagEvaluationORM  # noqa: E402,F401
