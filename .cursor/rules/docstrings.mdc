@@ -1,0 +1,16 @@
+---
+globs: *.py
+alwaysApply: false
+---
+Docstrings:
+- Style: Google docstring format.
+- Required for:
+  - public functions/classes in `service.py`
+  - `repository.py` when queries are non-trivial
+  - reusable infrastructure components (`src/infrastructure/`)
+  - non-trivial core modules (`src/core/`)
+- Optional for:
+  - simple route handlers
+  - obvious helpers in `utils.py`
+- Keep docstrings short: 1-line summary + details only if useful.
+- Initial file docstrings referencing other documents must not be written just python components have docstrings

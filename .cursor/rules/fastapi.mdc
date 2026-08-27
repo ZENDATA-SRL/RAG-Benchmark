@@ -1,0 +1,41 @@
+---
+globs: backend/*
+alwaysApply: false
+---
+Backend Project structure:
+
+- `src/main.py`: FastAPI app creation + router registration only.
+- `src/settings.py`: environment/config.
+- `src/core/`: cross-cutting utilities (logging, rate limit, etc.).
+- `src/infrastructure/`: infrastructure concerns (e.g. database base/session, shared clients).
+- `src/<domain_module>/` (plural, e.g. `bookings`, `customers`, `shops`):
+  - required: `router.py`, `service.py`, `repository.py`, `models.py`, `schemas.py`
+  - optional (only if needed): `dependencies.py`, `exceptions.py`, `constants.py`, `utils.py`
+
+Naming:
+- Domain modules are plural.
+- Avoid turning `src/models.py` into a "god file"; shared models/types only if truly cross-cutting.
+
+
+Layer responsibilities:
+
+- `router.py`:
+  - HTTP concerns only (request/response, status codes, Depends).
+  - Calls service layer.
+  - No business logic.
+- `service.py`:
+  - Business rules + orchestration.
+  - Calls repository and external clients.
+- `repository.py`:
+  - Data access only (queries/ORM interactions).
+- `models.py`:
+  - ORM entities and relations.
+  - Must NOT depend on FastAPI or routers.
+- `schemas.py`:
+  - Pydantic schemas (DTO).
+  - No business logic.
+
+Dependency direction (no inversions allowed):
+- `router` -> `service` -> `repository` -> `models`
+- `schemas` may be used by `router/service`.
+- `router.py` may import `models` only for type hints (avoid runtime coupling).

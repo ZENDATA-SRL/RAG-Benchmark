@@ -1,0 +1,11 @@
+---
+description: Base behavior for AI edits (Zendata Python/FastAPI)
+globs: ["**/*"]
+alwaysApply: true
+---
+
+- Follow the repository Python Coding Policy.
+- Prefer small, safe, incremental diffs.
+- Do not introduce new architectural patterns or new dependencies unless explicitly requested.
+- Keep code simple and readable; avoid clever abstractions.
+- If requirements are ambiguous, make the smallest reasonable assumption and state it.
