@@ -4,28 +4,13 @@ import asyncio
 import os
 from logging.config import fileConfig
 
+from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
-from dotenv import load_dotenv
 from src.infrastructure.database.base import Base
-from src.infrastructure.database.models import (  # noqa: F401
-    ChunkerConfigORM,
-    ChunkORM,
-    DatasetORM,
-    DocumentORM,
-    EmbeddingConfigORM,
-    EmbeddingORM,
-    LLMConfigORM,
-    OCRConfigORM,
-    QuestionORM,
-    RAGConfigORM,
-    ScanORM,
-    SolverConfigORM,
-    VectorDBConfigORM,
-)
+from src.infrastructure.database.models import *
 
 # Alembic Config object (values from alembic.ini)
 config = context.config
