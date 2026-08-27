@@ -21,5 +21,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pdf2image>=1.17.0",
     "pypdf>=6.16.2",
+    "pydantic-settings>=2.13.1",
     "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0.52",
 ]
