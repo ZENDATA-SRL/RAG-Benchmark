@@ -37,7 +37,7 @@ PARAMS_SCHEMA: dict[str, Any] = {
         },
         "strip_headers_footers": {
             "type": "boolean",
-            "default": False,
+            "default": True,
             "title": "Strip headers and footers",
             "description": "Drop the repeated page furniture before splitting.",
         },

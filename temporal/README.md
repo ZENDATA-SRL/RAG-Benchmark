@@ -38,6 +38,14 @@ notices a descriptor whose implementation was never written. Two checks close th
 
 ```
 temporal/
+  client.py         connect to the Temporal frontend with the shared data converter
+  codec.py          SizeGuardCodec: rejects payloads over 128 KB (RT-O02)
+  config.py         worker session factory, per-activity transaction, data converter
+  task_queues.py    ingestion / parsing / chunking queues (RT-O03)
+  worker.py         registers activities + workflows, asserts the registry at startup
+  workflow_ids.py   deterministic workflow ids (RT-O01)
+  activities/       parse_document, chunk_document, run reads, materialisation progress
+  workflows/        ProcessDocumentWorkflow, MaterializeChunksWorkflow
   components/
     __init__.py       BUILTIN_PARSERS / BUILTIN_CHUNKERS, resolve_*, assert_registry_complete
     parsers/          pypdf
@@ -45,8 +53,7 @@ temporal/
   tests/
 ```
 
-Arriving in Sprint 3: `worker.py`, `client.py`, `config.py`, `task_queues.py`, `activities/`,
-`workflows/`. See [`sprint/SPRINT-03-temporal-parsing-chunking.md`](../sprint/SPRINT-03-temporal-parsing-chunking.md).
+See [`sprint/SPRINT-03-temporal-parsing-chunking.md`](../sprint/SPRINT-03-temporal-parsing-chunking.md).
 
 ## Running outside Docker
 

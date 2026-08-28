@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from collections.abc import Sequence
 from typing import Any
@@ -31,6 +32,7 @@ from src.pipelines.models import (
     ChunkResult,
     EmbeddingProfile,
     IndexBuild,
+    MaterializationRun,
     ParsingProfile,
     ParsingResult,
     RetrievalProfile,
@@ -41,6 +43,7 @@ from src.pipelines.repository import (
     ChunkRepository,
     ChunkResultRepository,
     IndexBuildRepository,
+    MaterializationRunRepository,
     ParsingResultRepository,
     ProfileRepository,
 )
@@ -532,3 +535,83 @@ class IndexBuildService:
             lookup=lambda: self.builds.get_by_chain_fingerprint(fingerprint),
             create=create,
         )
+
+
+class MaterializationRunService:
+    """The denormalised progress of a user-triggered chunk materialisation (RT-O07)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.runs = MaterializationRunRepository(session)
+
+    async def open_run(
+        self,
+        *,
+        workflow_id: str,
+        chunking_configuration_id: uuid.UUID,
+        document_count: int,
+        corpus_id: uuid.UUID | None = None,
+    ) -> MaterializationRun:
+        """Return the run for a workflow id, creating it as `running` if absent.
+
+        Get-or-create on `workflow_id` so a workflow retried or continued-as-new reuses the
+        same row instead of forking the progress the UI reads. An existing row is returned
+        untouched: its progress is authoritative for what already happened.
+        """
+
+        async def create() -> MaterializationRun:
+            run = self.runs.add(
+                MaterializationRun(
+                    workflow_id=workflow_id,
+                    chunking_configuration_id=chunking_configuration_id,
+                    corpus_id=corpus_id,
+                    document_count=document_count,
+                    status=ArtifactStatus.RUNNING,
+                    progress={"ready": 0, "failed": 0, "cached": 0, "pending": document_count},
+                    started_at=dt.datetime.now(dt.UTC),
+                )
+            )
+            await self.session.flush()
+            return run
+
+        return await get_or_create(
+            self.session,
+            lookup=lambda: self.runs.get_by_workflow_id(workflow_id),
+            create=create,
+        )
+
+    async def update_progress(
+        self, *, workflow_id: str, progress: dict[str, int]
+    ) -> MaterializationRun | None:
+        """Overwrite a run's progress counters with the workflow's current tally.
+
+        The workflow owns the counts and passes the whole tally each time, so the write is
+        idempotent and stays monotonic as long as the caller only ever grows them; `pending`
+        is derived so the four numbers always sum to `document_count`.
+        """
+        run = await self.runs.get_by_workflow_id(workflow_id)
+        if run is None:
+            return None
+        done = progress.get("ready", 0) + progress.get("failed", 0) + progress.get("cached", 0)
+        run.progress = {
+            "ready": progress.get("ready", 0),
+            "failed": progress.get("failed", 0),
+            "cached": progress.get("cached", 0),
+            "pending": max(run.document_count - done, 0),
+        }
+        await self.session.flush()
+        return run
+
+    async def complete_run(
+        self, *, workflow_id: str, progress: dict[str, int]
+    ) -> MaterializationRun | None:
+        """Mark a run finished with its final tally, `ready` unless any document failed."""
+        run = await self.update_progress(workflow_id=workflow_id, progress=progress)
+        if run is None:
+            return None
+        run.status = (
+            ArtifactStatus.FAILED if run.progress["failed"] else ArtifactStatus.READY
+        )
+        run.finished_at = dt.datetime.now(dt.UTC)
+        await self.session.flush()
+        return run

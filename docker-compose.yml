@@ -104,6 +104,33 @@ services:
     ports:
       - "8080:8080"
 
+  # The durable-execution worker (Sprint 3): parses PDFs and chunks documents off the HTTP
+  # path. Opt-in like `postgres`, because in development the worker is usually run from a
+  # local checkout for fast iteration:
+  #   docker compose --profile worker up -d --build worker
+  worker:
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      temporal:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      TEMPORAL_HOST: temporal:7233
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      # Reaches the app Postgres and MinIO on the host; override for a fully containerised
+      # setup. `host.docker.internal` resolves the host from inside the container.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:password@host.docker.internal:5432/rag-bench}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-http://minio:9000}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-minioadmin}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-rag-bench}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   # Needed from Milestone 3 (embedding + retrieval), not by the MVP flow.
   # chromadb:
   #   image: chromadb/chroma:latest

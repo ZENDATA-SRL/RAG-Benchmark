@@ -1,0 +1,23 @@
+# Image for the Temporal worker. The backend runs locally via uvicorn in development, but
+# the worker is the process docker compose is expected to bring up (Sprint 3 DoD): it needs
+# `pypdf` and the text splitters the API image deliberately does not carry.
+FROM python:3.12-slim
+
+# uv provides the same lockfile-driven install the developers use, so the container and a
+# local checkout resolve the identical dependency set.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+# Dependencies first, for layer caching: they change far less often than the source.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
+
+COPY backend ./backend
+COPY temporal ./temporal
+
+# Both source roots on the path: `temporal` imports `src`, and neither is an installed
+# package (mirrors the pytest `pythonpath` and the README's run command).
+ENV PYTHONPATH=/app:/app/backend
+
+CMD ["uv", "run", "python", "-m", "temporal.worker"]

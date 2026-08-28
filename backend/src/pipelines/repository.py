@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Iterable, Sequence
 from typing import Generic, TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.corpora.models import CorpusSnapshotDocument
@@ -15,6 +15,7 @@ from src.pipelines.models import (
     ChunkResult,
     EmbeddingProfile,
     IndexBuild,
+    MaterializationRun,
     ParsingProfile,
     ParsingResult,
     RetrievalProfile,
@@ -171,6 +172,18 @@ class ChunkRepository:
     def add_all(self, chunks: Iterable[Chunk]) -> None:
         self.session.add_all(list(chunks))
 
+    async def delete_by_chunk_result(self, chunk_result_id: uuid.UUID) -> int:
+        """Delete the chunks of a chunk result, returning how many were removed.
+
+        Used before rewriting the chunks of a `failed` result: without clearing the
+        orphans of the previous attempt, the unique `(chunk_result_id, ordinal)` would make
+        the retry fail on the first re-inserted ordinal.
+        """
+        result = await self.session.execute(
+            delete(Chunk).where(Chunk.chunk_result_id == chunk_result_id)
+        )
+        return result.rowcount or 0
+
     async def get_by_id(self, chunk_id: uuid.UUID) -> Chunk | None:
         return await self.session.get(Chunk, chunk_id)
 
@@ -273,3 +286,24 @@ class IndexBuildRepository:
         )
         result = await self.session.scalars(stmt)
         return result.all()
+
+
+class MaterializationRunRepository:
+    """Data access for `materialization_runs`."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    def add(self, run: MaterializationRun) -> MaterializationRun:
+        self.session.add(run)
+        return run
+
+    async def get_by_id(self, run_id: uuid.UUID) -> MaterializationRun | None:
+        return await self.session.get(MaterializationRun, run_id)
+
+    async def get_by_workflow_id(self, workflow_id: str) -> MaterializationRun | None:
+        """Resolve a run by its deterministic Temporal workflow id (RT-O01)."""
+        stmt = select(MaterializationRun).where(
+            MaterializationRun.workflow_id == workflow_id
+        )
+        return await self.session.scalar(stmt)

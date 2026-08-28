@@ -379,6 +379,24 @@ La **configurazione di popolamento del vector DB**: snapshot × configurazione d
 
 **Invariante.** Ogni artefatto è immutabile e riusabile: variare un parametro a valle non invalida gli stadi a monte, e variare la composizione dello snapshot non invalida i chunk dei documenti in comune.
 
+### `materialization_runs`
+La copia denormalizzata di **una materializzazione di chunk lanciata dall'utente** (RT-O07). I `chunk_results` da soli non dicono *quale richiesta* li ha generati né quanti ne mancano: questa riga sì, così la UI mostra l'avanzamento (RT-U05) senza interrogare Temporal a ogni polling.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `chunking_configuration_id` | UUID | FK → chunking_configurations, NOT NULL | |
+| `corpus_id` | UUID | FK → corpora, NULL | informativo, per la UI |
+| `workflow_id` | TEXT | NOT NULL UNIQUE | ID Temporal deterministico (RT-O01) |
+| `status` | artifact_status | NOT NULL DEFAULT 'pending' | riusa l'ENUM esistente |
+| `document_count` | INTEGER | NOT NULL | |
+| `progress` | JSONB | NOT NULL DEFAULT '{}' | `{ready, failed, cached, pending}` |
+| `started_at` | TIMESTAMPTZ | | |
+| `finished_at` | TIMESTAMPTZ | | |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+> **Stato autorevole in Temporal.** `status`/`progress` sono una copia per la reattività della UI, aggiornata in modo incrementale dalle activity del run; la verità resta la history del workflow. È la stessa denormalizzazione che RT-O07 prescrive per `import_runs`, `runs` e `index_builds`, applicata alla materializzazione dei chunk.
+
 ---
 
 ## Blocco 4 — Componenti / Registry (§6.4)
@@ -875,7 +893,7 @@ erDiagram
 - **Estendibilità v2.** Multi-tenancy → aggiungere `tenant_id` come dimensione; costi → nuova entità `usage_records` collegata a `executions`; conversazioni multi-turno → `conversation_id`/`turn_index` su `questions`/`executions`; snapshot su più corpora → rendere `corpus_snapshots.corpus_id` nullable (additivo; l'operazione inversa non lo sarebbe).
 - **Chunker corpus-scoped (v2).** Se servisse un chunker che deduplica boilerplate sull'intero corpus, si aggiunge `chunk_results.corpus_snapshot_id` nullable: non nullo solo per quei chunker, che perdono il riuso cross-snapshot. Fino ad allora `capabilities.scope` ammette solo `document`.
 
-## Riepilogo tabelle (45)
+## Riepilogo tabelle (46)
 
 | # | Blocco | Tabella |
 |---|---|---|
@@ -924,6 +942,7 @@ erDiagram
 | 43 | Esperimenti | `evaluations` |
 | 44 | Esperimenti | `human_annotations` |
 | 45 | Esperimenti | `metric_aggregates` |
+| 46 | Pipeline | `materialization_runs` |
 
 
 ---

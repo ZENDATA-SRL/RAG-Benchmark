@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Double,
     ForeignKey,
     ForeignKeyConstraint,
@@ -348,3 +350,37 @@ class IndexBuild(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ARTIFACT_STATUS, nullable=False, server_default=ArtifactStatus.PENDING.value
     )
     workflow_id: Mapped[str | None] = mapped_column(Text, unique=True)
+
+
+class MaterializationRun(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    """The denormalised record of one user-triggered chunk materialisation (RT-O07).
+
+    `chunk_results` alone cannot answer "which request produced these, and how many are
+    still pending": this row does, so the UI shows progress (RT-U05) without polling
+    Temporal on every refresh. The authoritative state stays in Temporal; this is a copy
+    kept fresh by the run's activities, exactly as `import_runs` and `index_builds` do.
+    """
+
+    __tablename__ = "materialization_runs"
+
+    chunking_configuration_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chunking_configurations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    corpus_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("corpora.id", ondelete="SET NULL"),
+        index=True,
+    )
+    workflow_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    status: Mapped[ArtifactStatus] = mapped_column(
+        ARTIFACT_STATUS, nullable=False, server_default=ArtifactStatus.PENDING.value
+    )
+    document_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    progress: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}", default=dict
+    )
+    started_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
