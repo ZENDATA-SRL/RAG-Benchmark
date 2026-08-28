@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from pathlib import PurePosixPath
+from typing import IO, Protocol, runtime_checkable
+
+DOCUMENTS_PREFIX = "documents"
+PARSES_PREFIX = "parses"
+
+
+@runtime_checkable
+class ObjectStorage(Protocol):
+    """Blob storage seen by the application: keys in, streams out.
+
+    Deliberately narrow so that the S3 implementation can be swapped for another
+    backend without touching callers. Every method works on a *key*; turning a key into
+    something persistable in the database is `build_uri`'s job.
+    """
+
+    def put_stream(self, key: str, stream: IO[bytes], content_type: str) -> str:
+        """Store the content of a readable stream and return its URI."""
+        ...
+
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> str:
+        """Store an in-memory payload and return its URI."""
+        ...
+
+    def get_stream(self, key: str) -> IO[bytes]:
+        """Open the object for reading without buffering it whole."""
+        ...
+
+    def get_bytes(self, key: str) -> bytes:
+        """Read the object entirely into memory; only for small payloads."""
+        ...
+
+    def exists(self, key: str) -> bool:
+        """Return whether the key is already present."""
+        ...
+
+    def build_uri(self, key: str) -> str:
+        """Return the stable URI stored in `documents.storage_uri` and friends."""
+        ...
+
+
+def document_key(content_hash: str, filename: str) -> str:
+    """Build the storage key of an original document.
+
+    Shape: `documents/{content_hash[:2]}/{content_hash}{ext}`. The first two characters
+    of the digest fan the objects out over 256 prefixes, which keeps listings usable once
+    the corpus grows. The key derives from the *content*, so uploading the same file
+    twice writes the same object and deduplication costs nothing (RF-S11).
+
+    Args:
+        content_hash: Hex sha-256 of the file content.
+        filename: Original file name, used only to recover the extension.
+
+    Returns:
+        Storage key, without bucket and without scheme.
+    """
+    suffix = PurePosixPath(filename).suffix.lower()
+    return f"{DOCUMENTS_PREFIX}/{content_hash[:2]}/{content_hash}{suffix}"
+
+
+def parse_key(parsing_profile_config_hash: str, content_hash: str) -> str:
+    """Build the storage key of a parsing output.
+
+    Shape: `parses/{parsing_profile_config_hash}/{content_hash}.json`. Grouping by
+    profile hash first means the whole output of one parsing configuration is a single
+    prefix, so re-parsing with different parameters never overwrites a previous result
+    and both stay inspectable (RT-O02).
+
+    Args:
+        parsing_profile_config_hash: `parsing_profiles.config_hash`.
+        content_hash: `documents.content_hash` of the parsed document.
+
+    Returns:
+        Storage key, without bucket and without scheme.
+    """
+    return f"{PARSES_PREFIX}/{parsing_profile_config_hash}/{content_hash}.json"
