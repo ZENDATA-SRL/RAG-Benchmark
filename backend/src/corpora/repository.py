@@ -35,6 +35,9 @@ class CorpusRepository:
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def count(self) -> int:
+        return await self.session.scalar(select(func.count()).select_from(Corpus)) or 0
+
     async def delete(self, corpus: Corpus) -> None:
         await self.session.delete(corpus)
 
@@ -92,10 +95,14 @@ class CorpusDocumentRepository:
         result = await self.session.scalars(stmt)
         return result.all()
 
-    async def count(self, corpus_id: uuid.UUID) -> int:
+    async def count(self, corpus_id: uuid.UUID, *, status: DocumentStatus | None = None) -> int:
         stmt = select(func.count()).select_from(CorpusDocument).where(
             CorpusDocument.corpus_id == corpus_id
         )
+        if status is not None:
+            stmt = stmt.join(Document, Document.id == CorpusDocument.document_id).where(
+                Document.status == status
+            )
         return await self.session.scalar(stmt) or 0
 
     async def count_by_status(self, corpus_id: uuid.UUID) -> dict[DocumentStatus, int]:

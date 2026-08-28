@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.infrastructure.database.enums import FileOutcome
+from src.infrastructure.database.enums import FileOutcome, SourceType
 from src.sources.models import (
     DocumentProvenance,
     ImportFileResult,
@@ -29,6 +29,16 @@ class SourceConnectionRepository:
     async def get_by_id(self, connection_id: uuid.UUID) -> SourceConnection | None:
         return await self.session.get(SourceConnection, connection_id)
 
+    async def get_by_type_and_name(
+        self, connection_type: SourceType, name: str
+    ) -> SourceConnection | None:
+        """Look up a connection by the pair the upload seed treats as its identity."""
+        stmt = select(SourceConnection).where(
+            SourceConnection.type == connection_type,
+            SourceConnection.name == name,
+        )
+        return await self.session.scalar(stmt)
+
     async def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[SourceConnection]:
         stmt = select(SourceConnection).order_by(SourceConnection.name).limit(limit).offset(offset)
         result = await self.session.scalars(stmt)
@@ -50,6 +60,16 @@ class ImportSelectionRepository:
 
     async def get_by_id(self, selection_id: uuid.UUID) -> ImportSelection | None:
         return await self.session.get(ImportSelection, selection_id)
+
+    async def get_by_connection_and_name(
+        self, connection_id: uuid.UUID, name: str
+    ) -> ImportSelection | None:
+        """Look up a selection by name within its connection, for idempotent seeding."""
+        stmt = select(ImportSelection).where(
+            ImportSelection.connection_id == connection_id,
+            ImportSelection.name == name,
+        )
+        return await self.session.scalar(stmt)
 
     async def list_by_connection(self, connection_id: uuid.UUID) -> Sequence[ImportSelection]:
         stmt = (

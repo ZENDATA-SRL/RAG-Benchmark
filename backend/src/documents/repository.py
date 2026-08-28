@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.documents.models import Document
@@ -58,9 +58,21 @@ class DocumentRepository:
         result = await self.session.scalars(stmt)
         return result.all()
 
-    async def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[Document]:
+    async def list(
+        self, *, status: DocumentStatus | None = None, limit: int = 50, offset: int = 0
+    ) -> Sequence[Document]:
+        stmt = select(Document)
+        if status is not None:
+            stmt = stmt.where(Document.status == status)
         stmt = (
-            select(Document).order_by(Document.created_at.desc(), Document.id).limit(limit).offset(offset)
+            stmt.order_by(Document.created_at.desc(), Document.id).limit(limit).offset(offset)
         )
         result = await self.session.scalars(stmt)
         return result.all()
+
+    async def count(self, *, status: DocumentStatus | None = None) -> int:
+        """Total number of documents matching the filter, for the `total` of a page."""
+        stmt = select(func.count()).select_from(Document)
+        if status is not None:
+            stmt = stmt.where(Document.status == status)
+        return await self.session.scalar(stmt) or 0

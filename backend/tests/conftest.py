@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 from collections.abc import AsyncGenerator
+from typing import IO
 
 import pytest
 import pytest_asyncio
@@ -70,9 +72,61 @@ async def session(connection: AsyncConnection) -> AsyncGenerator[AsyncSession, N
         yield test_session
 
 
+class FakeObjectStorage:
+    """In-memory `ObjectStorage`, so upload tests exercise the orchestration and not boto3.
+
+    `fail_on_keys` reproduces a storage backend that refuses a write, which is the only way
+    to test that a document ends up `failed` without breaking the rest of the batch.
+    """
+
+    def __init__(self, bucket: str = "test-bucket") -> None:
+        self.bucket = bucket
+        self.objects: dict[str, bytes] = {}
+        self.content_types: dict[str, str] = {}
+        self.fail_on_keys: set[str] = set()
+        self.put_calls: list[str] = []
+
+    def put_stream(self, key: str, stream: IO[bytes], content_type: str) -> str:
+        self.put_calls.append(key)
+        if key in self.fail_on_keys:
+            raise RuntimeError("storage unavailable")
+        self.objects[key] = stream.read()
+        self.content_types[key] = content_type
+        return self.build_uri(key)
+
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> str:
+        self.put_calls.append(key)
+        if key in self.fail_on_keys:
+            raise RuntimeError("storage unavailable")
+        self.objects[key] = data
+        self.content_types[key] = content_type
+        return self.build_uri(key)
+
+    def get_stream(self, key: str) -> IO[bytes]:
+        return io.BytesIO(self.objects[key])
+
+    def get_bytes(self, key: str) -> bytes:
+        return self.objects[key]
+
+    def exists(self, key: str) -> bool:
+        return key in self.objects
+
+    def build_uri(self, key: str) -> str:
+        return f"s3://{self.bucket}/{key}"
+
+
+@pytest.fixture
+def fake_storage() -> FakeObjectStorage:
+    """Fresh in-memory storage for one test."""
+    return FakeObjectStorage()
+
+
 @pytest_asyncio.fixture
-async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(
+    session: AsyncSession, fake_storage: FakeObjectStorage
+) -> AsyncGenerator[AsyncClient, None]:
     """`AsyncClient` on the app, with the session dependency bound to the test transaction."""
+    from src.dependencies import get_storage
     from src.infrastructure.database.session import get_session
     from src.main import create_app
 
@@ -80,7 +134,11 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Built without running `lifespan`, so the startup seed does not fire: a test that
     # needs the registry seeds it explicitly and the others start from an empty table.
     app.dependency_overrides[get_session] = lambda: session
+    # Storage is faked so an API test neither needs MinIO nor leaves objects behind; the
+    # real client is exercised end to end by `test_storage.py`.
+    app.dependency_overrides[get_storage] = lambda: fake_storage
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client
+

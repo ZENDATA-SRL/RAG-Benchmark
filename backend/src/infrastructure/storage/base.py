@@ -56,8 +56,9 @@ def document_key(content_hash: str, filename: str) -> str:
     Returns:
         Storage key, without bucket and without scheme.
     """
-    suffix = PurePosixPath(filename).suffix.lower()
-    return f"{DOCUMENTS_PREFIX}/{content_hash[:2]}/{content_hash}{suffix}"
+    path = PurePosixPath(filename)
+    suffix = path.suffix.lower()
+    return f"{DOCUMENTS_PREFIX}/{content_hash}/{path.stem}{suffix}"
 
 
 def parse_key(parsing_profile_config_hash: str, content_hash: str) -> str:
