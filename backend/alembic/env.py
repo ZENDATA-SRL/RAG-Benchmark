@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from logging.config import fileConfig
 
 from alembic import context
-from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models import *
+from src.settings import get_settings
 
 # Alembic Config object (values from alembic.ini)
 config = context.config
@@ -18,10 +17,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-load_dotenv()
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Single source of truth for the connection string: `alembic.ini` only carries a
+# placeholder, so migrations and the application can never point at different databases.
+config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 target_metadata = Base.metadata
 

@@ -227,3 +227,6 @@ frontend/.pnpm-debug.log*
 
 # UV stuff
 uv*
+
+# Sprint folder
+sprint/*

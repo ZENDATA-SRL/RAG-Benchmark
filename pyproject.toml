@@ -1,7 +1,7 @@
 [project]
 name = "rag-benchmark"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reproducible benchmarking platform for RAG pipelines"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -24,4 +24,25 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.0.52",
+    "boto3>=1.43.81",
+    "jsonschema>=4.26.0",
+    "uvicorn>=0.52.4",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests", "temporal/tests"]
+# `src` is importable because `backend` is the source root, the same assumption
+# `alembic.ini` encodes with `prepend_sys_path`; `.` makes the `temporal` worker package
+# importable, which depends on `src` and never the other way round.
+pythonpath = ["backend", "."]
+asyncio_mode = "auto"
+markers = [
+    "integration: needs the docker-compose services (Postgres, MinIO) to be running",
 ]
