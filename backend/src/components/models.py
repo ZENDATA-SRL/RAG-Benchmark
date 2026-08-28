@@ -19,7 +19,7 @@ from src.infrastructure.database.enums import (
 class Component(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Logical identity of a pluggable component: type + key, e.g. `parser/azure_di`.
 
-    Registrable without code changes (RF-R01).
+    Registrable without code changes.
     """
 
     __tablename__ = "components"
@@ -35,11 +35,11 @@ class Component(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class ComponentVersion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """A concrete implementation of a component; several versions stay active at once (RF-R06).
+    """A concrete implementation of a component; several versions stay active at once.
 
-    `params_schema` is the JSON Schema the UI renders a form from (RF-R02, RT-U01);
+    `params_schema` is the JSON Schema the UI renders a form from;
     `capabilities` declares supported modalities, formats, citation support and — for
-    chunkers — the processing scope, which in v1 may only be `document` (RF-R03).
+    chunkers — the processing scope, which in v1 may only be `document`.
     """
 
     __tablename__ = "component_versions"

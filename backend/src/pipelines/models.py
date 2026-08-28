@@ -25,7 +25,7 @@ from src.infrastructure.database.enums import ARTIFACT_STATUS, ArtifactStatus
 
 
 class ParsingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Reusable parsing configuration: component version + parameters (RF-P01)."""
+    """Reusable parsing configuration: component version + parameters."""
 
     __tablename__ = "parsing_profiles"
 
@@ -43,9 +43,9 @@ class ParsingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class ChunkingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Reusable chunking configuration (RF-P02).
+    """Reusable chunking configuration.
 
-    `params` carries the header/footer/index filter policy (RF-P03) and the image
+    `params` carries the header/footer/index filter policy and the image
     policy; both are per-document, so neither makes the chunker corpus-scoped.
     """
 
@@ -68,7 +68,7 @@ class ChunkingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class EmbeddingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Embedding configuration, with text, image and multi-vector support (RF-P04)."""
+    """Embedding configuration, with text, image and multi-vector support."""
 
     __tablename__ = "embedding_profiles"
 
@@ -88,7 +88,7 @@ class EmbeddingProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class VectorStoreProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Vector store configuration with its index parameters (RF-P05)."""
+    """Vector store configuration with its index parameters."""
 
     __tablename__ = "vector_store_profiles"
 
@@ -106,7 +106,7 @@ class VectorStoreProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class RetrievalProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Full retrieval configuration (RF-P06).
+    """Full retrieval configuration.
 
     Referenced by variants and never materialised as a stage: changing `top_k` or the
     reranker invalidates no parsing, chunking or index artefact.
@@ -220,7 +220,7 @@ class ChunkResult(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     costs two supporting unique indexes and removes an application check that would
     eventually be forgotten.
 
-    The scope assumption is document-local (RF-P10): a chunker that deduplicates
+    The scope assumption is document-local: a chunker that deduplicates
     boilerplate across the whole corpus is not cacheable per document, and in v1 only
     `document` scoped chunkers are admitted via `capabilities.scope`.
     """
@@ -302,7 +302,7 @@ class Chunk(UUIDPrimaryKeyMixin, Base):
 
 
 class IndexBuild(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """The vector DB population configuration (RF-P09).
+    """The vector DB population configuration.
 
     Snapshot x chunking configuration x embedder x vector store, identified by a
     fingerprint of the whole chain. The snapshot enters here because the search space is

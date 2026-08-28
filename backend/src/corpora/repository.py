@@ -99,7 +99,7 @@ class CorpusDocumentRepository:
         return await self.session.scalar(stmt) or 0
 
     async def count_by_status(self, corpus_id: uuid.UUID) -> dict[DocumentStatus, int]:
-        """Acquisition progress of a corpus (RF-C04), aggregated over its memberships.
+        """Acquisition progress of a corpus, aggregated over its memberships.
 
         The status lives on `documents`, so the progress of a corpus is an aggregate
         over the join and not a stored column.
@@ -130,7 +130,7 @@ class CorpusSnapshotRepository:
     async def get_by_composition(
         self, corpus_id: uuid.UUID, composition_hash: str
     ) -> CorpusSnapshot | None:
-        """Look up an existing snapshot by its dedup key (RF-C07)."""
+        """Look up an existing snapshot by its dedup key."""
         stmt = select(CorpusSnapshot).where(
             CorpusSnapshot.corpus_id == corpus_id,
             CorpusSnapshot.composition_hash == composition_hash,

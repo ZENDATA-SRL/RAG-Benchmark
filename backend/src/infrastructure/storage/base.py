@@ -47,7 +47,7 @@ def document_key(content_hash: str, filename: str) -> str:
     Shape: `documents/{content_hash[:2]}/{content_hash}{ext}`. The first two characters
     of the digest fan the objects out over 256 prefixes, which keeps listings usable once
     the corpus grows. The key derives from the *content*, so uploading the same file
-    twice writes the same object and deduplication costs nothing (RF-S11).
+    twice writes the same object and deduplication costs nothing.
 
     Args:
         content_hash: Hex sha-256 of the file content.

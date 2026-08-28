@@ -49,7 +49,7 @@ SUPPORTED_CHUNKER_SCOPE = "document"
 
 
 class ProfileService:
-    """Creation of pipeline profiles, deduplicated by `config_hash` (RF-P07)."""
+    """Creation of pipeline profiles, deduplicated by `config_hash`."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -79,7 +79,7 @@ class ProfileService:
 
         Raises:
             UnsupportedChunkerScopeError: If the component version declares a scope other
-                than `document` (RF-R03).
+                than `document`.
             ProfileNotFoundError: If the component version does not exist.
         """
         await self._assert_document_scope(component_version_id)
@@ -134,7 +134,7 @@ class ProfileService:
     async def get_or_create_retrieval_profile(
         self, *, name: str, top_k: int, strategy: str, **options: Any
     ) -> RetrievalProfile:
-        """Return the retrieval profile for a retrieval configuration (RF-P06).
+        """Return the retrieval profile for a retrieval configuration.
 
         Unlike the other profiles this one has no component version of its own: the
         reranker is the only component it may reference, and it is part of `options` as
@@ -210,7 +210,7 @@ class ProfileService:
         )
 
     async def _assert_document_scope(self, component_version_id: uuid.UUID) -> None:
-        """Reject chunkers whose declared scope is not `document` (RF-R03)."""
+        """Reject chunkers whose declared scope is not `document`."""
         version = await self.session.get(ComponentVersion, component_version_id)
         if version is None:
             raise ProfileNotFoundError("chunker component version", component_version_id)
@@ -278,7 +278,7 @@ class ChunkingConfigurationService:
 
 
 class ArtefactService:
-    """Claiming and completion of the per-document artefacts (RF-P10).
+    """Claiming and completion of the per-document artefacts.
 
     Artefacts are claimed as `pending` on their cache key, which turns the unique index
     into the mutual exclusion between concurrent workers: the worker that inserts the row
@@ -300,7 +300,7 @@ class ArtefactService:
         """Return the parse of a (document, parsing profile) pair, claiming it if absent.
 
         Returns:
-            The cached parse — `ready` results are reused as they are (RF-P07) — or a
+            The cached parse — `ready` results are reused as they are — or a
             freshly claimed `pending` row for the caller to fill in.
 
         Raises:
@@ -443,7 +443,7 @@ class ArtefactService:
     ) -> list[uuid.UUID]:
         """Documents without a `ready` chunk result for a configuration.
 
-        This is what makes growing a corpus cheap (RF-C05): only the new documents are
+        This is what makes growing a corpus cheap: only the new documents are
         chunked, the ones already materialised are reused as they are.
         """
         existing = await self.chunk_results.list_by_documents(
@@ -458,7 +458,7 @@ class ArtefactService:
 
 
 class IndexBuildService:
-    """The vector DB population configuration (RF-P09)."""
+    """The vector DB population configuration."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session

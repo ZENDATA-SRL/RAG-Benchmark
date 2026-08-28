@@ -29,7 +29,7 @@ class CorpusSnapshotService:
     ) -> CorpusSnapshot:
         """Freeze a selection of documents, reusing the snapshot with the same composition.
 
-        Deduplication is mandatory (RF-C07): the snapshot is part of the meaning of a
+        Deduplication is mandatory: the snapshot is part of the meaning of a
         metric, so two snapshots with the same composition would split one experiment
         into two non-comparable groups. Creation is therefore always a get-or-create on
         `(corpus_id, composition_hash)`.
@@ -76,7 +76,7 @@ class CorpusSnapshotService:
     async def _assert_membership(
         self, corpus_id: uuid.UUID, document_ids: Sequence[uuid.UUID]
     ) -> None:
-        """Check that the selection is a subset of the current corpus (RF-C06)."""
+        """Check that the selection is a subset of the current corpus."""
         in_corpus = set(await self.memberships.list_document_ids(corpus_id))
         missing = [str(doc_id) for doc_id in document_ids if doc_id not in in_corpus]
         if missing:

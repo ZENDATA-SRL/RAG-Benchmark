@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from src.core.exceptions import DomainError, NotFoundError, UnsupportedOperationError, ValidationError
+from src.core.exceptions import (
+    DomainError,
+    NotFoundError,
+    UnsupportedOperationError,
+    ValidationError,
+)
 
 
 class PipelineError(DomainError):
@@ -27,8 +32,8 @@ class UnsupportedChunkerScopeError(UnsupportedOperationError, PipelineError):
     """Raised when a chunking profile declares a scope other than `document`.
 
     Per-document materialisation is what keeps the chunk-level gold valid across changes
-    of corpus composition (RF-P10), so a corpus-scoped chunker cannot be cached per
-    document and is out of scope for v1 (RF-R03).
+    of corpus composition, so a corpus-scoped chunker cannot be cached per
+    document and is out of scope for v1.
     """
 
     code = "unsupported_chunker_scope"

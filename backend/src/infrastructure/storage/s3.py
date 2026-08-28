@@ -12,7 +12,7 @@ from src.infrastructure.storage.base import ObjectStorage
 from src.settings import Settings
 
 # Chosen so a 200 MB upload costs ~8 MB of buffers instead of 200 MB of resident memory
-# (RF-S12). Also the S3 minimum for every part of a multipart upload but the last.
+# Also the S3 minimum for every part of a multipart upload but the last.
 _MULTIPART_CHUNK_BYTES = 8 * 1024 * 1024
 
 
@@ -20,7 +20,7 @@ class S3ObjectStorage(ObjectStorage):
     """S3-compatible object storage, used against MinIO in local and S3 in cloud.
 
     Reads and writes go through `upload_fileobj` / the streaming body of `get_object`, so
-    neither direction ever materialises the whole file in memory (RF-S12). The client is
+    neither direction ever materialises the whole file in memory. The client is
     thread-safe for the calls used here, but boto3 sessions are not, so one client is
     created per instance and instances are meant to be reused per process.
     """

@@ -112,7 +112,7 @@ class ParsingResultRepository:
         return await self.session.get(ParsingResult, result_id)
 
     async def get_by_cache_key(self, cache_key: str) -> ParsingResult | None:
-        """Resolve the cache entry of a (document, parsing profile) pair (RF-P07)."""
+        """Resolve the cache entry of a (document, parsing profile) pair."""
         stmt = select(ParsingResult).where(ParsingResult.cache_key == cache_key)
         return await self.session.scalar(stmt)
 
@@ -177,7 +177,7 @@ class ChunkRepository:
     async def list_by_chunk_result(
         self, chunk_result_id: uuid.UUID, *, limit: int = 100, offset: int = 0
     ) -> Sequence[Chunk]:
-        """Chunks of one document under one configuration, in document order (RF-P08)."""
+        """Chunks of one document under one configuration, in document order."""
         stmt = (
             select(Chunk)
             .where(Chunk.chunk_result_id == chunk_result_id)
@@ -252,7 +252,7 @@ class IndexBuildRepository:
         return await self.session.get(IndexBuild, build_id)
 
     async def get_by_chain_fingerprint(self, chain_fingerprint: str) -> IndexBuild | None:
-        """Resolve a build by the fingerprint of its whole population chain (RF-P09)."""
+        """Resolve a build by the fingerprint of its whole population chain."""
         stmt = select(IndexBuild).where(IndexBuild.chain_fingerprint == chain_fingerprint)
         return await self.session.scalar(stmt)
 

@@ -27,7 +27,7 @@ def hash_parts(*parts: str) -> str:
 
 
 def composition_hash(document_ids: Iterable[uuid.UUID]) -> str:
-    """Hash the composition of a corpus snapshot (RF-C07).
+    """Hash the composition of a corpus snapshot.
 
     Ids are deduplicated and sorted, so the hash depends on the *set* of documents
     and not on the order in which the user selected them.
@@ -87,7 +87,7 @@ def combined_config_hash(*config_hashes: str) -> str:
 
 
 def cache_key(content_hash: str, config_hash_value: str) -> str:
-    """Hash the cache key of a per-document artefact (RF-P07).
+    """Hash the cache key of a per-document artefact.
 
     Used by `parsing_results` (document content hash + parsing profile hash) and by
     `chunk_results` (document content hash + chunking configuration hash). It depends on
@@ -109,7 +109,7 @@ def chain_fingerprint(
     embedding_config_hash: str,
     vector_store_config_hash: str,
 ) -> str:
-    """Hash the whole vector DB population chain of an index build (RF-P09).
+    """Hash the whole vector DB population chain of an index build.
 
     Covers everything the content of the index depends on — search space included —
     so repeating the same choice reuses the existing build instead of rebuilding it.

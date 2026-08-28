@@ -1,15 +1,37 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from src.infrastructure.database.session import dispose_engine
+from src.components.registry_seed import seed_builtin_components
+from src.components.router import router as components_router
+from src.core.exceptions import DomainError
+from src.core.logging import (
+    bind_request_id,
+    configure_logging,
+    get_request_id,
+    new_request_id,
+)
+from src.infrastructure.database.session import dispose_engine, session_factory
 from src.settings import get_settings
+
+API_PREFIX = "/api/v1"
+REQUEST_ID_HEADER = "X-Request-ID"
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Seed the builtin registry at startup and release the pool at shutdown."""
+    async with session_factory() as session:
+        await seed_builtin_components(session)
+        await session.commit()
     yield
     await dispose_engine()
 
@@ -17,15 +39,55 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Build the FastAPI application and register its routers."""
     settings = get_settings()
+    configure_logging(settings.log_level)
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         lifespan=lifespan,
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER],
+    )
+
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        """Bind a request id for the whole request and echo it back to the client.
+
+        An id supplied by the caller is honoured so that a failure reported from the UI can
+        be traced without correlating timestamps.
+        """
+        request_id = request.headers.get(REQUEST_ID_HEADER) or new_request_id()
+        bind_request_id(request_id)
+        response = await call_next(request)
+        response.headers[REQUEST_ID_HEADER] = request_id
+        return response
+
+    @app.exception_handler(DomainError)
+    async def domain_error_handler(request: Request, error: DomainError) -> JSONResponse:
+        """Serialise every domain error into one shape, so the UI parses a single contract."""
+        logger.info("domain error %s: %s", error.code, error.message)
+        return JSONResponse(
+            status_code=error.status_code,
+            content={
+                "code": error.code,
+                "message": error.message,
+                "details": error.details,
+            },
+            headers={REQUEST_ID_HEADER: get_request_id()},
+        )
+
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    app.include_router(components_router, prefix=API_PREFIX)
 
     return app
 
