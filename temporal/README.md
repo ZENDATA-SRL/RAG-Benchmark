@@ -48,6 +48,16 @@ temporal/
 Arriving in Sprint 3: `worker.py`, `client.py`, `config.py`, `task_queues.py`, `activities/`,
 `workflows/`. See [`sprint/SPRINT-03-temporal-parsing-chunking.md`](../sprint/SPRINT-03-temporal-parsing-chunking.md).
 
+## Running outside Docker
+
+Neither `temporal` nor `src` is an installed package: both source roots have to be on
+`PYTHONPATH`, since here there is no `pythonpath` (pytest) nor `prepend_sys_path` (alembic) to
+supply them. From the repository root:
+
+```bash
+PYTHONPATH=.:backend uv run python -m temporal.worker
+```
+
 ## Tests
 
 Run from the repository root, since `pythonpath` covers both source roots:

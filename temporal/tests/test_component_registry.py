@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from src.components.builtin import (
     BUILTIN_DESCRIPTORS,
     CHUNKER_DESCRIPTORS,
@@ -9,6 +8,7 @@ from src.components.builtin import (
     Chunker,
     Parser,
 )
+
 from temporal.components import (
     BUILTIN_CHUNKERS,
     BUILTIN_PARSERS,

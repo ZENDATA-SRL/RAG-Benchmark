@@ -46,3 +46,8 @@ asyncio_mode = "auto"
 markers = [
     "integration: needs the docker-compose services (Postgres, MinIO) to be running",
 ]
+
+[tool.basedpyright]
+# Same two source roots as `pytest`'s `pythonpath`: without `backend` the editor cannot
+# resolve `src.*` from the `temporal` package, since neither root is an installed package.
+extraPaths = ["backend", "."]
