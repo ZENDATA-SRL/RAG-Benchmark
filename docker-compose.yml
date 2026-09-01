@@ -133,6 +133,20 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  # Sprint 5: Vite dev server. The browser talks only to this origin; the container
+  # proxies /api and /health to the API on the host (uvicorn is not containerised).
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: ""
+      API_PROXY_TARGET: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   # Needed from Milestone 3 (embedding + retrieval), not by the MVP flow.
   # chromadb:
   #   image: chromadb/chroma:latest

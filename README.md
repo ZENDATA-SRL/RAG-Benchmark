@@ -13,6 +13,7 @@ made of.
 
 - Docker with Compose v2
 - Python 3.12 and [uv](https://docs.astral.sh/uv/)
+- Node.js 22+ (for the UI)
 
 ## Startup
 
@@ -22,6 +23,7 @@ uv sync
 docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, worker
 uv run alembic -c backend/alembic.ini upgrade head
 cd backend && uv run uvicorn src.main:app --reload
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
@@ -58,7 +60,8 @@ POSTGRES_PORT=5433 docker compose --profile postgres up -d --wait
 # then, in .env: DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/rag-bench
 ```
 
-The API answers on `http://localhost:8000`:
+The UI answers on `http://localhost:5173` (`docker compose up frontend` if you prefer the
+container). The API answers on `http://localhost:8000`:
 
 | Endpoint | Purpose |
 |---|---|
@@ -106,7 +109,7 @@ backend/
     pipelines/        profiles, configurations, per-document artefacts, materialisation
     sources/          connections and imports
   tests/
-frontend/             React + Vite UI (Sprint 5)
+frontend/             React + Vite UI: corpus, upload, configuration, chunks
 scripts/              mvp_smoke.py, the end-to-end check of the backend flow
 temporal/             workers, workflows and builtin implementations (Sprint 3)
   components/         parser and chunker code, invoked only by the worker

@@ -212,6 +212,9 @@ __marimo__/
 
 # Frontend (Next.js / Node.js)
 frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
 frontend/.next/
 frontend/out/
 frontend/build/

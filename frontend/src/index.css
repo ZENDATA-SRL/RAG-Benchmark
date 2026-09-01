@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-ink: #1a1814;
+  --color-ink-muted: #5c564c;
+  --color-paper: #f6f1e8;
+  --color-paper-raised: #fffdf8;
+  --color-line: #d9d0c2;
+  --color-sidebar: #161410;
+  --color-sidebar-muted: #9a9286;
+  --color-rust: #c45c26;
+  --color-rust-dark: #9a4316;
+  --color-teal: #2f6f6a;
+  --color-amber: #c4922a;
+  --color-danger: #9b2c2c;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01" on;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-rust);
+  outline-offset: 2px;
+}
+
+.schema-form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.schema-form .form-group,
+.schema-form .field {
+  margin-bottom: 0.85rem;
+}
+
+.schema-form label.control-label,
+.schema-form legend {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.schema-form .field-description {
+  margin: 0 0 0.4rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+}
+
+.schema-form .error-detail,
+.schema-form .text-danger {
+  margin: 0.3rem 0 0;
+  color: var(--color-danger);
+  font-size: 0.75rem;
+}
+
+.schema-form .array-item {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.schema-form .btn {
+  border: 1px solid var(--color-line);
+  background: var(--color-paper-raised);
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
