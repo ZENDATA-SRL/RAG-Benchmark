@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.exceptions import NotFoundError, UnsupportedOperationError, ValidationError
+from src.core.exceptions import (
+    NotFoundError,
+    UnsupportedOperationError,
+    ValidationError,
+)
 
 
 class ComponentNotFoundError(NotFoundError):

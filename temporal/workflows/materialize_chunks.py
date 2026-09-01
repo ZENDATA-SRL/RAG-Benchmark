@@ -33,7 +33,7 @@ _DEFAULT_CONCURRENCY = 5
 class MaterializeInput:
     """Arguments of a materialisation run.
 
-    A **list of documents**, not a snapshot (§5.2): the same workflow serves a preview on
+    A **list of documents**, not a snapshot: the same workflow serves a preview on
     one file (RF-P08) and a whole corpus, which keeps chunking independent of the search
     space. `total` and the counters are carried across `continue_as_new` so the run's
     identity and reported progress survive the history reset.
@@ -52,7 +52,7 @@ class MaterializeInput:
 
 @workflow.defn
 class MaterializeChunksWorkflow:
-    """Materialise chunks for a set of documents, one child workflow per document (§3.6).
+    """Materialise chunks for a set of documents, one child workflow per document.
 
     Idempotent by construction: the workflow id is deterministic in
     `(configuration, document set)`, so Temporal rejects a duplicate launch; a completed run

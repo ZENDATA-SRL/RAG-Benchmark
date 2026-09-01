@@ -121,10 +121,12 @@ services:
     environment:
       TEMPORAL_HOST: temporal:7233
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
-      # Reaches the app Postgres and MinIO on the host; override for a fully containerised
-      # setup. `host.docker.internal` resolves the host from inside the container.
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:password@host.docker.internal:5432/rag-bench}
-      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-http://minio:9000}
+      # Deliberately `WORKER_`-prefixed. The container reaches Postgres and MinIO by
+      # different names than the host does, and `.env` holds the host's view: reusing
+      # `DATABASE_URL` here would inject `localhost` into the container, where nothing is
+      # listening. Set these only for a fully containerised or remote setup.
+      DATABASE_URL: ${WORKER_DATABASE_URL:-postgresql+asyncpg://postgres:password@host.docker.internal:5432/rag-bench}
+      STORAGE_ENDPOINT: ${WORKER_STORAGE_ENDPOINT:-http://minio:9000}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-minioadmin}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-rag-bench}

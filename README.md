@@ -19,10 +19,20 @@ made of.
 ```bash
 cp .env.example .env          # adjust if a port is already taken
 uv sync
-docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui
+docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, worker
 uv run alembic -c backend/alembic.ini upgrade head
 cd backend && uv run uvicorn src.main:app --reload
 ```
+
+With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
+upload, profiles, configuration, preview, materialisation, polling, chunk and parse
+inspection — and exits non-zero at the first deviation:
+
+```bash
+uv run python scripts/mvp_smoke.py
+```
+
+The interactive API documentation is on <http://localhost:8000/docs>.
 
 ### PostgreSQL
 
@@ -89,14 +99,15 @@ backend/
     main.py           app creation, router registration, error handler
     settings.py       configuration read from the environment
     core/             hashing, get-or-create, domain errors, logging
-    infrastructure/   database (base, session, enums) and object storage
+    infrastructure/   database (base, session, enums), object storage, temporal client
     components/       registry of pluggable components: contracts + descriptors
     corpora/          corpora and snapshots
     documents/        documents
-    pipelines/        profiles, configurations, per-document artefacts
+    pipelines/        profiles, configurations, per-document artefacts, materialisation
     sources/          connections and imports
   tests/
 frontend/             React + Vite UI (Sprint 5)
+scripts/              mvp_smoke.py, the end-to-end check of the backend flow
 temporal/             workers, workflows and builtin implementations (Sprint 3)
   components/         parser and chunker code, invoked only by the worker
   tests/

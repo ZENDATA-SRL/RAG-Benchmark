@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -10,20 +9,18 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from src.infrastructure.temporal import data_converter
 from src.settings import Settings, get_settings
 from temporalio.converter import DataConverter
-from temporalio.converter import default as default_converter
-
-from temporal.codec import SizeGuardCodec
 
 
 def worker_data_converter() -> DataConverter:
     """The data converter every client and worker shares.
 
-    Wraps the default converter with `SizeGuardCodec`, so the payload size limit of RT-O02
-    is enforced by the transport itself and cannot be forgotten at a call site.
+    Defined once in `src.infrastructure.temporal` because the API is a Temporal client too:
+    the payload size limit of RT-O02 must hold on both sides of the queue.
     """
-    return dataclasses.replace(default_converter(), payload_codec=SizeGuardCodec())
+    return data_converter()
 
 
 # A dedicated engine for the worker process: activities run their own transaction outside

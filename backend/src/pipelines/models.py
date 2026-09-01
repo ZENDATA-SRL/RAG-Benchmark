@@ -179,7 +179,7 @@ class ParsingResult(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class ChunkingConfiguration(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """The (parsing profile, chunking profile) pair, materialised as an entity (§3.1).
+    """The (parsing profile, chunking profile) pair, materialised as an entity.
 
     This is the comparability dimension of chunk-level gold and the only dimension whose
     change costs human work, which is why `evidence_links` point here and not at an
@@ -359,6 +359,11 @@ class MaterializationRun(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     still pending": this row does, so the UI shows progress (RT-U05) without polling
     Temporal on every refresh. The authoritative state stays in Temporal; this is a copy
     kept fresh by the run's activities, exactly as `import_runs` and `index_builds` do.
+
+    The per-document outcome is deliberately *not* duplicated here: it belongs to the
+    artefact (`chunk_results.error`), the way `import_file_results` holds it for an import.
+    `error` carries only what is a property of the run itself, i.e. why it ended the way it
+    did when that is not visible from the artefacts — a cancellation.
     """
 
     __tablename__ = "materialization_runs"
@@ -382,5 +387,6 @@ class MaterializationRun(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     progress: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default="{}", default=dict
     )
+    error: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))

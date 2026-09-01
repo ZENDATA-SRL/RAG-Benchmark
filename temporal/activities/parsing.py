@@ -8,7 +8,7 @@ import uuid
 
 from src.components.service import ComponentService
 from src.infrastructure.storage import ObjectStorage, get_object_storage
-from src.infrastructure.storage.base import parse_key
+from src.infrastructure.storage.base import parse_key, storage_key
 from src.pipelines.models import ParsingProfile
 from src.pipelines.service import ArtefactService
 from src.settings import get_settings
@@ -19,8 +19,10 @@ from temporal.components import resolve_parser
 from temporal.components.parsers.exceptions import PermanentParsingError
 from temporal.config import activity_session
 
-_PROGRESS_HEARTBEAT_EVERY = 10
-
+# Heartbeat cadence while the parse occupies a worker thread. Well inside the workflow's
+# two-minute heartbeat timeout, so a parse that is merely slow is not mistaken for a stuck
+# one, and a genuinely stuck worker is still detected in seconds.
+_HEARTBEAT_INTERVAL_SECONDS = 15.0
 
 @dataclasses.dataclass
 class ParseResult:
@@ -63,9 +65,7 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
             await ComponentService(session).validate_params(
                 profile.component_version_id, params
             )
-            output = await asyncio.to_thread(
-                _run_parser, key, storage_uri, document_id, params
-            )
+            output = await _parse_with_heartbeat(key, storage_uri, document_id, params)
         except PermanentParsingError as error:
             await artefacts.fail_artefact(
                 parsing_result, error=f"{error.reason}: {error}"
@@ -80,22 +80,32 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
         return ParseResult(str(completed.id), "ready")
 
 
-def _run_parser(key: str, storage_uri: str, filename: str, params: dict) -> dict:
-    """Download the document and run the parser in a worker thread.
+async def _parse_with_heartbeat(
+    key: str, storage_uri: str, filename: str, params: dict
+) -> dict:
+    """Run the parser in a thread while heartbeating from the event loop (RT-O04).
 
-    Heartbeats per page (RT-O04): on a 500-page PDF this is what tells a timeout apart from
-    slow progress and lets a retry resume rather than restart.
+    `activity.heartbeat` schedules on the running loop, so it cannot be called from the
+    worker thread doing the parsing. The loop therefore reports liveness on a timer while the
+    thread works, which is what tells a slow parse apart from a stuck one.
     """
+    task = asyncio.create_task(asyncio.to_thread(_run_parser, key, storage_uri, filename, params))
+    elapsed = 0.0
+    while True:
+        done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_INTERVAL_SECONDS)
+        if done:
+            return await task
+        elapsed += _HEARTBEAT_INTERVAL_SECONDS
+        activity.heartbeat(elapsed)
+
+
+def _run_parser(key: str, storage_uri: str, filename: str, params: dict) -> dict:
+    """Download the document and run the parser in a worker thread."""
     parser = resolve_parser(key)
     storage = _storage()
-    with storage.get_stream(_uri_to_key(storage_uri)) as body:
+    with storage.get_stream(storage_key(storage_uri)) as body:
         data = body.read()
-    output = parser.parse(io.BytesIO(data), filename)
-    for index, _ in enumerate(output["pages"], start=1):
-        if index % _PROGRESS_HEARTBEAT_EVERY == 0:
-            activity.heartbeat(index)
-    activity.heartbeat(len(output["pages"]))
-    return output
+    return parser.parse(io.BytesIO(data), filename)
 
 
 def _write_parse(key: str, output: dict) -> None:
@@ -115,10 +125,3 @@ async def _document_location(session, document_id: uuid.UUID) -> tuple[str, str]
 
 def _storage() -> ObjectStorage:
     return get_object_storage(get_settings())
-
-
-def _uri_to_key(storage_uri: str) -> str:
-    """Turn an `s3://bucket/key` URI back into the key the storage client expects."""
-    without_scheme = storage_uri.removeprefix("s3://")
-    _, _, key = without_scheme.partition("/")
-    return key

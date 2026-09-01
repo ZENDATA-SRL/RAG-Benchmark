@@ -7,7 +7,7 @@ import logging
 import uuid
 
 from src.components.service import ComponentService
-from src.infrastructure.storage import ObjectStorage, get_object_storage
+from src.infrastructure.storage import ObjectStorage, get_object_storage, storage_key
 from src.pipelines.models import ChunkingConfiguration, ChunkingProfile
 from src.pipelines.service import ArtefactService
 from src.settings import get_settings
@@ -101,15 +101,9 @@ def _run_chunker(key: str, parse_output: dict, params: dict) -> list[dict]:
 
 def _read_parse(output_uri: str | None) -> dict:
     assert output_uri is not None  # a ready parse always has an output (DB CHECK)
-    raw = _storage().get_bytes(_uri_to_key(output_uri))
+    raw = _storage().get_bytes(storage_key(output_uri))
     return json.loads(raw)
 
 
 def _storage() -> ObjectStorage:
     return get_object_storage(get_settings())
-
-
-def _uri_to_key(storage_uri: str) -> str:
-    without_scheme = storage_uri.removeprefix("s3://")
-    _, _, key = without_scheme.partition("/")
-    return key

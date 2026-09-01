@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import dataclasses
 import io
 from collections.abc import AsyncGenerator
-from typing import IO
+from typing import IO, Any
 
 import pytest
 import pytest_asyncio
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import NullPool
+from src.infrastructure.temporal import StartedWorkflow
 from src.settings import Settings, get_settings
 
 
@@ -121,12 +123,64 @@ def fake_storage() -> FakeObjectStorage:
     return FakeObjectStorage()
 
 
+@dataclasses.dataclass(frozen=True)
+class StartedCall:
+    """One recorded launch, so a test can assert what would have reached Temporal."""
+
+    workflow: str
+    arg: Any
+    workflow_id: str
+    task_queue: str
+
+
+class FakeWorkflowClient:
+    """In-memory `WorkflowClient`, so API tests need no Temporal server.
+
+    Records every launch, and reproduces the one behaviour the API depends on: a second
+    start with an id already running reports `started=False` instead of raising, which is
+    how Temporal's duplicate-id rejection reaches the caller (RT-O01). The real workflows
+    are covered by `temporal/tests`.
+    """
+
+    def __init__(self) -> None:
+        self.started: list[StartedCall] = []
+        self.cancelled: list[str] = []
+        self._running: set[str] = set()
+
+    async def start(
+        self, workflow: str, *, arg: Any, workflow_id: str, task_queue: str
+    ) -> StartedWorkflow:
+        self.started.append(
+            StartedCall(
+                workflow=workflow, arg=arg, workflow_id=workflow_id, task_queue=task_queue
+            )
+        )
+        if workflow_id in self._running:
+            return StartedWorkflow(workflow_id=workflow_id, started=False)
+        self._running.add(workflow_id)
+        return StartedWorkflow(workflow_id=workflow_id, started=True)
+
+    async def cancel(self, workflow_id: str) -> bool:
+        self.cancelled.append(workflow_id)
+        was_running = workflow_id in self._running
+        self._running.discard(workflow_id)
+        return was_running
+
+
+@pytest.fixture
+def fake_workflows() -> FakeWorkflowClient:
+    """Fresh in-memory workflow client for one test."""
+    return FakeWorkflowClient()
+
+
 @pytest_asyncio.fixture
 async def client(
-    session: AsyncSession, fake_storage: FakeObjectStorage
+    session: AsyncSession,
+    fake_storage: FakeObjectStorage,
+    fake_workflows: FakeWorkflowClient,
 ) -> AsyncGenerator[AsyncClient, None]:
     """`AsyncClient` on the app, with the session dependency bound to the test transaction."""
-    from src.dependencies import get_storage
+    from src.dependencies import get_storage, get_workflows
     from src.infrastructure.database.session import get_session
     from src.main import create_app
 
@@ -137,6 +191,9 @@ async def client(
     # Storage is faked so an API test neither needs MinIO nor leaves objects behind; the
     # real client is exercised end to end by `test_storage.py`.
     app.dependency_overrides[get_storage] = lambda: fake_storage
+    # Temporal likewise: the API test asserts what would have been launched, the workflow
+    # itself is covered by `temporal/tests`.
+    app.dependency_overrides[get_workflows] = lambda: fake_workflows
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:

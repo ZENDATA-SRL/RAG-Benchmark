@@ -29,7 +29,7 @@ _RETRY_POLICY = RetryPolicy(
 
 @workflow.defn
 class ProcessDocumentWorkflow:
-    """Parse then chunk a single document under one chunking configuration (§5.2).
+    """Parse then chunk a single document under one chunking configuration.
 
     A permanently failed parse ends the workflow with a negative result instead of raising:
     a workflow that finished with `{status: "failed"}` is data the parent aggregates, not an

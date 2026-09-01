@@ -77,3 +77,20 @@ def parse_key(parsing_profile_config_hash: str, content_hash: str) -> str:
         Storage key, without bucket and without scheme.
     """
     return f"{PARSES_PREFIX}/{parsing_profile_config_hash}/{content_hash}.json"
+
+
+def storage_key(storage_uri: str) -> str:
+    """Turn a stored `s3://bucket/key` URI back into the key the storage client expects.
+
+    The inverse of `build_uri`: rows persist the URI because the endpoint is
+    deployment-specific, so every reader of a stored artefact needs this one step back.
+
+    Args:
+        storage_uri: Value of a column such as `documents.storage_uri`.
+
+    Returns:
+        Storage key, without bucket and without scheme.
+    """
+    without_scheme = storage_uri.removeprefix("s3://")
+    _, _, key = without_scheme.partition("/")
+    return key

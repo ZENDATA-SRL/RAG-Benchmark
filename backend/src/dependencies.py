@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.session import get_session
 from src.infrastructure.storage import ObjectStorage, get_object_storage
+from src.infrastructure.temporal import WorkflowClient, get_workflow_client
 from src.settings import Settings, get_settings
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -19,3 +20,15 @@ def get_storage(settings: SettingsDep) -> ObjectStorage:
 
 
 StorageDep = Annotated[ObjectStorage, Depends(get_storage)]
+
+
+async def get_workflows(settings: SettingsDep) -> WorkflowClient:
+    """Return the shared Temporal client for the request.
+
+    A dependency rather than a module-level import so an API test can substitute a fake and
+    assert what would have been launched without needing a Temporal server.
+    """
+    return await get_workflow_client(settings)
+
+
+WorkflowsDep = Annotated[WorkflowClient, Depends(get_workflows)]

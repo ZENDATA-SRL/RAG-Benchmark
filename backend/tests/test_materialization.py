@@ -54,17 +54,17 @@ async def _configuration(session):
         capabilities=recursive.CAPABILITIES,
     )
 
-    parsing_profile = await profiles.get_or_create_parsing_profile(
+    parsing_profile, _ = await profiles.get_or_create_parsing_profile(
         name="parse", component_version_id=parser_version.id
     )
-    chunking_profile = await profiles.get_or_create_chunking_profile(
+    chunking_profile, _ = await profiles.get_or_create_chunking_profile(
         name="chunk",
         component_version_id=chunker_version.id,
         strategy=recursive.STRATEGY,
         chunk_size=500,
         overlap=50,
     )
-    configuration = await ChunkingConfigurationService(session).get_or_create(
+    configuration, _ = await ChunkingConfigurationService(session).get_or_create(
         parsing_profile_id=parsing_profile.id,
         chunking_profile_id=chunking_profile.id,
     )

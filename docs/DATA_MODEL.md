@@ -391,9 +391,12 @@ La copia denormalizzata di **una materializzazione di chunk lanciata dall'utente
 | `status` | artifact_status | NOT NULL DEFAULT 'pending' | riusa l'ENUM esistente |
 | `document_count` | INTEGER | NOT NULL | |
 | `progress` | JSONB | NOT NULL DEFAULT '{}' | `{ready, failed, cached, pending}` |
+| `error` | TEXT | | motivo terminale del run, es. `cancelled` |
 | `started_at` | TIMESTAMPTZ | | |
 | `finished_at` | TIMESTAMPTZ | | |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+> **L'esito per documento non è duplicato qui**: appartiene all'artefatto (`chunk_results.error`), come `import_file_results` lo tiene per un import. `error` porta solo ciò che è proprietà del run stesso, cioè il motivo per cui è terminato quando non è leggibile dagli artefatti — una cancellazione lascia ogni `chunk_result` intatto.
 
 > **Stato autorevole in Temporal.** `status`/`progress` sono una copia per la reattività della UI, aggiornata in modo incrementale dalle activity del run; la verità resta la history del workflow. È la stessa denormalizzazione che RT-O07 prescrive per `import_runs`, `runs` e `index_builds`, applicata alla materializzazione dei chunk.
 

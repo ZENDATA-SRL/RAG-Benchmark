@@ -6,6 +6,7 @@ from src.infrastructure.storage.base import (
     ObjectStorage,
     document_key,
     parse_key,
+    storage_key,
 )
 from src.infrastructure.storage.s3 import S3ObjectStorage, get_object_storage
 
@@ -17,4 +18,5 @@ __all__ = [
     "document_key",
     "get_object_storage",
     "parse_key",
+    "storage_key",
 ]

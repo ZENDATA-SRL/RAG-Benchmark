@@ -20,6 +20,8 @@ from src.core.logging import (
 from src.corpora.router import router as corpora_router
 from src.documents.router import router as documents_router
 from src.infrastructure.database.session import dispose_engine, session_factory
+from src.infrastructure.temporal import reset_workflow_client
+from src.pipelines.router import router as pipelines_router
 from src.settings import get_settings
 from src.sources.seed import seed_upload_source
 
@@ -37,6 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await seed_upload_source(session)
         await session.commit()
     yield
+    await reset_workflow_client()
     await dispose_engine()
 
 
@@ -94,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(components_router, prefix=API_PREFIX)
     app.include_router(corpora_router, prefix=API_PREFIX)
     app.include_router(documents_router, prefix=API_PREFIX)
+    app.include_router(pipelines_router, prefix=API_PREFIX)
 
     return app
 
