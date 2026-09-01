@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from src.components.builtin.chunkers import recursive
-from src.components.builtin.parsers import pypdf
+from src.components.builtin.chunkers import markdown, recursive
+from src.components.builtin.parsers import pdfplumber, pypdf
 from src.components.registry_seed import seed_builtin_components
 
 pytestmark = pytest.mark.integration
@@ -28,7 +28,7 @@ async def test_list_components_exposes_the_builtins_with_their_schema(client, se
     assert response.status_code == 200
     body = response.json()
     by_key = {component["key"]: component for component in body}
-    assert set(by_key) == {pypdf.KEY, recursive.KEY}
+    assert set(by_key) == {pypdf.KEY, pdfplumber.KEY, recursive.KEY, markdown.KEY}
 
     chunker = by_key[recursive.KEY]
     assert chunker["type"] == "chunker"
@@ -50,7 +50,9 @@ async def test_list_components_filters_by_type(client, session) -> None:
     response = await client.get(COMPONENTS_URL, params={"type": "parser"})
 
     assert response.status_code == 200
-    assert [component["key"] for component in response.json()] == [pypdf.KEY]
+    assert [component["key"] for component in response.json()] == sorted(
+        [pdfplumber.KEY, pypdf.KEY]
+    )
 
 
 async def test_list_versions_of_a_component(client, session) -> None:

@@ -171,6 +171,7 @@ class ParsingResult(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         index=True,
     )
     output_uri: Mapped[str | None] = mapped_column(Text)
+    output_text: Mapped[str | None] = mapped_column(Text)
     cache_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[ArtifactStatus] = mapped_column(
         ARTIFACT_STATUS, nullable=False, server_default=ArtifactStatus.PENDING.value

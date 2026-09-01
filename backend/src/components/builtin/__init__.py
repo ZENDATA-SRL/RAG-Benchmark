@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from src.components.builtin.chunkers import recursive
+from src.components.builtin.chunkers import markdown, recursive
 from src.components.builtin.contracts import (
     Chunker,
     ChunkPayload,
@@ -11,7 +11,7 @@ from src.components.builtin.contracts import (
     ParsePage,
     Parser,
 )
-from src.components.builtin.parsers import pypdf
+from src.components.builtin.parsers import pdfplumber, pypdf
 from src.infrastructure.database.enums import ComponentType
 
 
@@ -42,6 +42,14 @@ PARSER_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
         params_schema=pypdf.PARAMS_SCHEMA,
         capabilities=pypdf.CAPABILITIES,
     ),
+    BuiltinDescriptor(
+        component_type=ComponentType.PARSER,
+        key=pdfplumber.KEY,
+        version=pdfplumber.VERSION,
+        display_name=pdfplumber.DISPLAY_NAME,
+        params_schema=pdfplumber.PARAMS_SCHEMA,
+        capabilities=pdfplumber.CAPABILITIES,
+    ),
 )
 
 CHUNKER_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
@@ -52,6 +60,14 @@ CHUNKER_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
         display_name=recursive.DISPLAY_NAME,
         params_schema=recursive.PARAMS_SCHEMA,
         capabilities=recursive.CAPABILITIES,
+    ),
+    BuiltinDescriptor(
+        component_type=ComponentType.CHUNKER,
+        key=markdown.KEY,
+        version=markdown.VERSION,
+        display_name=markdown.DISPLAY_NAME,
+        params_schema=markdown.PARAMS_SCHEMA,
+        capabilities=markdown.CAPABILITIES,
     ),
 )
 

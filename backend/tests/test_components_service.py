@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from src.components.builtin.chunkers import recursive
-from src.components.builtin.parsers import pypdf
+from src.components.builtin.chunkers import markdown, recursive
+from src.components.builtin.parsers import pdfplumber, pypdf
 from src.components.exceptions import (
     ComponentVersionNotFoundError,
     InvalidComponentParamsError,
@@ -43,14 +43,14 @@ async def test_register_version_is_idempotent(session) -> None:
     assert first.id == second.id
 
 
-async def test_seed_twice_yields_two_components_with_one_version(session) -> None:
-    """The acceptance of 1.6: two consecutive startups leave exactly two components."""
+async def test_seed_twice_yields_declared_components_with_one_version(session) -> None:
+    """The acceptance of 1.6: two consecutive startups leave the declared builtins only."""
     await seed_builtin_components(session)
     await seed_builtin_components(session)
 
     components = await ComponentService(session).list_components()
     keys = sorted(component.key for component in components)
-    assert keys == sorted([pypdf.KEY, recursive.KEY])
+    assert keys == sorted([pypdf.KEY, pdfplumber.KEY, recursive.KEY, markdown.KEY])
 
     for component in components:
         versions = await ComponentService(session).list_versions(component.id)

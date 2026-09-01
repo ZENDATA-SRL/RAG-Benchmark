@@ -74,8 +74,9 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
 
         output_key = parse_key(profile.config_hash, content_hash)
         await asyncio.to_thread(_write_parse, output_key, output)
+        output_text = "\n".join([page["text"] for page in output["pages"]])
         completed = await artefacts.complete_parsing_result(
-            parsing_result, output_uri=_storage().build_uri(output_key)
+            parsing_result, output_uri=_storage().build_uri(output_key), output_text=output_text
         )
         return ParseResult(str(completed.id), "ready")
 

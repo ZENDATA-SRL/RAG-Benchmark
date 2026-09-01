@@ -595,10 +595,11 @@ class ArtefactService:
         )
 
     async def complete_parsing_result(
-        self, parsing_result: ParsingResult, *, output_uri: str
+        self, parsing_result: ParsingResult, *, output_uri: str, output_text: str
     ) -> ParsingResult:
         """Mark a parse as `ready` with the storage reference of its output (RT-O02)."""
         parsing_result.output_uri = output_uri
+        parsing_result.output_text = output_text
         parsing_result.status = ArtifactStatus.READY
         parsing_result.error = None
         await self.session.flush()

@@ -6,13 +6,20 @@ from src.components.builtin import (
     Chunker,
     Parser,
 )
-from temporal.components.chunkers import recursive
-from temporal.components.parsers import pypdf
+
+from temporal.components.chunkers import markdown, recursive
+from temporal.components.parsers import plumber, pypdf
 
 # `builtin` means exactly this: the key maps to a class in this repository, invoked
 # in-process by the worker with no network hop.
-BUILTIN_PARSERS: dict[str, Parser] = {pypdf.KEY: pypdf.PyPdfParser()}
-BUILTIN_CHUNKERS: dict[str, Chunker] = {recursive.KEY: recursive.RecursiveChunker()}
+BUILTIN_PARSERS: dict[str, Parser] = {
+    pypdf.KEY: pypdf.PyPdfParser(),
+    plumber.KEY: plumber.PdfPlumberParser(),
+}
+BUILTIN_CHUNKERS: dict[str, Chunker] = {
+    recursive.KEY: recursive.RecursiveChunker(),
+    markdown.KEY: markdown.MarkdownChunker(),
+}
 
 
 def resolve_parser(key: str) -> Parser:

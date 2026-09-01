@@ -49,7 +49,7 @@ temporal/
   components/
     __init__.py       BUILTIN_PARSERS / BUILTIN_CHUNKERS, resolve_*, assert_registry_complete
     parsers/          pypdf
-    chunkers/         recursive
+    chunkers/         recursive, markdown
   tests/
 ```
 
