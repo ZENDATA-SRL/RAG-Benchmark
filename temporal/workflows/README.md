@@ -12,7 +12,7 @@ Deterministic orchestration only: no I/O, no randomness, no imports of heavy lib
 
 ## Ids and idempotency
 
-Workflow ids come from `src/pipelines/workflow_ids.py`, deterministic in what the workflow
+Workflow ids come from `src/infrastructure/temporal/workflow_ids.py`, deterministic in what the workflow
 does (configuration + document set; index build id). The API computes the same id when it
 starts a workflow, so a duplicate launch is detected by Temporal itself.
 

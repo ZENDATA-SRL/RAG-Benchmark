@@ -36,12 +36,22 @@ was `created` or reused.
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
 | `infrastructure/database/` | Declarative `Base` + mixins (UUID pk, `created_at`, `updated_at`), PostgreSQL enums, async session |
 | `infrastructure/storage/` | `ObjectStorage` protocol, S3/MinIO implementation, key helpers (`document_key`, `parse_key`) |
-| `infrastructure/temporal/` | `WorkflowClient` protocol (`start`, `cancel`) and its Temporal implementation, plus `SizeGuardCodec` (payloads over 128 KB are rejected, RT-O02) |
+| `infrastructure/temporal/` | `WorkflowClient` protocol (`start`, `cancel`) and its Temporal implementation, `SizeGuardCodec` (payloads over 128 KB are rejected, RT-O02), and `workflow_ids.py` (workflow names, task queues, deterministic ids) |
 | `components/` | Registry of pluggable components, see below |
 | `documents/` | Upload, content-hash deduplication, provenance, metadata, content download |
 | `corpora/` | Corpora, their documents, progress, and immutable snapshots |
 | `sources/` | Source connections and import runs; today only the built-in `upload` source |
-| `pipelines/` | Profiles, chunking configurations, per-document artefacts, materialisation and index builds |
+| `pipelines/` | Profiles and chunking configurations: the configuration side, nothing executed |
+| `artifacts/` | Per-document parsing and chunking results, chunks, coverage and inspection |
+| `materializations/` | User-triggered chunk materialisation runs and their progress |
+| `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
+
+The four pipeline modules depend on each other in one direction only:
+
+```
+pipelines ← artifacts ← materializations
+          ↖ indexes
+```
 
 ### `components/`
 
@@ -100,41 +110,57 @@ is what an index build searches over.
 
 ### `pipelines/`
 
-Services in `service.py`:
-
-- `ProfileService` — get-or-create for parsing, chunking, embedding, vector-store and
-  retrieval profiles. A profile is `component_version + params`, params validated against
-  the version's schema; chunkers must declare `capabilities.scope = document`.
-- `ChunkingConfigurationService` — a **chunking configuration** pairs a parsing profile with
-  a chunking profile: the unit of comparability. Also `compose` (build one from two profile
-  payloads) and `coverage` (how many documents are already chunked).
-- `ArtefactService` — `claim_*` / `complete_*` / `fail_artefact` for `parsing_results` and
-  `chunk_results`. A `ready` artefact with the same `cache_key` is returned as is, which is
-  how materialisation skips work already done. Used by the worker's activities.
-- `MaterializationService` / `MaterializationRunService` — start (or reuse) a
-  `MaterializeChunksWorkflow`, cancel it, and keep the `materialization_runs` progress row.
-- `IndexBuildService` / `IndexCorpusService` — create an index build and launch
-  `IndexCorpusWorkflow`.
-- `InspectionService` — read chunks, chunk results and per-page parse output.
-
-`workflow_ids.py` computes the deterministic workflow ids (RT-O01). It lives here because the
-API starts the workflows and must derive the same id the worker serves; the worker re-exports it.
+Configuration only. `ProfileService` does get-or-create for parsing, chunking, embedding,
+vector-store and retrieval profiles: a profile is `component_version + params`, params are
+validated against the version's schema, and chunkers must declare
+`capabilities.scope = document`. `ChunkingConfigurationService` pairs a parsing profile with
+a chunking profile (a **chunking configuration**, the unit of comparability) and offers
+`compose`, which builds both profiles and the configuration from one form.
 
 | Route | Purpose |
 |---|---|
-| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`; `GET …/{id}` for parsing and chunking | Profiles. `/vector-store-profiles` has a router but no routes yet; the service method `get_or_create_vector_store_profile` exists |
+| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`; `GET …/{id}` for parsing and chunking | Profiles. Vector-store profiles have a service method but no route yet |
 | `POST /chunking-configurations`, `GET …`, `GET …/{id}` | Configurations |
 | `POST /chunking-configurations/compose` | Create both profiles and the configuration in one call (single UI form) |
+
+### `artifacts/`
+
+`ArtefactService` — `claim_*` / `complete_*` / `fail_artefact` for `parsing_results` and
+`chunk_results`. A `ready` artefact with the same `cache_key` is returned as is, which is
+how materialisation skips work already done. Used by the worker's activities.
+`CoverageService` counts how many documents of a corpus a configuration has chunked;
+`InspectionService` reads chunks, chunk results and per-page parse output.
+
+| Route | Purpose |
+|---|---|
 | `GET /chunking-configurations/{id}/coverage` | How far a configuration is materialised over a corpus |
+| `GET /documents/{id}/chunks`, `GET /documents/{id}/chunks/compare`, `GET /chunk-results`, `GET /chunks/{id}`, `GET /documents/{id}/parse` | Inspect artefacts |
+
+### `materializations/`
+
+`MaterializationService` starts (or reuses) a `MaterializeChunksWorkflow` and cancels it;
+`MaterializationRunService` keeps the `materialization_runs` progress row the UI polls.
+
+| Route | Purpose |
+|---|---|
 | `POST /materializations`, `GET /materializations[/{id}]`, `POST …/{id}/cancel` | Materialise chunks for a configuration over documents or a corpus |
-| `POST /index-builds`, `POST /index-builds/{id}/start` | Create (idempotent by `chain_fingerprint`) and start indexing; `202` with `started=false` if the same work is already running |
-| `GET /documents/{id}/chunks`, `GET /chunk-results`, `GET /chunks/{id}`, `GET /documents/{id}/parse` | Inspect artefacts |
+
+### `indexes/`
+
+`IndexBuildService` creates an index build (idempotent by `chain_fingerprint`);
+`IndexCorpusService` launches `IndexCorpusWorkflow`.
+
+| Route | Purpose |
+|---|---|
+| `POST /index-builds`, `POST /index-builds/{id}/start` | Create and start indexing; `202` with `started=false` if the same work is already running |
 
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
 `retrieval_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
-`chunks`, `index_builds`, `materialization_runs` (all in `pipelines/models.py`).
+`chunks`, `index_builds`, `materialization_runs`. Profiles and configurations are in
+`pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
+`materializations/models.py`, index builds in `indexes/models.py`.
 Parse output lives on object storage and is referenced by `parsing_results.output_uri`;
 chunks are rows. The full schema and its rationale are in
 [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md).

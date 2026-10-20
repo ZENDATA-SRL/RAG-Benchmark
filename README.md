@@ -109,7 +109,10 @@ backend/
     components/       registry of pluggable components: contracts + descriptors (parser, chunker, embedder, vector store)
     corpora/          corpora and snapshots
     documents/        documents
-    pipelines/        profiles, configurations, per-document artefacts, materialisation, index builds
+    pipelines/        profiles and chunking configurations
+    artifacts/        per-document parse and chunk results, coverage, inspection
+    materializations/ chunk materialisation runs and their progress
+    indexes/          index builds over a corpus snapshot
     sources/          connections and imports
   tests/
 frontend/             React + Vite UI: corpus, upload, configuration, chunks

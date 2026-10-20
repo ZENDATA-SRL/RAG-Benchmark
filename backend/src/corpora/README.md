@@ -11,8 +11,8 @@ Mutable sets of documents, and the immutable snapshots taken from them.
   search space comparable. An empty selection or a document outside the corpus is rejected.
 - A corpus with snapshots cannot be deleted (`CorpusHasSnapshotsError`).
 
-An `IndexBuild` (in `pipelines/`) references a snapshot, which is how the search space is
-fixed. The pipelines worker activities read snapshot documents through
+An `IndexBuild` (in `indexes/`) references a snapshot, which is how the search space is
+fixed. The worker's indexing activities read snapshot documents through
 `CorpusSnapshotRepository`.
 
 ## Routes

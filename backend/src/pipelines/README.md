@@ -1,42 +1,52 @@
 # pipelines
 
-Everything between a stored document and an index: profiles, configurations, per-document
-artefacts, materialisation runs and index builds.
+The configuration side of the pipeline: reusable profiles and the chunking configurations
+built from them. Nothing here is executed or materialised; the modules that do the work
+(`artifacts`, `materializations`, `indexes`) all point back at these rows.
 
 ## Entities (`models.py`)
 
 | Entity | Identity |
 |---|---|
 | `ParsingProfile`, `ChunkingProfile`, `EmbeddingProfile`, `VectorStoreProfile`, `RetrievalProfile` | `config_hash` = component version + canonical params |
-| `ChunkingConfiguration` | Parsing profile + chunking profile; the unit of comparability |
-| `ParsingResult` | `cache_key` = document content hash + parsing profile hash; output on object storage |
-| `ChunkResult`, `Chunk` | `cache_key` = document content hash + configuration hash; chunks are rows |
-| `IndexBuild` | `chain_fingerprint` over snapshot, configuration, embedding and vector store |
-| `MaterializationRun` | One user-triggered run: progress counters and failures |
+| `ChunkingConfiguration` | Parsing profile + chunking profile; the unit of comparability of chunk-level gold |
 
-Artefact status is `pending → running → ready | failed` (`ArtifactStatus`).
+The profile name is excluded from every hash: two profiles that behave the same are one
+row, whatever the user called them.
 
 ## Services (`service.py`)
 
-`ProfileService`, `ChunkingConfigurationService`, `ArtefactService`,
-`MaterializationRunService`, `MaterializationService`, `IndexBuildService`,
-`IndexCorpusService`, `InspectionService`. `ArtefactService` is the one the worker calls: its
-`claim_*` methods return a cached `ready` artefact or a fresh `pending` row, which is what
-makes re-running a materialisation cheap.
-
-## Starting workflows
-
-`MaterializationService.start` and `IndexCorpusService.start` launch Temporal workflows
-through the `WorkflowClient` protocol with ids from `workflow_ids.py`. If a workflow with the
-same id is already running, the call reports it instead of starting another.
+- `ProfileService` — get-or-create for the five profile types. Params are validated against
+  the component version's `params_schema`; chunkers must declare
+  `capabilities.scope = document`.
+- `ChunkingConfigurationService` — get-or-create of a configuration from two profile ids,
+  `expand` (configuration + its two profiles, so the UI labels a row in one call) and
+  `compose` (both profiles and the configuration in one transaction, for a single UI form).
 
 ## Routes (`router.py`)
 
-Profiles (`/parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`),
-`/chunking-configurations` (including `/compose` and `/{id}/coverage`),
-`/materializations` (start, list, detail, cancel), `/index-builds` (create, `/{id}/start`),
-and inspection (`/documents/{id}/chunks`, `/chunk-results`, `/chunks/{id}`,
-`/documents/{id}/parse`).
+| Route | Purpose |
+|---|---|
+| `POST/GET /parsing-profiles`, `GET …/{id}` | Parsing profiles |
+| `POST/GET /chunking-profiles`, `GET …/{id}` | Chunking profiles |
+| `POST/GET /embedding-profiles` | Embedding profiles |
+| `POST/GET /chunking-configurations`, `GET …/{id}` | Configurations, with profiles inlined |
+| `POST /chunking-configurations/compose` | Both profiles and the configuration in one call |
 
-`exceptions.py` has one error per failure the UI must tell apart, such as
-`ParsingProfileMismatchError`, `EmptyMaterializationError`, `MaterializationNotCancellableError`.
+Every create endpoint is idempotent and answers `created: true|false`; when a row is reused,
+`detail` carries `REUSED_DETAIL` from `constants.py`, which `indexes` uses too.
+
+`GET /chunking-configurations/{id}/coverage` shares the URL prefix but lives in `artifacts`,
+because it is computed from the per-document chunk results.
+
+## Dependencies
+
+`pipelines` depends only on `components`. It is the base of the other pipeline modules:
+
+```
+pipelines ← artifacts ← materializations
+          ↖ indexes
+```
+
+`exceptions.py`: `ProfileNotFoundError` (also used by the other modules for any missing
+referenced row), `UnsupportedChunkerScopeError`, `ChunkingConfigurationNotFoundError`.
