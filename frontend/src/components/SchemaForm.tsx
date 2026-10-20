@@ -124,7 +124,9 @@ const widgets = {
 };
 
 function uiSchemaFor(schema: StrictRJSFSchema): UiSchema {
-  const ui: UiSchema = {};
+  // `additionalProperties: true` lets the backend accept extra keys, but the form only edits
+  // the declared ones: rjsf's "add property" control would otherwise appear.
+  const ui: UiSchema = { "ui:options": { expandable: false } };
   const properties = schema.properties ?? {};
   for (const [key, definition] of Object.entries(properties)) {
     if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
@@ -147,13 +149,25 @@ function transformErrors(errors: RJSFValidationError[]): RJSFValidationError[] {
   });
 }
 
+/**
+ * The registry schemas declare draft 2020-12, which the default ajv8 validator does not know:
+ * it would report a root error on every form. The keywords they use validate the same under
+ * the validator's draft, so the declaration is dropped for the browser only.
+ */
+function withoutMetaSchema(schema: JsonSchema): JsonSchema {
+  const copy = { ...schema };
+  delete copy.$schema;
+  return copy;
+}
+
 export function SchemaForm({ schema, formData, onChange, onSubmit, disabled, id }: Props) {
-  const uiSchema = useMemo(() => uiSchemaFor(schema), [schema]);
+  const formSchema = useMemo(() => withoutMetaSchema(schema), [schema]);
+  const uiSchema = useMemo(() => uiSchemaFor(formSchema), [formSchema]);
 
   return (
     <Form
       id={id}
-      schema={schema}
+      schema={formSchema}
       uiSchema={uiSchema}
       formData={formData}
       validator={validator}

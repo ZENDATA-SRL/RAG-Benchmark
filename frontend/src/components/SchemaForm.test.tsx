@@ -52,4 +52,19 @@ describe("SchemaForm", () => {
     await user.click(screen.getByRole("switch"));
     expect(screen.getByTestId("form-json").textContent).toContain('"enable_ocr":true');
   });
+
+  it("accepts registry schemas declared as draft 2020-12 with extra properties allowed", () => {
+    const schema: JsonSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+      additionalProperties: true,
+      properties: { region: { type: "string", title: "Region", default: "eu-central-1" } },
+    };
+
+    render(<SchemaForm schema={schema} formData={defaultsFromSchema(schema)} onChange={() => {}} />);
+
+    expect(screen.getByText("Region")).toBeInTheDocument();
+    expect(screen.queryByText(/invalid parameter/)).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
 });
