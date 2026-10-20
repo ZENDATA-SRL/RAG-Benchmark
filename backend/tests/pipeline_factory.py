@@ -111,6 +111,7 @@ async def materialise(
     await artefacts.complete_parsing_result(
         parse,
         output_uri=f"s3://test-bucket/{parse_key(parsing_profile.config_hash, document.content_hash)}",
+        output_text="parsed text",
     )
     chunk_result = await artefacts.claim_chunk_result(
         document_id=document.id,

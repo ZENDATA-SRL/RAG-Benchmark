@@ -76,7 +76,9 @@ async def _ready_chunk_result(session, document, parsing_profile, configuration)
     parse = await artefacts.claim_parsing_result(
         document_id=document.id, parsing_profile_id=parsing_profile.id
     )
-    await artefacts.complete_parsing_result(parse, output_uri="s3://bucket/parses/x.json")
+    await artefacts.complete_parsing_result(
+        parse, output_uri="s3://bucket/parses/x.json", output_text="parsed text"
+    )
     chunk_result = await artefacts.claim_chunk_result(
         document_id=document.id,
         chunking_configuration_id=configuration.id,
