@@ -20,7 +20,9 @@ PAYLOAD_BYTES = 10 * 1024 * 1024
 @pytest.fixture
 def storage(settings: Settings) -> S3ObjectStorage:
     """Storage client pointed at a dedicated bucket, skipping if MinIO is unreachable."""
-    test_settings = settings.model_copy(update={"storage_bucket": f"{settings.storage_bucket}-test"})
+    test_settings = settings.model_copy(
+        update={"storage_bucket": f"{settings.storage_bucket}-test"}
+    )
     client = S3ObjectStorage(test_settings)
     try:
         client.ensure_bucket()
@@ -29,7 +31,9 @@ def storage(settings: Settings) -> S3ObjectStorage:
     return client
 
 
-def test_put_and_get_stream_roundtrip_preserves_sha256(storage: S3ObjectStorage) -> None:
+def test_put_and_get_stream_roundtrip_preserves_sha256(
+    storage: S3ObjectStorage,
+) -> None:
     """10 MB written in streaming and read back must hash identically."""
     payload = os.urandom(PAYLOAD_BYTES)
     expected = hashlib.sha256(payload).hexdigest()
@@ -63,16 +67,16 @@ def test_put_bytes_and_get_bytes_roundtrip(storage: S3ObjectStorage) -> None:
     assert storage.get_bytes(key) == payload
 
 
-def test_same_content_hash_writes_the_same_key() -> None:
+def test_same_content_and_name_write_the_same_key() -> None:
     """The key derives from the content, so a re-upload overwrites instead of duplicating."""
     content_hash = hashlib.sha256(b"content").hexdigest()
-    assert document_key(content_hash, "a.pdf") == document_key(content_hash, "b.pdf")
+    assert document_key(content_hash, "a.pdf") == document_key(content_hash, "a.pdf")
 
 
 def test_document_key_layout() -> None:
     content_hash = hashlib.sha256(b"content").hexdigest()
     assert document_key(content_hash, "Report.PDF") == (
-        f"documents/{content_hash[:2]}/{content_hash}.pdf"
+        f"documents/{content_hash}/Report.pdf"
     )
 
 

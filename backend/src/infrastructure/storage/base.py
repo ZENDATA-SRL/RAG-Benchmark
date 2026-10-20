@@ -44,14 +44,13 @@ class ObjectStorage(Protocol):
 def document_key(content_hash: str, filename: str) -> str:
     """Build the storage key of an original document.
 
-    Shape: `documents/{content_hash[:2]}/{content_hash}{ext}`. The first two characters
-    of the digest fan the objects out over 256 prefixes, which keeps listings usable once
-    the corpus grows. The key derives from the *content*, so uploading the same file
-    twice writes the same object and deduplication costs nothing.
+    Shape: `documents/{content_hash}/{stem}{ext}`. The digest is the prefix, so uploading
+    the same file twice writes the same object and deduplication costs nothing, while the
+    original file name stays readable in the key.
 
     Args:
         content_hash: Hex sha-256 of the file content.
-        filename: Original file name, used only to recover the extension.
+        filename: Original file name, kept in the key with a lowercased extension.
 
     Returns:
         Storage key, without bucket and without scheme.
