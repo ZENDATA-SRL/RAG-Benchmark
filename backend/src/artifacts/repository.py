@@ -165,9 +165,11 @@ class ChunkRepository:
         the retry fail on the first re-inserted ordinal.
         """
         result = await self.session.execute(
-            delete(Chunk).where(Chunk.chunk_result_id == chunk_result_id)
+            delete(Chunk)
+            .where(Chunk.chunk_result_id == chunk_result_id)
+            .returning(Chunk.id)
         )
-        return len(result.all()) or 0
+        return len(result.all())
 
     async def get_by_id(self, chunk_id: uuid.UUID) -> Chunk | None:
         return await self.session.get(Chunk, chunk_id)
