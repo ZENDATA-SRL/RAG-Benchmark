@@ -107,6 +107,7 @@ is what an index build searches over.
 | `GET/POST /corpora/{id}/documents`, `DELETE …/{document_id}` | Membership |
 | `POST /corpora/{id}/documents/upload` | Upload straight into a corpus |
 | `GET /corpora/{id}/progress` | Documents per acquisition status |
+| `POST/GET /corpora/{id}/snapshots`, `GET …/{snapshot_id}`, `GET …/{snapshot_id}/documents` | Freeze a selection (without `document_ids`: every `stored` document), idempotent by composition and answering `created`; list and read snapshots |
 
 ### `pipelines/`
 
@@ -119,7 +120,7 @@ a chunking profile (a **chunking configuration**, the unit of comparability) and
 
 | Route | Purpose |
 |---|---|
-| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`; `GET …/{id}` for parsing and chunking | Profiles. Vector-store profiles have a service method but no route yet |
+| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`, `/vector-store-profiles`; `GET …/{id}` | Profiles |
 | `POST /chunking-configurations`, `GET …`, `GET …/{id}` | Configurations |
 | `POST /chunking-configurations/compose` | Create both profiles and the configuration in one call (single UI form) |
 
@@ -147,12 +148,13 @@ how materialisation skips work already done. Used by the worker's activities.
 
 ### `indexes/`
 
-`IndexBuildService` creates an index build (idempotent by `chain_fingerprint`);
-`IndexCorpusService` launches `IndexCorpusWorkflow`.
+`IndexBuildService` creates an index build (idempotent by `chain_fingerprint`), reads and
+lists builds; `IndexCorpusService` launches `IndexCorpusWorkflow`.
 
 | Route | Purpose |
 |---|---|
 | `POST /index-builds`, `POST /index-builds/{id}/start` | Create and start indexing; `202` with `started=false` if the same work is already running |
+| `GET /index-builds[?corpus_snapshot_id=]`, `GET /index-builds/{id}` | List builds; read one with its status and `chunk_count` |
 
 ### Data tables
 
@@ -168,12 +170,15 @@ chunks are rows. The full schema and its rationale are in
 ## Indexing flow
 
 ```
-POST /index-builds        snapshot + chunking configuration + embedding + vector store
-                          → IndexBuild(pending), reused if the chain_fingerprint exists
-POST /index-builds/{id}/start
-                          → IndexCorpusWorkflow on the worker
-                          status: pending → running → ready | failed (no read endpoint yet)
+POST /corpora/{id}/snapshots          freeze the documents → CorpusSnapshot
+POST /embedding-profiles              embedder + params (+ declared dimensions)
+POST /vector-store-profiles           vector store + index params (HNSW for chromadb)
+POST /index-builds                    snapshot + chunking configuration + embedding + vector store
+                                      → IndexBuild(pending), reused if the chain_fingerprint exists
+POST /index-builds/{id}/start         → IndexCorpusWorkflow on the worker
+GET  /index-builds/{id}               status: pending → running → ready | failed
 ```
 
-What the workflow does is described in the Temporal README. Embedding is implemented;
-writing the vectors into the vector store is not yet.
+The workflow materialises the chunks, embeds them in batches to object storage and upserts
+each batch into a Chroma collection named after the build's `external_index_ref`. What it
+does step by step is described in the Temporal README.

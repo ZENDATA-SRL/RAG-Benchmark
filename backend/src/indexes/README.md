@@ -19,8 +19,9 @@ configuration for the documents in its snapshot. `IndexBuildRepository.list_chun
 
 ## Services (`service.py`)
 
-- `IndexBuildService` — `get`, and `get_or_create_reporting` (the build plus whether this
-  call created it) after checking that the snapshot and every profile exist.
+- `IndexBuildService` — `get`, `get_with_chunk_count`, `list` (optionally by snapshot), and
+  `get_or_create_reporting` (the build plus whether this call created it) after checking
+  that the snapshot and every profile exist.
 - `IndexCorpusService` — `start` launches `IndexCorpusWorkflow` with a workflow id derived
   from the build id; a second identical request reports the running workflow.
 
@@ -30,13 +31,19 @@ configuration for the documents in its snapshot. `IndexBuildRepository.list_chun
 |---|---|
 | `POST /index-builds` | Create, idempotent by `chain_fingerprint`; answers `created` |
 | `POST /index-builds/{id}/start` | Start indexing, `202`; `started=false` if the same work is already running |
+| `GET /index-builds` | Paginated, newest first; `?corpus_snapshot_id=` keeps the builds over one search space |
+| `GET /index-builds/{id}` | The build with its status and `chunk_count` (the chunks available now, so it grows while chunks are materialised) |
 
-## Current limits
+A build is created from a snapshot (`POST /corpora/{id}/snapshots`), a chunking
+configuration, an embedding profile and a vector store profile, all reachable over HTTP.
 
-- No read endpoint yet (`GET /index-builds/{id}`), and no API to create a corpus snapshot,
-  which `POST /index-builds` requires.
-- The workflow materialises chunks and computes embeddings; writing the vectors into the
-  vector store is not implemented yet.
+## What the worker does with it
+
+`IndexCorpusWorkflow` materialises the chunks of the snapshot, embeds them in batches to
+object storage and upserts each batch into the vector store collection named after
+`external_index_ref` (vector id = chunk id, metadata `index_build_id`, `document_id`,
+`ordinal`). A build ends `ready` once every vector is in the store, `failed` if a document
+could not be chunked or an activity failed for good. Details in `temporal/README.md`.
 
 ## Dependencies
 

@@ -16,9 +16,9 @@ row, whatever the user called them.
 
 ## Services (`service.py`)
 
-- `ProfileService` — get-or-create for the five profile types. Params are validated against
-  the component version's `params_schema`; chunkers must declare
-  `capabilities.scope = document`.
+- `ProfileService` — get-or-create for the five profile types. Params (`index_params` for
+  vector stores) are validated against the component version's `params_schema`; chunkers
+  must declare `capabilities.scope = document`.
 - `ChunkingConfigurationService` — get-or-create of a configuration from two profile ids,
   `expand` (configuration + its two profiles, so the UI labels a row in one call) and
   `compose` (both profiles and the configuration in one transaction, for a single UI form).
@@ -29,7 +29,8 @@ row, whatever the user called them.
 |---|---|
 | `POST/GET /parsing-profiles`, `GET …/{id}` | Parsing profiles |
 | `POST/GET /chunking-profiles`, `GET …/{id}` | Chunking profiles |
-| `POST/GET /embedding-profiles` | Embedding profiles |
+| `POST/GET /embedding-profiles`, `GET …/{id}` | Embedding profiles. `dimensions`, when set, is checked against the vectors the worker gets back |
+| `POST/GET /vector-store-profiles`, `GET …/{id}` | Vector store profiles; for `chromadb`, `index_params` holds the HNSW configuration of the collection |
 | `POST/GET /chunking-configurations`, `GET …/{id}` | Configurations, with profiles inlined |
 | `POST /chunking-configurations/compose` | Both profiles and the configuration in one call |
 

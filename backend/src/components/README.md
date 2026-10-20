@@ -31,9 +31,10 @@ serve the registry on its own. The executable code lives in `temporal/components
 
 1. Create the declaration module with `KEY`, `VERSION`, `PARAMS_SCHEMA`.
 2. Add a descriptor to the right list in `builtin/__init__.py`.
-3. Implement it in `temporal/components/` and register it in `BUILTIN_PARSERS` /
-   `BUILTIN_CHUNKERS` (parsers and chunkers), or add a branch to
-   `embedders/shared.py` (embedders).
+3. Implement it in `temporal/components/` and register it in `BUILTIN_PARSERS`,
+   `BUILTIN_CHUNKERS`, `BUILTIN_VECTOR_STORES` (`components/__init__.py`) or
+   `BUILTIN_EMBEDDERS` (`embedders/shared.py`). The worker refuses to start if a declared
+   key is missing from these maps.
 
 Changing `PARAMS_SCHEMA` for a released component means bumping `VERSION`: profiles are
 hashed on the version id, so editing in place would change what existing hashes mean.

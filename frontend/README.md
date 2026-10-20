@@ -1,8 +1,20 @@
 # RAG Bench UI
 
-Browser client for the Milestone 1 flow: create a corpus, upload PDFs, compose a
+Browser client for the benchmark flow: create a corpus, upload PDFs, compose a
 chunking configuration from the component registry, materialise, and inspect chunks
-on the native PDF.
+on the native PDF; then freeze a snapshot of the corpus and build an index over it.
+
+## Indexing
+
+- **Corpus page → Freeze snapshot**: every stored document, or the selected ones. The
+  corpus page lists its snapshots, each with a *Build index* shortcut.
+- **Indexes page** (`/indexes`): embedding and vector store profiles (forms generated from
+  the registry schema, like the configuration wizard), index builds with their status
+  (polled while one is running), a *Start/Restart* action and a detail view with the chunk
+  count and the vector store collection.
+
+`SchemaForm` drops the schemas' `$schema` (draft 2020-12, unknown to the ajv8 validator)
+and hides rjsf's "add property" control for schemas that allow extra keys.
 
 ## Stack
 

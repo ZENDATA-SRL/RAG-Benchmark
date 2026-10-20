@@ -16,7 +16,7 @@ What stays in the backend is the *declaration*:
 |---|---|
 | `Parser` / `Chunker` protocols | classes implementing them |
 | `ParseOutput`, `ChunkPayload` | — |
-| descriptors: key, version, `params_schema`, `capabilities` | `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS` |
+| descriptors: key, version, `params_schema`, `capabilities` | `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS`, `BUILTIN_EMBEDDERS`, `BUILTIN_VECTOR_STORES` |
 
 The API must serve `params_schema` to render the UI forms (RT-U01) with no worker running, so
 the schemas cannot live only here. Dependencies therefore flow **`temporal → backend`**; the
@@ -47,10 +47,11 @@ temporal/
   activities/       see below
   workflows/        see below
   components/
-    __init__.py       BUILTIN_PARSERS / BUILTIN_CHUNKERS, resolve_*, assert_registry_complete
+    __init__.py       BUILTIN_PARSERS / BUILTIN_CHUNKERS / BUILTIN_VECTOR_STORES, resolve_*, assert_registry_complete
     parsers/          pypdf, plumber (pdfplumber), normalization, PermanentParsingError
     chunkers/         recursive, markdown, header_footer (page furniture), page_mapping (offset -> page)
-    embedders/        shared.py: resolve_embedder(key, params) -> LangChain Embeddings
+    embedders/        shared.py: BUILTIN_EMBEDDERS, resolve_embedder(key, params) -> LangChain Embeddings
+    vector_stores/    chroma.py: ChromaVectorStore (collection per index build, upsert by chunk id)
   tests/
 ```
 
@@ -63,19 +64,20 @@ launching the same work twice is rejected or reported instead of duplicated.
 | Workflow | Does | Notes |
 |---|---|---|
 | `ProcessDocumentWorkflow` | `resolve_configuration` → `parse_document` → `chunk_document` for one document | A permanent parse failure returns `{status: "failed"}` instead of raising, so the parent can aggregate. Parsing heartbeats every few seconds (2 min heartbeat timeout, 30 min budget) |
-| `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | `continue_as_new` every 500 documents (RT-O05). Re-running a finished set finds everything cached and does no parsing |
-| `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot's documents, then embeds the chunks in batches of 100 and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed. `continue_as_new` every 100 batches, carrying offset and embedded count. **Does not yet upsert into the vector store** |
+| `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | Takes a list of document ids or a corpus snapshot, paged 500 ids at a time. `continue_as_new` every 500 documents (RT-O05). Re-running a finished set finds everything cached and does no parsing |
+| `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot, creates the Chroma collection, then for each batch of 100 chunks embeds to object storage and upserts into the collection, and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed, and marks it `failed` if an activity fails for good. `continue_as_new` every 100 batches, carrying offset and counters only |
 
 ## Activities
 
 | Module | Activities | Queue |
 |---|---|---|
-| `reads.py` | `resolve_configuration`; helpers `load_parsing_component`, `load_chunking_component`, `load_embedder_component` that return `(component key, params)` | parsing |
+| `reads.py` | `resolve_configuration`; helpers `load_parsing_component`, `load_chunking_component`, `load_embedder_component`, `load_vector_store_component` that return `(component key, params)` | parsing |
 | `parsing.py` | `parse_document`: claim the parse (cache hit returns at once), download, validate params, run the parser in a thread while heartbeating, write `parses/{config_hash}/{content_hash}.json`, complete the artefact | parsing |
 | `chunking.py` | `chunk_document`: claim the chunk result, read the parse from storage, run the chunker, write the `chunks` rows. Clears orphan chunks left by a failed attempt | chunking |
-| `materialization.py` | `open_materialization_run`, `documents_needing_chunking`, `record_progress`, `summarize_run` | chunking |
-| `indexing.py` | `resolve_index_build`, `open_index_build`, `count_index_chunks`, `fetch_index_chunk_batch`, `complete_index_build` | chunking |
-| `embed.py` | `embed_batch`: validate params, embed the texts, write `embeddings/{index_build_id}/{batch_offset}.json` to object storage | embedding |
+| `materialization.py` | `open_materialization_run`, `documents_needing_chunking`, `snapshot_documents_needing_chunking` (one page of a snapshot), `record_progress`, `summarize_run` | chunking |
+| `indexing.py` | `resolve_index_build`, `open_index_build`, `count_index_chunks`, `complete_index_build` | chunking |
+| `embed.py` | `embed_batch`: read one page of the build's chunks, embed them, check the profile's `dimensions`, write `embeddings/{index_build_id}/{batch_offset}.json` (vector, text, document, ordinal) to object storage | embedding |
+| `vector_store.py` | `prepare_index_collection` (create the collection with the profile's index params), `upsert_embedding_batch` (read the batch file, upsert into the collection) | embedding |
 
 Large artefacts never travel through Temporal: parse output and embeddings go to object
 storage and only their URI is passed around, which is what the 128 KB payload guard enforces.
@@ -87,16 +89,36 @@ storage and only their URI is passed around, which is what the 128 KB payload gu
 | parser | `pypdf`, `pdfplumber` | Text is normalised (ligatures, smart quotes) so lexical retrieval matches. No text to extract, corrupt or encrypted raises `PermanentParsingError` |
 | chunker | `recursive`, `markdown` | Document-scoped. Page headers/footers are stripped before splitting; each chunk records the page span it covers |
 | embedder | `openai`, `bedrock` | Built on LangChain `Embeddings`; model and credentials come from the profile params |
+| vector store | `chromadb` | HTTP client to the `chromadb` compose service; one collection per index build, configured from the profile's HNSW params |
 
 ## Known gaps
 
-- `assert_registry_complete()` checks parsers and chunkers only. Embedders are resolved by a
-  key switch in `embedders/shared.py`, so a declared embedder without a branch fails at the
-  first `embed_batch`, not at boot.
-- The `chromadb` vector store is declared in the backend but has no implementation here, no
-  activity writes to it, and the embedding vectors are left in object storage.
-- Embedder credentials are read from profile params, which are stored in the database; this
-  conflicts with RT-S01 (credentials never in the database) and needs a secret reference.
+- A build re-run reuses its collection as it is: the HNSW configuration is applied only
+  when the collection is created, so changing it means a new vector store profile (and
+  therefore a new build).
+- `MaterializeChunksWorkflow` started by list (`POST /materializations`) still carries the
+  document ids in its input; for corpora of a few thousand documents that path can exceed
+  the payload limit. Index builds use the snapshot path and are not affected.
+- Embedder credentials *can* still be typed into profile params, which are stored in the
+  database; this conflicts with RT-S01 (credentials never in the database). Leave them empty
+  and use the credentials below instead.
+
+## AWS credentials (Bedrock)
+
+The worker container mounts the host's `~/.aws` read-only at `/aws` and selects a profile
+with `AWS_PROFILE`, so boto3 resolves credentials exactly as it does on the host and no key
+is written in `docker-compose.yml` or `.env`:
+
+| Variable (in `.env`) | Default | Meaning |
+|---|---|---|
+| `AWS_CONFIG_DIR` | `~/.aws` | Host directory mounted into the worker |
+| `WORKER_AWS_PROFILE` | `default` | Profile the worker uses |
+
+The region comes from the embedding profile's `region` param when set, otherwise from the AWS
+profile; leave the param empty to use the profile's region. After changing the profile,
+recreate the worker: `docker compose --profile worker up -d worker`. The mount gives the
+worker read access to every profile in that directory; point `AWS_CONFIG_DIR` at a
+dedicated directory to expose fewer.
 
 ## Running outside Docker
 

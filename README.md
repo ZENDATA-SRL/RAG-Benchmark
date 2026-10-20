@@ -23,7 +23,7 @@ made of.
 ```bash
 cp .env.example .env          # adjust if a port is already taken
 uv sync
-docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, worker
+docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, chromadb, worker
 uv run alembic -c backend/alembic.ini upgrade head
 cd backend && uv run uvicorn src.main:app --reload
 cd frontend && npm install && npm run dev   # http://localhost:5173
