@@ -50,8 +50,12 @@ class ChromaVectorStore:
         embeddings: Sequence[Sequence[float]],
         documents: Sequence[str],
         metadatas: Sequence[dict[str, Any]],
+        index_params: dict[str, Any],
     ) -> None:
-        """Insert or replace vectors by id, so a retried batch overwrites itself."""
+        """Insert or replace vectors by id, so a retried batch overwrites itself.
+
+        `index_params` is unused: Chroma applies it when the collection is created.
+        """
         if not ids:
             return
         collection = self.client.get_collection(name=name, embedding_function=None)

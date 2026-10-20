@@ -13,7 +13,7 @@ from src.components.builtin.contracts import (
 )
 from src.components.builtin.embedder import bedrock_embedder, openai_embedder
 from src.components.builtin.parsers import pdfplumber, pypdf
-from src.components.builtin.vector_stores import chroma
+from src.components.builtin.vector_stores import chroma, qdrant
 from src.infrastructure.database.enums import ComponentType
 
 
@@ -99,6 +99,14 @@ VECTOR_STORE_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
         version=chroma.VERSION,
         display_name=chroma.DISPLAY_NAME,
         params_schema=chroma.PARAMS_SCHEMA,
+        capabilities={},
+    ),
+    BuiltinDescriptor(
+        component_type=ComponentType.VECTOR_STORE,
+        key=qdrant.KEY,
+        version=qdrant.VERSION,
+        display_name=qdrant.DISPLAY_NAME,
+        params_schema=qdrant.PARAMS_SCHEMA,
         capabilities={},
     ),
 )

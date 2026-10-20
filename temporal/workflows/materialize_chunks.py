@@ -38,7 +38,7 @@ class MaterializeInput:
     """Arguments of a materialisation run.
 
     Either a **list of documents** or a **corpus snapshot**. The list serves a preview on
-    one file (RF-P08) and small selections; the snapshot serves index builds, whose
+    one file and small selections; the snapshot serves index builds, whose
     document set can be too large to travel in a payload, so the workflow pages it through
     `snapshot_offset` instead. `total` and the counters are carried across
     `continue_as_new` so the run's identity and reported progress survive the history

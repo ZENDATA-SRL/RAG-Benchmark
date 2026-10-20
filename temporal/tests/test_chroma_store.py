@@ -26,6 +26,7 @@ def _upsert(store: ChromaVectorStore, name: str, ids: list[str], text: str) -> N
         metadatas=[
             {"document_id": "d", "ordinal": index} for index, _ in enumerate(ids)
         ],
+        index_params={},
     )
 
 
@@ -70,6 +71,8 @@ def test_empty_batch_is_a_no_op(store) -> None:
     name = f"idx_{uuid.uuid4().hex[:16]}"
     store.ensure_collection(name, {})
 
-    store.upsert(name, ids=[], embeddings=[], documents=[], metadatas=[])
+    store.upsert(
+        name, ids=[], embeddings=[], documents=[], metadatas=[], index_params={}
+    )
 
     assert store.client.get_collection(name).count() == 0

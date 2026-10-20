@@ -90,6 +90,7 @@ storage and only their URI is passed around, which is what the 128 KB payload gu
 | chunker | `recursive`, `markdown` | Document-scoped. Page headers/footers are stripped before splitting; each chunk records the page span it covers |
 | embedder | `openai`, `bedrock` | Built on LangChain `Embeddings`; model and credentials come from the profile params |
 | vector store | `chromadb` | HTTP client to the `chromadb` compose service; one collection per index build, configured from the profile's HNSW params |
+| vector store | `qdrant` | Client to the `qdrant` compose service; one collection per index build, created at the first batch with the profile's distance and HNSW params |
 
 ## Known gaps
 

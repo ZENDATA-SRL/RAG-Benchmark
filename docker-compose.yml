@@ -120,6 +120,8 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
+      qdrant:
+        condition: service_started
     environment:
       TEMPORAL_HOST: temporal:7233
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
@@ -134,6 +136,8 @@ services:
       STORAGE_BUCKET: ${STORAGE_BUCKET:-rag-bench}
       CHROMA_HOST: ${WORKER_CHROMA_HOST:-chromadb}
       CHROMA_PORT: ${WORKER_CHROMA_PORT:-8000}
+      QDRANT_HOST: ${WORKER_QDRANT_HOST:-qdrant}
+      QDRANT_PORT: ${WORKER_QDRANT_PORT:-6333}
       # AWS credentials are read from the host's ~/.aws, mounted read-only below, so no
       # key is ever written here or in `.env`: pick the profile with WORKER_AWS_PROFILE.
       AWS_CONFIG_FILE: /aws/config
@@ -168,8 +172,17 @@ services:
     volumes:
       - chroma_data:/data
 
+  # Alternative vector store for index builds, pinned to the `qdrant-client` minor release.
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   postgres_data:
   minio_data:
   temporal_postgres_data:
   chroma_data:
+  qdrant_data:

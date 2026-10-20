@@ -47,7 +47,7 @@ async def upsert_embedding_batch(index_build_id: str, batch_offset: int) -> int:
     Reads the file `embed_batch` wrote, so a failed upsert is retried without
     recomputing the embeddings. Returns how many vectors were written.
     """
-    key, collection, _ = await _load_target(index_build_id)
+    key, collection, index_params = await _load_target(index_build_id)
     data = await asyncio.to_thread(
         get_object_storage(get_settings()).get_bytes,
         embedding_batch_key(index_build_id, batch_offset),
@@ -68,5 +68,6 @@ async def upsert_embedding_batch(index_build_id: str, batch_offset: int) -> int:
             }
             for record in records
         ],
+        index_params=index_params,
     )
     return len(records)

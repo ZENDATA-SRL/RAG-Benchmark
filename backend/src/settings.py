@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8001
 
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+
     max_upload_bytes: int = 200 * 1024 * 1024
     allowed_mime_types: tuple[str, ...] = ("application/pdf",)
 

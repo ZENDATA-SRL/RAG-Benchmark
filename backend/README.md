@@ -72,7 +72,7 @@ checks a profile's params against the schema of its version.
   | parser | `pypdf`, `pdfplumber` |
   | chunker | `recursive`, `markdown` |
   | embedder | `openai`, `bedrock` |
-  | vector store | `chromadb` |
+  | vector store | `chromadb`, `qdrant` |
 
   `contracts.py` holds the `Parser`/`Chunker` protocols and the `ParseOutput`/`ChunkPayload`
   shapes. The implementations are in `temporal/components/`, so the API image carries no

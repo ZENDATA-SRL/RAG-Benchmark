@@ -14,7 +14,7 @@ from src.components.builtin import (
 from temporal.components.chunkers import markdown, recursive
 from temporal.components.embedders.shared import BUILTIN_EMBEDDERS
 from temporal.components.parsers import plumber, pypdf
-from temporal.components.vector_stores import chroma
+from temporal.components.vector_stores import chroma, qdrant
 
 # `builtin` means exactly this: the key maps to a class in this repository, invoked
 # in-process by the worker with no network hop.
@@ -28,8 +28,10 @@ BUILTIN_CHUNKERS: dict[str, Chunker] = {
 }
 # A factory, because the store client is bound to the server in the settings and should
 # only be built inside an activity.
-BUILTIN_VECTOR_STORES: dict[str, Callable[[], chroma.ChromaVectorStore]] = {
+VectorStore = chroma.ChromaVectorStore | qdrant.QdrantVectorStore
+BUILTIN_VECTOR_STORES: dict[str, Callable[[], VectorStore]] = {
     chroma.KEY: chroma.build_chroma_store,
+    qdrant.KEY: qdrant.build_qdrant_store,
 }
 
 
@@ -52,7 +54,7 @@ def resolve_chunker(key: str) -> Chunker:
     return BUILTIN_CHUNKERS[key]
 
 
-def resolve_vector_store(key: str) -> chroma.ChromaVectorStore:
+def resolve_vector_store(key: str) -> VectorStore:
     """Return a vector store client for a component key.
 
     Raises:
