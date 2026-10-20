@@ -38,19 +38,29 @@ class IndexBuildRepository:
         stmt = select(IndexBuild).where(IndexBuild.workflow_id == workflow_id)
         return await self.session.scalar(stmt)
 
-    async def list_by_snapshot(
-        self, corpus_snapshot_id: uuid.UUID, *, limit: int = 50, offset: int = 0
+    async def list(
+        self,
+        *,
+        corpus_snapshot_id: uuid.UUID | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> Sequence[IndexBuild]:
-        """Builds over one search space: the candidates an experiment picks from."""
-        stmt = (
-            select(IndexBuild)
-            .where(IndexBuild.corpus_snapshot_id == corpus_snapshot_id)
-            .order_by(IndexBuild.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        """Builds newest first, optionally over one search space.
+
+        Filtered by snapshot, these are the candidates an experiment picks from.
+        """
+        stmt = select(IndexBuild)
+        if corpus_snapshot_id is not None:
+            stmt = stmt.where(IndexBuild.corpus_snapshot_id == corpus_snapshot_id)
+        stmt = stmt.order_by(IndexBuild.created_at.desc()).limit(limit).offset(offset)
         result = await self.session.scalars(stmt)
         return result.all()
+
+    async def count(self, *, corpus_snapshot_id: uuid.UUID | None = None) -> int:
+        stmt = select(func.count()).select_from(IndexBuild)
+        if corpus_snapshot_id is not None:
+            stmt = stmt.where(IndexBuild.corpus_snapshot_id == corpus_snapshot_id)
+        return await self.session.scalar(stmt) or 0
 
     async def list_chunks(
         self, index_build_id: uuid.UUID, *, limit: int = 1000, offset: int = 0

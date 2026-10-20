@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, File, Header, Query, UploadFile, status
 
 from src.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
+from src.corpora.constants import SNAPSHOT_REUSED_DETAIL
 from src.corpora.schemas import (
     CorpusCreate,
     CorpusDocumentRemoved,
@@ -12,9 +13,12 @@ from src.corpora.schemas import (
     CorpusDocumentsAdded,
     CorpusProgress,
     CorpusRead,
+    CorpusSnapshotCreate,
+    CorpusSnapshotCreated,
+    CorpusSnapshotRead,
     CorpusUpdate,
 )
-from src.corpora.service import CorpusService
+from src.corpora.service import CorpusService, CorpusSnapshotService
 from src.dependencies import SessionDep, SettingsDep, StorageDep
 from src.documents.schemas import DocumentRead, UploadResponse
 from src.documents.upload import assert_within_limit, run_upload
@@ -99,7 +103,9 @@ async def add_corpus_documents(
     return CorpusDocumentsAdded(corpus_id=corpus_id, document_count=count)
 
 
-@router.delete("/{corpus_id}/documents/{document_id}", response_model=CorpusDocumentRemoved)
+@router.delete(
+    "/{corpus_id}/documents/{document_id}", response_model=CorpusDocumentRemoved
+)
 async def remove_corpus_document(
     corpus_id: uuid.UUID, document_id: uuid.UUID, session: SessionDep
 ) -> CorpusDocumentRemoved:
@@ -109,11 +115,82 @@ async def remove_corpus_document(
 
 
 @router.get("/{corpus_id}/progress", response_model=CorpusProgress)
-async def get_corpus_progress(corpus_id: uuid.UUID, session: SessionDep) -> CorpusProgress:
+async def get_corpus_progress(
+    corpus_id: uuid.UUID, session: SessionDep
+) -> CorpusProgress:
     """Return the acquisition progress of a corpus, per document status (RF-C04)."""
     by_status = await CorpusService(session).progress(corpus_id)
     return CorpusProgress(
         corpus_id=corpus_id, total=sum(by_status.values()), by_status=by_status
+    )
+
+
+@router.post(
+    "/{corpus_id}/snapshots",
+    response_model=CorpusSnapshotCreated,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_corpus_snapshot(
+    corpus_id: uuid.UUID, payload: CorpusSnapshotCreate, session: SessionDep
+) -> CorpusSnapshotCreated:
+    """Freeze a selection of documents, or return the snapshot with the same composition."""
+    snapshot, created = await CorpusSnapshotService(session).get_or_create_reporting(
+        corpus_id, payload.document_ids, label=payload.label
+    )
+    return CorpusSnapshotCreated(
+        snapshot=CorpusSnapshotRead.model_validate(snapshot),
+        created=created,
+        detail=None if created else SNAPSHOT_REUSED_DETAIL,
+    )
+
+
+@router.get("/{corpus_id}/snapshots", response_model=Page[CorpusSnapshotRead])
+async def list_corpus_snapshots(
+    corpus_id: uuid.UUID,
+    session: SessionDep,
+    limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+) -> Page[CorpusSnapshotRead]:
+    """List the snapshots frozen from a corpus, newest first."""
+    snapshots, total = await CorpusSnapshotService(session).list(
+        corpus_id, limit=limit, offset=offset
+    )
+    return Page[CorpusSnapshotRead].build(
+        [CorpusSnapshotRead.model_validate(snapshot) for snapshot in snapshots],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/{corpus_id}/snapshots/{snapshot_id}", response_model=CorpusSnapshotRead)
+async def get_corpus_snapshot(
+    corpus_id: uuid.UUID, snapshot_id: uuid.UUID, session: SessionDep
+) -> CorpusSnapshotRead:
+    """Return one snapshot of a corpus."""
+    snapshot = await CorpusSnapshotService(session).get(corpus_id, snapshot_id)
+    return CorpusSnapshotRead.model_validate(snapshot)
+
+
+@router.get(
+    "/{corpus_id}/snapshots/{snapshot_id}/documents", response_model=Page[DocumentRead]
+)
+async def list_corpus_snapshot_documents(
+    corpus_id: uuid.UUID,
+    snapshot_id: uuid.UUID,
+    session: SessionDep,
+    limit: int = Query(default=100, ge=1, le=MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+) -> Page[DocumentRead]:
+    """List the documents frozen into a snapshot."""
+    documents, total = await CorpusSnapshotService(session).list_documents(
+        corpus_id, snapshot_id, limit=limit, offset=offset
+    )
+    return Page[DocumentRead].build(
+        [DocumentRead.model_validate(document) for document in documents],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

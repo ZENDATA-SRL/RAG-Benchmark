@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from src.core.exceptions import ConflictError, DomainError, NotFoundError, ValidationError
+from src.core.exceptions import (
+    ConflictError,
+    DomainError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 class CorpusError(DomainError):
@@ -20,6 +25,19 @@ class CorpusNotFoundError(NotFoundError, CorpusError):
             details={"corpus_id": str(corpus_id)},
         )
         self.corpus_id = corpus_id
+
+
+class CorpusSnapshotNotFoundError(NotFoundError, CorpusError):
+    """Raised when a snapshot does not exist or belongs to another corpus."""
+
+    code = "corpus_snapshot_not_found"
+
+    def __init__(self, snapshot_id: object) -> None:
+        super().__init__(
+            f"corpus snapshot not found: {snapshot_id}",
+            details={"snapshot_id": str(snapshot_id)},
+        )
+        self.snapshot_id = snapshot_id
 
 
 class CorpusHasSnapshotsError(ConflictError, CorpusError):

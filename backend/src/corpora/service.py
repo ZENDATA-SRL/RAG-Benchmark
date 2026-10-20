@@ -5,11 +5,12 @@ from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.get_or_create import get_or_create
+from src.core.get_or_create import get_or_create_reporting
 from src.core.hashing import composition_hash
 from src.corpora.exceptions import (
     CorpusHasSnapshotsError,
     CorpusNotFoundError,
+    CorpusSnapshotNotFoundError,
     DocumentsNotInCorpusError,
     EmptySnapshotError,
     UnknownDocumentsError,
@@ -61,7 +62,9 @@ class CorpusService:
             raise CorpusNotFoundError(corpus_id)
         return corpus
 
-    async def list(self, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Corpus], int]:
+    async def list(
+        self, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[Corpus], int]:
         """List the corpora with the total count."""
         items = await self.corpora.list(limit=limit, offset=offset)
         return items, await self.corpora.count()
@@ -128,7 +131,9 @@ class CorpusService:
             await self.memberships.add_documents(corpus_id, unique_ids)
         return await self.memberships.count(corpus_id)
 
-    async def remove_document(self, corpus_id: uuid.UUID, document_id: uuid.UUID) -> None:
+    async def remove_document(
+        self, corpus_id: uuid.UUID, document_id: uuid.UUID
+    ) -> None:
         """Detach a document from a corpus.
 
         The document itself and every snapshot that froze it are untouched: this is a
@@ -177,7 +182,9 @@ class CorpusService:
 
     async def _assert_documents_exist(self, document_ids: Sequence[uuid.UUID]) -> None:
         """Check that every id refers to an existing document."""
-        found = {document.id for document in await self.documents.list_by_ids(document_ids)}
+        found = {
+            document.id for document in await self.documents.list_by_ids(document_ids)
+        }
         missing = [str(doc_id) for doc_id in document_ids if doc_id not in found]
         if missing:
             raise UnknownDocumentsError(missing)
@@ -188,6 +195,7 @@ class CorpusSnapshotService:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.corpora = CorpusRepository(session)
         self.snapshots = CorpusSnapshotRepository(session)
         self.memberships = CorpusDocumentRepository(session)
 
@@ -200,6 +208,23 @@ class CorpusSnapshotService:
     ) -> CorpusSnapshot:
         """Freeze a selection of documents, reusing the snapshot with the same composition.
 
+        See `get_or_create_reporting`, which this wraps for callers that do not need to
+        know whether the snapshot was new.
+        """
+        snapshot, _created = await self.get_or_create_reporting(
+            corpus_id, document_ids, label=label
+        )
+        return snapshot
+
+    async def get_or_create_reporting(
+        self,
+        corpus_id: uuid.UUID,
+        document_ids: Sequence[uuid.UUID] | None,
+        *,
+        label: str,
+    ) -> tuple[CorpusSnapshot, bool]:
+        """Freeze a selection of documents and report whether this call created it.
+
         Deduplication is mandatory: the snapshot is part of the meaning of a
         metric, so two snapshots with the same composition would split one experiment
         into two non-comparable groups. Creation is therefore always a get-or-create on
@@ -207,16 +232,26 @@ class CorpusSnapshotService:
 
         Args:
             corpus_id: Corpus the selection is taken from.
-            document_ids: Documents to freeze; duplicates and order are irrelevant.
+            document_ids: Documents to freeze; duplicates and order are irrelevant. `None`
+                freezes every stored document of the corpus, i.e. the ones that can be
+                parsed: pending or failed acquisitions would only fail the index build.
             label: Human-readable label, used only when a new snapshot is created.
 
         Returns:
-            The existing snapshot with this composition, or the newly frozen one.
+            The snapshot with this composition and whether this call created it.
 
         Raises:
+            CorpusNotFoundError: If the corpus does not exist.
             EmptySnapshotError: If no document is selected.
             DocumentsNotInCorpusError: If a document does not belong to the corpus.
         """
+        if await self.corpora.get_by_id(corpus_id) is None:
+            raise CorpusNotFoundError(corpus_id)
+        if document_ids is None:
+            document_ids = await self.memberships.list_document_ids(
+                corpus_id, status=DocumentStatus.STORED
+            )
+
         unique_ids = sorted(set(document_ids), key=str)
         if not unique_ids:
             raise EmptySnapshotError
@@ -238,11 +273,56 @@ class CorpusSnapshotService:
             await self.snapshots.add_snapshot_documents(snapshot.id, unique_ids)
             return snapshot
 
-        return await get_or_create(
+        return await get_or_create_reporting(
             self.session,
             lookup=lambda: self.snapshots.get_by_composition(corpus_id, digest),
             create=create,
         )
+
+    async def get(self, corpus_id: uuid.UUID, snapshot_id: uuid.UUID) -> CorpusSnapshot:
+        """Return a snapshot of a corpus.
+
+        Raises:
+            CorpusSnapshotNotFoundError: If it does not exist or belongs to another corpus.
+        """
+        snapshot = await self.snapshots.get_by_id(snapshot_id)
+        if snapshot is None or snapshot.corpus_id != corpus_id:
+            raise CorpusSnapshotNotFoundError(snapshot_id)
+        return snapshot
+
+    async def list(
+        self, corpus_id: uuid.UUID, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[CorpusSnapshot], int]:
+        """One page of a corpus' snapshots, newest first, and the size of the whole set.
+
+        Raises:
+            CorpusNotFoundError: If the corpus does not exist.
+        """
+        if await self.corpora.get_by_id(corpus_id) is None:
+            raise CorpusNotFoundError(corpus_id)
+        snapshots = await self.snapshots.list_by_corpus(
+            corpus_id, limit=limit, offset=offset
+        )
+        return snapshots, await self.snapshots.count_by_corpus(corpus_id)
+
+    async def list_documents(
+        self,
+        corpus_id: uuid.UUID,
+        snapshot_id: uuid.UUID,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[Sequence[Document], int]:
+        """One page of the documents frozen into a snapshot and their total.
+
+        Raises:
+            CorpusSnapshotNotFoundError: If the snapshot does not belong to the corpus.
+        """
+        await self.get(corpus_id, snapshot_id)
+        documents = await self.snapshots.list_snapshot_documents(
+            snapshot_id, limit=limit, offset=offset
+        )
+        return documents, await self.snapshots.count_snapshot_documents(snapshot_id)
 
     async def _assert_membership(
         self, corpus_id: uuid.UUID, document_ids: Sequence[uuid.UUID]

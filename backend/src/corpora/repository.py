@@ -56,15 +56,24 @@ class CorpusDocumentRepository:
             return
         stmt = (
             pg_insert(CorpusDocument)
-            .values([{"corpus_id": corpus_id, "document_id": doc_id} for doc_id in document_ids])
+            .values(
+                [
+                    {"corpus_id": corpus_id, "document_id": doc_id}
+                    for doc_id in document_ids
+                ]
+            )
             .on_conflict_do_nothing(index_elements=["corpus_id", "document_id"])
         )
         await self.session.execute(stmt)
 
-    async def get(self, corpus_id: uuid.UUID, document_id: uuid.UUID) -> CorpusDocument | None:
+    async def get(
+        self, corpus_id: uuid.UUID, document_id: uuid.UUID
+    ) -> CorpusDocument | None:
         return await self.session.get(CorpusDocument, (corpus_id, document_id))
 
-    async def remove_document(self, corpus_id: uuid.UUID, document_id: uuid.UUID) -> None:
+    async def remove_document(
+        self, corpus_id: uuid.UUID, document_id: uuid.UUID
+    ) -> None:
         """Detach a document from the corpus; existing snapshots stay valid."""
         membership = await self.get(corpus_id, document_id)
         if membership is not None:
@@ -86,18 +95,34 @@ class CorpusDocumentRepository:
         )
         if status is not None:
             stmt = stmt.where(Document.status == status)
-        stmt = stmt.order_by(CorpusDocument.added_at, Document.filename).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(CorpusDocument.added_at, Document.filename)
+            .limit(limit)
+            .offset(offset)
+        )
         rows = await self.session.execute(stmt)
         return [(membership, document) for membership, document in rows.all()]
 
-    async def list_document_ids(self, corpus_id: uuid.UUID) -> Sequence[uuid.UUID]:
-        stmt = select(CorpusDocument.document_id).where(CorpusDocument.corpus_id == corpus_id)
+    async def list_document_ids(
+        self, corpus_id: uuid.UUID, *, status: DocumentStatus | None = None
+    ) -> Sequence[uuid.UUID]:
+        stmt = select(CorpusDocument.document_id).where(
+            CorpusDocument.corpus_id == corpus_id
+        )
+        if status is not None:
+            stmt = stmt.join(Document, Document.id == CorpusDocument.document_id).where(
+                Document.status == status
+            )
         result = await self.session.scalars(stmt)
         return result.all()
 
-    async def count(self, corpus_id: uuid.UUID, *, status: DocumentStatus | None = None) -> int:
-        stmt = select(func.count()).select_from(CorpusDocument).where(
-            CorpusDocument.corpus_id == corpus_id
+    async def count(
+        self, corpus_id: uuid.UUID, *, status: DocumentStatus | None = None
+    ) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(CorpusDocument)
+            .where(CorpusDocument.corpus_id == corpus_id)
         )
         if status is not None:
             stmt = stmt.join(Document, Document.id == CorpusDocument.document_id).where(
@@ -157,6 +182,14 @@ class CorpusSnapshotRepository:
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def count_by_corpus(self, corpus_id: uuid.UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(CorpusSnapshot)
+            .where(CorpusSnapshot.corpus_id == corpus_id)
+        )
+        return await self.session.scalar(stmt) or 0
+
     async def add_snapshot_documents(
         self, snapshot_id: uuid.UUID, document_ids: Sequence[uuid.UUID]
     ) -> None:
@@ -164,7 +197,10 @@ class CorpusSnapshotRepository:
         if not document_ids:
             return
         stmt = pg_insert(CorpusSnapshotDocument).values(
-            [{"snapshot_id": snapshot_id, "document_id": doc_id} for doc_id in document_ids]
+            [
+                {"snapshot_id": snapshot_id, "document_id": doc_id}
+                for doc_id in document_ids
+            ]
         )
         await self.session.execute(stmt)
 
@@ -174,7 +210,10 @@ class CorpusSnapshotRepository:
         """List the documents frozen into a snapshot."""
         stmt = (
             select(Document)
-            .join(CorpusSnapshotDocument, CorpusSnapshotDocument.document_id == Document.id)
+            .join(
+                CorpusSnapshotDocument,
+                CorpusSnapshotDocument.document_id == Document.id,
+            )
             .where(CorpusSnapshotDocument.snapshot_id == snapshot_id)
             .order_by(Document.filename, Document.id)
             .limit(limit)
@@ -184,7 +223,9 @@ class CorpusSnapshotRepository:
         return result.all()
 
     async def count_snapshot_documents(self, snapshot_id: uuid.UUID) -> int:
-        stmt = select(func.count()).select_from(CorpusSnapshotDocument).where(
-            CorpusSnapshotDocument.snapshot_id == snapshot_id
+        stmt = (
+            select(func.count())
+            .select_from(CorpusSnapshotDocument)
+            .where(CorpusSnapshotDocument.snapshot_id == snapshot_id)
         )
         return await self.session.scalar(stmt) or 0

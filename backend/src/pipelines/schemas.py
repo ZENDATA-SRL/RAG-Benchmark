@@ -99,6 +99,14 @@ class EmbeddingProfileCreate(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class VectorStoreProfileCreate(BaseModel):
+    """Payload creating a vector store profile."""
+
+    name: str = Field(min_length=1, max_length=200)
+    component_version_id: uuid.UUID
+    index_params: dict[str, Any] = Field(default_factory=dict)
+
+
 class DeduplicatedRead(BaseModel):
     """Base for responses that must confess a get-or-create.
 
@@ -128,6 +136,12 @@ class EmbeddingProfileCreated(DeduplicatedRead):
     """An embedding profile with the outcome of the get-or-create that returned it."""
 
     profile: EmbeddingProfileRead
+
+
+class VectorStoreProfileCreated(DeduplicatedRead):
+    """A vector store profile with the outcome of the get-or-create that returned it."""
+
+    profile: VectorStoreProfileRead
 
 
 # --------------------------------------------------------------------------------------

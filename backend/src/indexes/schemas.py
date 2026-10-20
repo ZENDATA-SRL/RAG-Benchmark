@@ -27,6 +27,12 @@ class IndexBuildRead(BaseModel):
     created_at: dt.datetime
 
 
+class IndexBuildDetail(IndexBuildRead):
+    """An index build with the number of chunks it indexes."""
+
+    chunk_count: int
+
+
 class IndexBuildCreate(BaseModel):
     """Payload creating an index build from an existing snapshot and profile chain."""
 

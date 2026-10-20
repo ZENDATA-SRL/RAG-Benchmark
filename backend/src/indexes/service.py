@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +45,33 @@ class IndexBuildService:
         if build is None:
             raise IndexBuildNotFoundError(index_build_id)
         return build
+
+    async def get_with_chunk_count(
+        self, index_build_id: uuid.UUID
+    ) -> tuple[IndexBuild, int]:
+        """Return an index build and how many chunks it indexes.
+
+        The count is computed from the chunk results available now, so before the
+        build has materialised its chunks it is lower than the final one.
+
+        Raises:
+            IndexBuildNotFoundError: If it does not exist.
+        """
+        build = await self.get(index_build_id)
+        return build, await self.builds.count_chunks(index_build_id)
+
+    async def list(
+        self,
+        *,
+        corpus_snapshot_id: uuid.UUID | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[Sequence[IndexBuild], int]:
+        """One page of index builds, newest first, and the size of the whole set."""
+        builds = await self.builds.list(
+            corpus_snapshot_id=corpus_snapshot_id, limit=limit, offset=offset
+        )
+        return builds, await self.builds.count(corpus_snapshot_id=corpus_snapshot_id)
 
     async def get_or_create(
         self,

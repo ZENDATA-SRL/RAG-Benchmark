@@ -67,3 +67,31 @@ class CorpusProgress(BaseModel):
     corpus_id: uuid.UUID
     total: int
     by_status: dict[str, int] = Field(default_factory=dict)
+
+
+class CorpusSnapshotRead(BaseModel):
+    """A frozen selection of documents as exposed by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    corpus_id: uuid.UUID
+    label: str
+    document_count: int
+    composition_hash: str
+    frozen_at: dt.datetime
+
+
+class CorpusSnapshotCreate(BaseModel):
+    """Payload freezing a snapshot; without `document_ids` every stored document is taken."""
+
+    label: str = Field(min_length=1, max_length=200)
+    document_ids: list[uuid.UUID] | None = Field(default=None, min_length=1)
+
+
+class CorpusSnapshotCreated(BaseModel):
+    """A snapshot with the outcome of the get-or-create that returned it."""
+
+    snapshot: CorpusSnapshotRead
+    created: bool
+    detail: str | None = None

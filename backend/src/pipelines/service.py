@@ -111,7 +111,16 @@ class ProfileService:
         dimensions: int | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[EmbeddingProfile, bool]:
-        """Return the embedding profile for an embedder configuration."""
+        """Return the embedding profile for an embedder configuration.
+
+        Returns:
+            The profile and whether this call created it.
+
+        Raises:
+            InvalidComponentParamsError: If the parameters violate the version's schema.
+            ComponentVersionNotFoundError: If the component version does not exist.
+        """
+        await self.components.validate_params(component_version_id, params or {})
         return await self._get_or_create(
             EmbeddingProfile,
             component_version_id=component_version_id,
@@ -130,7 +139,16 @@ class ProfileService:
         component_version_id: uuid.UUID,
         index_params: dict[str, Any] | None = None,
     ) -> tuple[VectorStoreProfile, bool]:
-        """Return the vector store profile for an index configuration."""
+        """Return the vector store profile for an index configuration.
+
+        Returns:
+            The profile and whether this call created it.
+
+        Raises:
+            InvalidComponentParamsError: If the parameters violate the version's schema.
+            ComponentVersionNotFoundError: If the component version does not exist.
+        """
+        await self.components.validate_params(component_version_id, index_params or {})
         return await self._get_or_create(
             VectorStoreProfile,
             component_version_id=component_version_id,
@@ -164,6 +182,34 @@ class ProfileService:
             raise ProfileNotFoundError("chunking", profile_id)
         return profile
 
+    async def get_embedding_profile(self, profile_id: uuid.UUID) -> EmbeddingProfile:
+        """Return an embedding profile by id.
+
+        Raises:
+            ProfileNotFoundError: If it does not exist.
+        """
+        profile = await ProfileRepository(self.session, EmbeddingProfile).get_by_id(
+            profile_id
+        )
+        if profile is None:
+            raise ProfileNotFoundError("embedding", profile_id)
+        return profile
+
+    async def get_vector_store_profile(
+        self, profile_id: uuid.UUID
+    ) -> VectorStoreProfile:
+        """Return a vector store profile by id.
+
+        Raises:
+            ProfileNotFoundError: If it does not exist.
+        """
+        profile = await ProfileRepository(self.session, VectorStoreProfile).get_by_id(
+            profile_id
+        )
+        if profile is None:
+            raise ProfileNotFoundError("vector store", profile_id)
+        return profile
+
     async def list_parsing_profiles(
         self, *, limit: int = 50, offset: int = 0
     ) -> tuple[Sequence[ParsingProfile], int]:
@@ -187,6 +233,15 @@ class ProfileService:
     ) -> tuple[Sequence[EmbeddingProfile], int]:
         """One page of embedding profiles and the size of the whole set."""
         repository = ProfileRepository(self.session, EmbeddingProfile)
+        return await repository.list(
+            limit=limit, offset=offset
+        ), await repository.count()
+
+    async def list_vector_store_profiles(
+        self, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[VectorStoreProfile], int]:
+        """One page of vector store profiles and the size of the whole set."""
+        repository = ProfileRepository(self.session, VectorStoreProfile)
         return await repository.list(
             limit=limit, offset=offset
         ), await repository.count()
