@@ -24,7 +24,20 @@ def materialize_workflow_id(
     the same materialisation is rejected by Temporal itself for a duplicate workflow id:
     idempotency is a property of the id, not application logic (RT-O01).
     """
-    return f"materialize-{chunking_configuration_id}-{composition_hash(document_ids)}"
+    return materialize_workflow_id_for_composition(
+        chunking_configuration_id, composition_hash(document_ids)
+    )
+
+
+def materialize_workflow_id_for_composition(
+    chunking_configuration_id: uuid.UUID | str, document_set_hash: str
+) -> str:
+    """Same id as `materialize_workflow_id`, from an already computed composition hash.
+
+    A corpus snapshot stores exactly this hash, so an index build can derive the id of its
+    materialisation without loading the document ids into the workflow.
+    """
+    return f"materialize-{chunking_configuration_id}-{document_set_hash}"
 
 
 def index_corpus_workflow_id(index_build_id: uuid.UUID | str) -> str:

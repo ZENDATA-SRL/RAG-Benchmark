@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import dataclasses
 import uuid
 
 from src.artifacts.service import ArtefactService
+from src.corpora.repository import CorpusSnapshotRepository
 from src.materializations.service import MaterializationRunService
 from temporalio import activity
 
@@ -41,6 +43,38 @@ async def documents_needing_chunking(
             uuid.UUID(chunking_configuration_id),
         )
         return [str(document_id) for document_id in needing]
+
+
+@dataclasses.dataclass
+class SnapshotDocumentsPage:
+    """One page of a snapshot: how many documents were scanned and which need chunking."""
+
+    scanned: int
+    needing: list[str]
+
+
+@activity.defn
+async def snapshot_documents_needing_chunking(
+    corpus_snapshot_id: str, chunking_configuration_id: str, offset: int, limit: int
+) -> SnapshotDocumentsPage:
+    """Return the documents of one snapshot page that still need chunking.
+
+    Paging lives here so a workflow over a large snapshot never carries the whole list of
+    document ids in its input or history, which would exceed the payload limit.
+    """
+    async with activity_session() as session:
+        document_ids = await CorpusSnapshotRepository(
+            session
+        ).list_snapshot_document_ids(
+            uuid.UUID(corpus_snapshot_id), limit=limit, offset=offset
+        )
+        needing = await ArtefactService(session).documents_needing_chunking(
+            list(document_ids), uuid.UUID(chunking_configuration_id)
+        )
+        return SnapshotDocumentsPage(
+            scanned=len(document_ids),
+            needing=[str(document_id) for document_id in needing],
+        )
 
 
 @activity.defn

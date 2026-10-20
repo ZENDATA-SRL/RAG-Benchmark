@@ -64,16 +64,17 @@ class IndexBuildRepository:
 
     async def list_chunks(
         self, index_build_id: uuid.UUID, *, limit: int = 1000, offset: int = 0
-    ) -> Sequence[Chunk]:
-        """Chunks that an index build indexes, in document order.
+    ) -> Sequence[tuple[Chunk, uuid.UUID]]:
+        """Chunks that an index build indexes, with their document, in document order.
 
         This set is deliberately not materialised: it is the join of `chunks` and
         `chunk_results` restricted to the build's chunking configuration and to the
-        documents frozen into its corpus snapshot.
+        documents frozen into its corpus snapshot. The document id comes along because
+        it is the metadata the vector store needs to map a hit back to its source.
         """
         stmt = (
             _restrict_to_build(
-                select(Chunk).join(
+                select(Chunk, ChunkResult.document_id).join(
                     ChunkResult, ChunkResult.id == Chunk.chunk_result_id
                 ),
                 index_build_id,
@@ -82,8 +83,8 @@ class IndexBuildRepository:
             .limit(limit)
             .offset(offset)
         )
-        result = await self.session.scalars(stmt)
-        return result.all()
+        rows = await self.session.execute(stmt)
+        return [(chunk, document_id) for chunk, document_id in rows.all()]
 
     async def count_chunks(self, index_build_id: uuid.UUID) -> int:
         """Chunk count of an index build, aggregated from `chunk_results.chunk_count`."""

@@ -7,8 +7,15 @@ from src.components.builtin.embedder import openai_embedder
 from src.components.builtin.vector_stores import chroma
 from src.components.repository import ComponentRepository, ComponentVersionRepository
 from src.corpora.models import CorpusDocument
+from src.corpora.repository import CorpusSnapshotRepository
+from src.corpora.service import CorpusSnapshotService
+from src.indexes.repository import IndexBuildRepository
 from src.infrastructure.database.enums import ComponentType, DocumentStatus
-from src.infrastructure.temporal.workflow_ids import INDEX_CORPUS_WORKFLOW
+from src.infrastructure.temporal.workflow_ids import (
+    INDEX_CORPUS_WORKFLOW,
+    materialize_workflow_id,
+    materialize_workflow_id_for_composition,
+)
 from tests.pipeline_factory import Scenario, build_scenario, make_document
 
 pytestmark = pytest.mark.integration
@@ -281,3 +288,49 @@ async def test_unknown_index_build_is_404(client) -> None:
     assert response.status_code == 404
     assert response.json()["code"] == "index_build_not_found"
 
+
+# --------------------------------------------------------------------------------------
+# Queries the worker relies on
+# --------------------------------------------------------------------------------------
+
+
+async def test_build_chunks_carry_their_document(client, session) -> None:
+    scenario = await build_scenario(session, ready=2, chunks_per_document=2)
+    build = await _index_build(client, session, scenario)
+
+    rows = await IndexBuildRepository(session).list_chunks(uuid.UUID(build["id"]))
+
+    assert len(rows) == 4
+    assert {document_id for _, document_id in rows} == {
+        document.id for document in scenario.ready
+    }
+
+
+async def test_snapshot_document_ids_are_paged_without_overlap(session) -> None:
+    scenario = await build_scenario(session, ready=5)
+    snapshot = await CorpusSnapshotService(session).get_or_create(
+        scenario.corpus.id, [document.id for document in scenario.ready], label="v1"
+    )
+    repository = CorpusSnapshotRepository(session)
+
+    pages = [
+        await repository.list_snapshot_document_ids(snapshot.id, limit=2, offset=offset)
+        for offset in (0, 2, 4)
+    ]
+
+    flattened = [document_id for page in pages for document_id in page]
+    assert [len(page) for page in pages] == [2, 2, 1]
+    assert set(flattened) == {document.id for document in scenario.ready}
+
+
+async def test_snapshot_hash_gives_the_same_materialisation_id(session) -> None:
+    """An index build and a launch by list must collide on the same workflow id."""
+    scenario = await build_scenario(session, ready=3)
+    ids = [document.id for document in scenario.ready]
+    snapshot = await CorpusSnapshotService(session).get_or_create(
+        scenario.corpus.id, ids, label="v1"
+    )
+
+    assert materialize_workflow_id_for_composition(
+        scenario.configuration.id, snapshot.composition_hash
+    ) == materialize_workflow_id(scenario.configuration.id, ids)

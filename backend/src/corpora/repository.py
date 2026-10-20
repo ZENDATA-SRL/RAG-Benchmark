@@ -222,6 +222,20 @@ class CorpusSnapshotRepository:
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def list_snapshot_document_ids(
+        self, snapshot_id: uuid.UUID, *, limit: int = 500, offset: int = 0
+    ) -> Sequence[uuid.UUID]:
+        """One page of the ids frozen into a snapshot, in a stable order for paging."""
+        stmt = (
+            select(CorpusSnapshotDocument.document_id)
+            .where(CorpusSnapshotDocument.snapshot_id == snapshot_id)
+            .order_by(CorpusSnapshotDocument.document_id)
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.scalars(stmt)
+        return result.all()
+
     async def count_snapshot_documents(self, snapshot_id: uuid.UUID) -> int:
         stmt = (
             select(func.count())

@@ -11,6 +11,7 @@ from src.pipelines.models import (
     ChunkingProfile,
     EmbeddingProfile,
     ParsingProfile,
+    VectorStoreProfile,
 )
 from temporalio import activity
 
@@ -103,6 +104,21 @@ async def load_embedder_component(
         raise ProfileNotFoundError("embedder", embedder_profile_id)
     key = await _component_key(session, profile.component_version_id, "embedder")
     return key, dict(profile.params)
+
+
+async def load_vector_store_component(
+    session, vector_store_profile_id: uuid.UUID
+) -> tuple[str, dict]:
+    """Return the vector store key and index params of a vector store profile.
+
+    Raises:
+        ProfileNotFoundError: If the profile or its component version is missing.
+    """
+    profile = await session.get(VectorStoreProfile, vector_store_profile_id)
+    if profile is None:
+        raise ProfileNotFoundError("vector store", vector_store_profile_id)
+    key = await _component_key(session, profile.component_version_id, "vector store")
+    return key, dict(profile.index_params)
 
 
 async def _component_key(session, component_version_id: uuid.UUID, kind: str) -> str:
