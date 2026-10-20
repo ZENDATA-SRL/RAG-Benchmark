@@ -34,6 +34,7 @@ from src.pipelines.exceptions import (
     ChunkResultNotFoundError,
     DocumentsNotStoredError,
     EmptyMaterializationError,
+    IndexBuildNotFoundError,
     MaterializationNotCancellableError,
     MaterializationRunNotFoundError,
     ParsingProfileMismatchError,
@@ -66,7 +67,9 @@ from src.pipelines.repository import (
 )
 from src.pipelines.workflow_ids import (
     CHUNKING_TASK_QUEUE,
+    INDEX_CORPUS_WORKFLOW,
     MATERIALIZE_CHUNKS_WORKFLOW,
+    index_corpus_workflow_id,
     materialize_workflow_id,
 )
 
@@ -216,6 +219,14 @@ class ProfileService:
         repository = ProfileRepository(self.session, ChunkingProfile)
         return await repository.list(limit=limit, offset=offset), await repository.count()
 
+    
+    async def list_embedding_profiles(
+        self, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[EmbeddingProfile], int]:
+        """One page of embedding profiles and the size of the whole set."""
+        repository = ProfileRepository(self.session, EmbeddingProfile)
+        return await repository.list(limit=limit, offset=offset), await repository.count()
+    
     async def get_or_create_retrieval_profile(
         self, *, name: str, top_k: int, strategy: str, **options: Any
     ) -> RetrievalProfile:
@@ -731,6 +742,17 @@ class IndexBuildService:
         self.embedding_profiles = ProfileRepository(session, EmbeddingProfile)
         self.vector_store_profiles = ProfileRepository(session, VectorStoreProfile)
 
+    async def get(self, index_build_id: uuid.UUID) -> IndexBuild:
+        """Return an index build by id.
+
+        Raises:
+            IndexBuildNotFoundError: If it does not exist.
+        """
+        build = await self.builds.get_by_id(index_build_id)
+        if build is None:
+            raise IndexBuildNotFoundError(index_build_id)
+        return build
+
     async def get_or_create(
         self,
         *,
@@ -741,15 +763,33 @@ class IndexBuildService:
         name: str | None = None,
         external_index_ref: str | None = None,
     ) -> IndexBuild:
-        """Return the index build for a whole population chain, creating it once.
+        """Return the index build for a whole population chain, creating it once."""
+        build, _created = await self.get_or_create_reporting(
+            corpus_snapshot_id=corpus_snapshot_id,
+            chunking_configuration_id=chunking_configuration_id,
+            embedding_profile_id=embedding_profile_id,
+            vector_store_profile_id=vector_store_profile_id,
+            name=name,
+            external_index_ref=external_index_ref,
+        )
+        return build
+
+    async def get_or_create_reporting(
+        self,
+        *,
+        corpus_snapshot_id: uuid.UUID,
+        chunking_configuration_id: uuid.UUID,
+        embedding_profile_id: uuid.UUID,
+        vector_store_profile_id: uuid.UUID,
+        name: str | None = None,
+        external_index_ref: str | None = None,
+    ) -> tuple[IndexBuild, bool]:
+        """Return an index build and whether this call created it.
 
         The fingerprint covers snapshot composition, chunking configuration, embedder and
         vector store, i.e. everything the content of the index depends on, so repeating
         the same choice rebuilds nothing and stays comparable with what was measured
         before.
-
-        Returns:
-            The existing build with this fingerprint, or the newly created one.
 
         Raises:
             ProfileNotFoundError: If any referenced entity does not exist.
@@ -790,11 +830,52 @@ class IndexBuildService:
             await self.session.flush()
             return build
 
-        return await get_or_create(
+        return await get_or_create_reporting(
             self.session,
             lookup=lambda: self.builds.get_by_chain_fingerprint(fingerprint),
             create=create,
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class IndexBuildLaunch:
+    """An index build workflow launch and whether this request started it."""
+
+    build: IndexBuild
+    started: bool
+
+
+class IndexCorpusService:
+    """Launch the chunk materialisation and embedding workflow for an index build."""
+
+    def __init__(self, session: AsyncSession, workflows: WorkflowClient) -> None:
+        self.session = session
+        self.workflows = workflows
+        self.builds = IndexBuildService(session)
+
+    async def start(self, index_build_id: uuid.UUID) -> IndexBuildLaunch:
+        """Start indexing for a build, or report the run already doing the same work.
+
+        The workflow id is a function of the index build id, so a second identical request
+        is refused by Temporal itself and reported as the existing run (RT-O01).
+        """
+        build = await self.builds.get(index_build_id)
+        workflow_id = index_corpus_workflow_id(index_build_id)
+
+        if build.status is ArtifactStatus.PENDING or (
+            build.status in TERMINAL_ARTIFACT_STATUSES and build.workflow_id == workflow_id
+        ):
+            build.status = ArtifactStatus.RUNNING
+        build.workflow_id = workflow_id
+        await self.session.flush()
+
+        outcome = await self.workflows.start(
+            INDEX_CORPUS_WORKFLOW,
+            arg=str(index_build_id),
+            workflow_id=workflow_id,
+            task_queue=CHUNKING_TASK_QUEUE,
+        )
+        return IndexBuildLaunch(build=build, started=outcome.started)
 
 
 # Default child-workflow concurrency of a run; mirrors the workflow's own default so the API

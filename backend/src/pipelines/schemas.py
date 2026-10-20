@@ -42,6 +42,31 @@ class ChunkingProfileRead(BaseModel):
     created_at: dt.datetime
 
 
+class EmbeddingProfileRead(BaseModel):
+    """An embedding profile as exposed by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    component_version_id: uuid.UUID
+    modality: str
+    dimensions: int | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    config_hash: str
+    created_at: dt.datetime
+
+
+class VectorStoreProfileRead(BaseModel):
+    """A vector store profile as exposed by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    component_version_id: uuid.UUID
+    index_params: dict[str, Any] = Field(default_factory=dict)
+    config_hash: str
+    created_at: dt.datetime
+
 class ParsingProfileCreate(BaseModel):
     """Payload creating a parsing profile."""
 
@@ -62,6 +87,16 @@ class ChunkingProfileCreate(BaseModel):
     strategy: str = Field(min_length=1, max_length=100)
     chunk_size: int | None = Field(default=None, ge=1)
     overlap: int | None = Field(default=None, ge=0)
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class EmbeddingProfileCreate(BaseModel):
+    """Payload creating an embedding profile."""
+
+    name: str = Field(min_length=1, max_length=200)
+    component_version_id: uuid.UUID
+    modality: str = Field(min_length=1, max_length=100)
+    dimensions: int | None = Field(default=None, ge=1)
     params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -88,6 +123,11 @@ class ChunkingProfileCreated(DeduplicatedRead):
     """A chunking profile with the outcome of the get-or-create that returned it."""
 
     profile: ChunkingProfileRead
+    
+class EmbeddingProfileCreated(DeduplicatedRead):
+    """An embedding profile with the outcome of the get-or-create that returned it."""
+
+    profile: EmbeddingProfileRead
 
 
 # --------------------------------------------------------------------------------------
@@ -351,3 +391,50 @@ class DocumentParseRead(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# --------------------------------------------------------------------------------------
+# Index builds
+# --------------------------------------------------------------------------------------
+
+
+class IndexBuildRead(BaseModel):
+    """A vector DB population configuration as exposed by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    corpus_snapshot_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    embedding_profile_id: uuid.UUID
+    vector_store_profile_id: uuid.UUID
+    chain_fingerprint: str
+    external_index_ref: str
+    status: ArtifactStatus
+    workflow_id: str | None = None
+    created_at: dt.datetime
+
+
+class IndexBuildCreate(BaseModel):
+    """Payload creating an index build from an existing snapshot and profile chain."""
+
+    corpus_snapshot_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    embedding_profile_id: uuid.UUID
+    vector_store_profile_id: uuid.UUID
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    external_index_ref: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class IndexBuildCreated(DeduplicatedRead):
+    """An index build with the outcome of the get-or-create that returned it."""
+
+    index_build: IndexBuildRead
+
+
+class IndexBuildAccepted(IndexBuildRead):
+    """A launched index build, stating whether this request is what started it."""
+
+    started: bool
+    detail: str | None = None

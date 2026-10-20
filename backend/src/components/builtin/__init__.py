@@ -11,7 +11,9 @@ from src.components.builtin.contracts import (
     ParsePage,
     Parser,
 )
+from src.components.builtin.embedder import bedrock_embedder, openai_embedder
 from src.components.builtin.parsers import pdfplumber, pypdf
+from src.components.builtin.vector_stores import chroma
 from src.infrastructure.database.enums import ComponentType
 
 
@@ -71,7 +73,41 @@ CHUNKER_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
     ),
 )
 
-BUILTIN_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = PARSER_DESCRIPTORS + CHUNKER_DESCRIPTORS
+EMBEDDER_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
+    BuiltinDescriptor(
+        component_type=ComponentType.EMBEDDER,
+        key=openai_embedder.KEY,
+        version=openai_embedder.VERSION,
+        display_name=openai_embedder.DISPLAY_NAME,
+        params_schema=openai_embedder.PARAMS_SCHEMA,
+        capabilities={},
+    ),
+    BuiltinDescriptor(
+        component_type=ComponentType.EMBEDDER,
+        key=bedrock_embedder.KEY,
+        version=bedrock_embedder.VERSION,
+        display_name=bedrock_embedder.DISPLAY_NAME,
+        params_schema=bedrock_embedder.PARAMS_SCHEMA,
+        capabilities={},
+    ),
+)
+
+VECTOR_STORE_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
+    BuiltinDescriptor(
+        component_type=ComponentType.VECTOR_STORE,
+        key=chroma.KEY,
+        version=chroma.VERSION,
+        display_name=chroma.DISPLAY_NAME,
+        params_schema=chroma.PARAMS_SCHEMA,
+        capabilities={},
+    ),
+)
+BUILTIN_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
+    PARSER_DESCRIPTORS
+    + CHUNKER_DESCRIPTORS
+    + EMBEDDER_DESCRIPTORS
+    + VECTOR_STORE_DESCRIPTORS
+)
 
 # Keys declared per type. `register_version` checks a key against this so a registry row can
 # never describe a component nobody declared; that the declared key also has an
@@ -80,6 +116,7 @@ BUILTIN_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = PARSER_DESCRIPTORS + CHUNKE
 BUILTIN_KEYS: dict[ComponentType, frozenset[str]] = {
     ComponentType.PARSER: frozenset(d.key for d in PARSER_DESCRIPTORS),
     ComponentType.CHUNKER: frozenset(d.key for d in CHUNKER_DESCRIPTORS),
+    ComponentType.EMBEDDER: frozenset(d.key for d in EMBEDDER_DESCRIPTORS),
 }
 
 __all__ = [

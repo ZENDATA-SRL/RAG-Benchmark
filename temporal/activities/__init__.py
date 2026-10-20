@@ -1,6 +1,17 @@
 from __future__ import annotations
 
 from temporal.activities.chunking import ChunkResultOutput, chunk_document
+from temporal.activities.embed import EmbedBatchOutput, embed_batch
+from temporal.activities.indexing import (
+    ChunkBatch,
+    ChunkForEmbedding,
+    IndexBuildResolved,
+    complete_index_build,
+    count_index_chunks,
+    fetch_index_chunk_batch,
+    open_index_build,
+    resolve_index_build,
+)
 from temporal.activities.materialization import (
     documents_needing_chunking,
     open_materialization_run,
@@ -20,18 +31,34 @@ ALL_ACTIVITIES = [
     documents_needing_chunking,
     record_progress,
     summarize_run,
+    resolve_index_build,
+    open_index_build,
+    complete_index_build,
+    count_index_chunks,
+    fetch_index_chunk_batch,
+    embed_batch,
 ]
 
 __all__ = [
     "ALL_ACTIVITIES",
+    "ChunkBatch",
+    "ChunkForEmbedding",
     "ChunkResultOutput",
     "ConfigurationResolved",
+    "EmbedBatchOutput",
+    "IndexBuildResolved",
     "ParseResult",
     "chunk_document",
+    "complete_index_build",
+    "count_index_chunks",
     "documents_needing_chunking",
+    "embed_batch",
+    "fetch_index_chunk_batch",
+    "open_index_build",
     "open_materialization_run",
     "parse_document",
     "record_progress",
     "resolve_configuration",
+    "resolve_index_build",
     "summarize_run",
 ]

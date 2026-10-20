@@ -8,6 +8,10 @@ from src.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
 from src.dependencies import SessionDep, StorageDep, WorkflowsDep
 from src.pipelines.exceptions import InvalidConfigurationListError
 from src.pipelines.schemas import (
+    EmbeddingProfileCreate,
+    EmbeddingProfileCreated,
+    EmbeddingProfileRead,
+    VectorStoreProfileRead,
     ChunkComparisonRead,
     ChunkComparisonSide,
     ChunkingConfigurationCompose,
@@ -25,6 +29,10 @@ from src.pipelines.schemas import (
     DocumentChunksRead,
     DocumentFailureRead,
     DocumentParseRead,
+    IndexBuildAccepted,
+    IndexBuildCreate,
+    IndexBuildCreated,
+    IndexBuildRead,
     MaterializationAccepted,
     MaterializationCreate,
     MaterializationDetail,
@@ -37,6 +45,8 @@ from src.pipelines.schemas import (
 from src.pipelines.service import (
     ChunkingConfigurationService,
     ExpandedConfiguration,
+    IndexBuildService,
+    IndexCorpusService,
     InspectionService,
     MaterializationRunService,
     MaterializationService,
@@ -53,8 +63,11 @@ _REUSED_DETAIL = (
 
 parsing_profiles_router = APIRouter(prefix="/parsing-profiles", tags=["pipelines"])
 chunking_profiles_router = APIRouter(prefix="/chunking-profiles", tags=["pipelines"])
+embedding_profiles_router = APIRouter(prefix="/embedding-profiles", tags=["pipelines"])
+vector_store_profiles_router = APIRouter(prefix="/vector-store-profiles", tags=["pipelines"])
 configurations_router = APIRouter(prefix="/chunking-configurations", tags=["pipelines"])
 materializations_router = APIRouter(prefix="/materializations", tags=["materializations"])
+index_builds_router = APIRouter(prefix="/index-builds", tags=["index-builds"])
 chunks_router = APIRouter(tags=["inspection"])
 
 
@@ -157,6 +170,42 @@ async def get_chunking_profile(
     profile = await ProfileService(session).get_chunking_profile(profile_id)
     return ChunkingProfileRead.model_validate(profile)
 
+
+@embedding_profiles_router.post(
+    "", response_model=EmbeddingProfileCreated, status_code=status.HTTP_201_CREATED
+)
+async def create_embedding_profile(
+    payload: EmbeddingProfileCreate, session: SessionDep
+) -> EmbeddingProfileCreated:
+    """Create an embedding profile, or return the identical one that already exists."""
+    profile, created = await ProfileService(session).get_or_create_embedding_profile(
+        name=payload.name,
+        component_version_id=payload.component_version_id,
+        modality=payload.modality,
+        dimensions=payload.dimensions,
+        params=payload.params,
+    )
+    return EmbeddingProfileCreated(
+        profile=EmbeddingProfileRead.model_validate(profile),
+        created=created,
+        detail=None if created else _REUSED_DETAIL,
+    )
+    
+@embedding_profiles_router.get("", response_model=Page[EmbeddingProfileRead])
+async def list_embedding_profiles(
+    session: SessionDep,
+    limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+) -> Page[EmbeddingProfileRead]:
+    """List the embedding profiles."""
+    profiles, total = await ProfileService(session).list_embedding_profiles(
+        limit=limit, offset=offset)
+    return Page[EmbeddingProfileRead].build(
+        [EmbeddingProfileRead.model_validate(profile) for profile in profiles],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 # --------------------------------------------------------------------------------------
 # Chunking configurations
@@ -354,6 +403,44 @@ async def cancel_materialization(
     return MaterializationRead.model_validate(run)
 
 
+@index_builds_router.post("", response_model=IndexBuildCreated, status_code=status.HTTP_201_CREATED)
+async def create_index_build(
+    payload: IndexBuildCreate, session: SessionDep
+) -> IndexBuildCreated:
+    """Create an index build, or return the identical one that already exists."""
+    index_build, created = await IndexBuildService(session).get_or_create_reporting(
+        corpus_snapshot_id=payload.corpus_snapshot_id,
+        chunking_configuration_id=payload.chunking_configuration_id,
+        embedding_profile_id=payload.embedding_profile_id,
+        vector_store_profile_id=payload.vector_store_profile_id,
+        name=payload.name,
+        external_index_ref=payload.external_index_ref,
+    )
+    return IndexBuildCreated(
+        index_build=IndexBuildRead.model_validate(index_build),
+        created=created,
+        detail=None if created else _REUSED_DETAIL,
+    )
+
+
+@index_builds_router.post(
+    "/{index_build_id}/start",
+    response_model=IndexBuildAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_index_build(
+    index_build_id: uuid.UUID, session: SessionDep, workflows: WorkflowsDep
+) -> IndexBuildAccepted:
+    """Launch indexing for a build, or report the run already doing the same work."""
+    launch = await IndexCorpusService(session, workflows).start(index_build_id)
+    return IndexBuildAccepted(
+        **IndexBuildRead.model_validate(launch.build).model_dump(),
+        started=launch.started,
+        detail=None
+        if launch.started
+        else "an identical index build was already running and is reported instead",
+    )
+
 # --------------------------------------------------------------------------------------
 # Inspection
 # --------------------------------------------------------------------------------------
@@ -491,3 +578,5 @@ router.include_router(chunking_profiles_router)
 router.include_router(configurations_router)
 router.include_router(materializations_router)
 router.include_router(chunks_router)
+router.include_router(index_builds_router)
+router.include_router(embedding_profiles_router)

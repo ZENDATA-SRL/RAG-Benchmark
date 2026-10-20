@@ -9,7 +9,9 @@ from src.core.hashing import composition_hash
 # flow `temporal -> backend`, so the side that *starts* a workflow and the side that
 # *serves* it read the same constants from here.
 MATERIALIZE_CHUNKS_WORKFLOW = "MaterializeChunksWorkflow"
+INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"
+EMBEDDING_TASK_QUEUE = "embedding"
 
 
 def materialize_workflow_id(
@@ -22,6 +24,11 @@ def materialize_workflow_id(
     idempotency is a property of the id, not application logic (RT-O01).
     """
     return f"materialize-{chunking_configuration_id}-{composition_hash(document_ids)}"
+
+
+def index_corpus_workflow_id(index_build_id: uuid.UUID | str) -> str:
+    """Deterministic id of an `IndexCorpusWorkflow` run."""
+    return f"index-corpus-{index_build_id}"
 
 
 def process_document_workflow_id(

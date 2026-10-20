@@ -5,7 +5,13 @@ import uuid
 
 from src.components.models import ComponentVersion
 from src.pipelines.exceptions import ProfileNotFoundError
-from src.pipelines.models import ChunkingConfiguration, ChunkingProfile, ParsingProfile
+from src.pipelines.models import (
+    ChunkingConfiguration,
+    ChunkingProfile,
+    EmbeddingProfile,
+    IndexBuild,
+    ParsingProfile,
+)
 from temporalio import activity
 
 from temporal.config import activity_session
@@ -80,9 +86,28 @@ async def load_chunking_component(
     return key, params
 
 
+async def load_embedder_component(
+    session, embedder_profile_id: uuid.UUID
+) -> tuple[str, dict]:
+    """Return the embedder key and effective params of an embedder profile.
+
+    Raises:
+        ProfileNotFoundError: If the profile or its component version is missing.
+    """
+    profile = await session.get(EmbeddingProfile, embedder_profile_id)
+    if profile is None:
+        raise ProfileNotFoundError("embedder", embedder_profile_id)
+    key = await _component_key(session, profile.component_version_id, "embedder")
+    return key, dict(profile.params)
+
 async def _component_key(session, component_version_id: uuid.UUID, kind: str) -> str:
     version = await session.get(ComponentVersion, component_version_id)
     if version is None:
         raise ProfileNotFoundError(f"{kind} component version", component_version_id)
     await session.refresh(version, ["component"])
     return version.component.key
+
+
+async def load_index_build(session, index_build_id: uuid.UUID) -> IndexBuild:
+    """Return an index build by id."""
+    return await session.get(IndexBuild, index_build_id)

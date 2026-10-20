@@ -29,6 +29,9 @@ dependencies = [
     "jsonschema>=4.26.0",
     "uvicorn>=0.52.4",
     "temporalio>=1.32.0",
+    "langchain-openai>=1.6.2",
+    "langchain-aws>=1.7.6",
+    "chromadb>=1.5.9",
 ]
 
 [dependency-groups]

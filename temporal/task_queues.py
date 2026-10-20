@@ -14,6 +14,7 @@ class TaskQueue(StrEnum):
     INGESTION = "ingestion"
     PARSING = "parsing"
     CHUNKING = "chunking"
+    EMBEDDING = "embedding"
 
 
 # The queues a single MVP worker polls. Kept as one list so the worker registration and any
@@ -22,4 +23,5 @@ WORKER_TASK_QUEUES: tuple[TaskQueue, ...] = (
     TaskQueue.INGESTION,
     TaskQueue.PARSING,
     TaskQueue.CHUNKING,
+    TaskQueue.EMBEDDING,
 )
