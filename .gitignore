@@ -19,6 +19,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# The UI keeps shared helpers in src/lib; the Python rule above must not hide them.
+!frontend/src/lib/
 lib64/
 parts/
 sdist/
