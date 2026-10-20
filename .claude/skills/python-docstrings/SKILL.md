@@ -15,4 +15,5 @@ description: Docstring conventions (Google style) for Python code. Use when writ
   - simple route handlers
   - obvious helpers in `utils.py`
 - Keep docstrings short: 1-line summary + details only if useful.
+- Docstrings and code must be formatted with ruff (`ruff format`, `ruff check`) after editing.
 - Do not write initial file (module) docstrings that reference other documents; only Python components (functions/classes) get docstrings.

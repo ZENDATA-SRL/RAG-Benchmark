@@ -8,6 +8,9 @@ made of.
 - Requirements: [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 - Data model: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
 - Sprint plan: [`sprint/README.md`](sprint/README.md)
+- Backend modules: [`backend/README.md`](backend/README.md)
+- Temporal worker, workflows and activities: [`temporal/README.md`](temporal/README.md)
+- Each module has its own README: `backend/src/<module>/README.md`, `temporal/{activities,workflows,components}/README.md`
 
 ## Requirements
 
@@ -103,21 +106,21 @@ backend/
     settings.py       configuration read from the environment
     core/             hashing, get-or-create, domain errors, logging
     infrastructure/   database (base, session, enums), object storage, temporal client
-    components/       registry of pluggable components: contracts + descriptors
+    components/       registry of pluggable components: contracts + descriptors (parser, chunker, embedder, vector store)
     corpora/          corpora and snapshots
     documents/        documents
-    pipelines/        profiles, configurations, per-document artefacts, materialisation
+    pipelines/        profiles, configurations, per-document artefacts, materialisation, index builds
     sources/          connections and imports
   tests/
 frontend/             React + Vite UI: corpus, upload, configuration, chunks
 scripts/              mvp_smoke.py, the end-to-end check of the backend flow
-temporal/             workers, workflows and builtin implementations (Sprint 3)
-  components/         parser and chunker code, invoked only by the worker
+temporal/             worker, workflows, activities and builtin implementations
+  components/         parser, chunker and embedder code, invoked only by the worker
   tests/
 ```
 
 Module conventions and dependency direction are in
-[`.cursor/rules/fastapi.mdc`](.cursor/rules/fastapi.mdc): `router → service → repository → models`.
+[`.claude/skills/backend-structure/SKILL.md`](.claude/skills/backend-structure/SKILL.md): `router → service → repository → models`.
 
 ### Where the builtin components live
 
@@ -128,7 +131,7 @@ Split in two on purpose, and the direction matters:
   `capabilities`). Declarative only. The API seeds the registry and renders the UI forms from
   these without importing any parsing library.
 - **`temporal/components/`** — the implementations and the `BUILTIN_PARSERS` /
-  `BUILTIN_CHUNKERS` maps that resolve a key to running code. Only the worker executes them.
+  `BUILTIN_CHUNKERS` maps (embedders are resolved in `components/embedders/shared.py`) that resolve a key to running code. Only the worker executes them.
 
 Dependencies flow `temporal → backend`, never the reverse. The API can tell that a component
 key was *declared*; only the worker can tell it is *runnable*, so it calls

@@ -4,6 +4,7 @@
 - Prefer small, safe, incremental diffs.
 - Do not introduce new architectural patterns or new dependencies unless explicitly requested.
 - Keep code simple and readable; avoid clever abstractions.
+- All Python code must be formatted with ruff: run `ruff format` and `ruff check` on every Python file you create or modify.
 - If requirements are ambiguous, make the smallest reasonable assumption and state it.
 - Do not reference design file chapters as they may change over time. Just provide logical descriptions.
 

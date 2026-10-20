@@ -13,6 +13,10 @@ description: Backend (FastAPI) project structure, naming, layer responsibilities
   - required: `router.py`, `service.py`, `repository.py`, `models.py`, `schemas.py`
   - optional (only if needed): `dependencies.py`, `exceptions.py`, `constants.py`, `utils.py`
 
+## Formatting
+
+- All backend code must be formatted with ruff: run `ruff format` and `ruff check` on every file you create or modify.
+
 ## Naming
 
 - Domain modules are plural.
