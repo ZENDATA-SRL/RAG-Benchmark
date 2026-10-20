@@ -7,6 +7,7 @@ import { ConfigurationWizard } from "@/features/configurations/ConfigurationWiza
 import { ConfigurationsPage } from "@/features/configurations/ConfigurationsPage";
 import { CorporaPage } from "@/features/corpora/CorporaPage";
 import { CorpusDetailPage } from "@/features/corpora/CorpusDetailPage";
+import { IndexesPage } from "@/features/indexes/IndexesPage";
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
         <Route path="/corpora/:corpusId/documents/:documentId/chunks" element={<ChunkViewerPage />} />
         <Route path="/configurations" element={<ConfigurationsPage />} />
         <Route path="/configurations/new" element={<ConfigurationWizard />} />
+        <Route path="/indexes" element={<IndexesPage />} />
         <Route path="/components" element={<ComponentsPage />} />
         <Route path="*" element={<Navigate to="/corpora" replace />} />
       </Route>

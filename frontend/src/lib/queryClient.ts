@@ -37,6 +37,7 @@ export const queryKeys = {
   corpus: (id: string) => ["corpora", id] as const,
   corpusDocuments: (id: string) => ["corpora", id, "documents"] as const,
   corpusProgress: (id: string) => ["corpora", id, "progress"] as const,
+  corpusSnapshots: (id: string) => ["corpora", id, "snapshots"] as const,
   document: (id: string) => ["documents", id] as const,
   documentContent: (id: string) => ["documents", id, "content"] as const,
   components: ["components"] as const,
@@ -44,6 +45,10 @@ export const queryKeys = {
   configuration: (id: string) => ["configurations", id] as const,
   coverage: (configurationId: string, corpusId: string) =>
     ["configurations", configurationId, "coverage", corpusId] as const,
+  embeddingProfiles: ["embedding-profiles"] as const,
+  vectorStoreProfiles: ["vector-store-profiles"] as const,
+  indexBuilds: ["index-builds"] as const,
+  indexBuild: (id: string) => ["index-builds", id] as const,
   materializations: (filters: Record<string, string | undefined>) =>
     ["materializations", filters] as const,
   materialization: (id: string) => ["materializations", id] as const,

@@ -5,6 +5,9 @@ export type CorpusCreate = components["schemas"]["CorpusCreate"];
 export type CorpusUpdate = components["schemas"]["CorpusUpdate"];
 export type CorpusProgress = components["schemas"]["CorpusProgress"];
 export type CorpusDocumentRemoved = components["schemas"]["CorpusDocumentRemoved"];
+export type CorpusSnapshotRead = components["schemas"]["CorpusSnapshotRead"];
+export type CorpusSnapshotCreate = components["schemas"]["CorpusSnapshotCreate"];
+export type CorpusSnapshotCreated = components["schemas"]["CorpusSnapshotCreated"];
 
 export type DocumentRead = components["schemas"]["DocumentRead"];
 export type DocumentWithProvenancesRead = components["schemas"]["DocumentWithProvenancesRead"];
@@ -22,6 +25,18 @@ export type ChunkingConfigurationCoverage = components["schemas"]["ChunkingConfi
 export type ChunkingConfigurationCompose = components["schemas"]["ChunkingConfigurationCompose"];
 export type ParsingProfileRead = components["schemas"]["ParsingProfileRead"];
 export type ChunkingProfileRead = components["schemas"]["ChunkingProfileRead"];
+export type EmbeddingProfileRead = components["schemas"]["EmbeddingProfileRead"];
+export type EmbeddingProfileCreate = components["schemas"]["EmbeddingProfileCreate"];
+export type EmbeddingProfileCreated = components["schemas"]["EmbeddingProfileCreated"];
+export type VectorStoreProfileRead = components["schemas"]["VectorStoreProfileRead"];
+export type VectorStoreProfileCreate = components["schemas"]["VectorStoreProfileCreate"];
+export type VectorStoreProfileCreated = components["schemas"]["VectorStoreProfileCreated"];
+
+export type IndexBuildRead = components["schemas"]["IndexBuildRead"];
+export type IndexBuildDetail = components["schemas"]["IndexBuildDetail"];
+export type IndexBuildCreate = components["schemas"]["IndexBuildCreate"];
+export type IndexBuildCreated = components["schemas"]["IndexBuildCreated"];
+export type IndexBuildAccepted = components["schemas"]["IndexBuildAccepted"];
 
 export type MaterializationAccepted = components["schemas"]["MaterializationAccepted"];
 export type MaterializationDetail = components["schemas"]["MaterializationDetail"];

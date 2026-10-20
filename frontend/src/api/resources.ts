@@ -10,16 +10,30 @@ import type {
   CorpusDocumentRemoved,
   CorpusProgress,
   CorpusRead,
+  CorpusSnapshotCreate,
+  CorpusSnapshotCreated,
+  CorpusSnapshotRead,
   CorpusUpdate,
   DocumentChunksRead,
   DocumentParseRead,
   DocumentRead,
   DocumentWithProvenancesRead,
+  EmbeddingProfileCreate,
+  EmbeddingProfileCreated,
+  EmbeddingProfileRead,
+  IndexBuildAccepted,
+  IndexBuildCreate,
+  IndexBuildCreated,
+  IndexBuildDetail,
+  IndexBuildRead,
   MaterializationAccepted,
   MaterializationDetail,
   MaterializationRead,
   Page,
   UploadResponse,
+  VectorStoreProfileCreate,
+  VectorStoreProfileCreated,
+  VectorStoreProfileRead,
 } from "./types";
 
 export const corporaApi = {
@@ -32,6 +46,13 @@ export const corporaApi = {
   progress: (id: string) => api.get<CorpusProgress>(`/api/v1/corpora/${id}/progress`),
   removeDocument: (corpusId: string, documentId: string) =>
     api.delete<CorpusDocumentRemoved>(`/api/v1/corpora/${corpusId}/documents/${documentId}`),
+};
+
+export const snapshotsApi = {
+  list: (corpusId: string) =>
+    api.get<Page<CorpusSnapshotRead>>(`/api/v1/corpora/${corpusId}/snapshots`, { limit: 200 }),
+  create: (corpusId: string, body: CorpusSnapshotCreate) =>
+    api.post<CorpusSnapshotCreated>(`/api/v1/corpora/${corpusId}/snapshots`, body),
 };
 
 export const documentsApi = {
@@ -56,6 +77,30 @@ export const configurationsApi = {
       `/api/v1/chunking-configurations/${configurationId}/coverage`,
       { corpus_id: corpusId },
     ),
+};
+
+export const embeddingProfilesApi = {
+  list: () => api.get<Page<EmbeddingProfileRead>>("/api/v1/embedding-profiles", { limit: 200 }),
+  create: (body: EmbeddingProfileCreate) =>
+    api.post<EmbeddingProfileCreated>("/api/v1/embedding-profiles", body),
+};
+
+export const vectorStoreProfilesApi = {
+  list: () =>
+    api.get<Page<VectorStoreProfileRead>>("/api/v1/vector-store-profiles", { limit: 200 }),
+  create: (body: VectorStoreProfileCreate) =>
+    api.post<VectorStoreProfileCreated>("/api/v1/vector-store-profiles", body),
+};
+
+export const indexBuildsApi = {
+  list: (corpusSnapshotId?: string) =>
+    api.get<Page<IndexBuildRead>>("/api/v1/index-builds", {
+      corpus_snapshot_id: corpusSnapshotId,
+      limit: 200,
+    }),
+  get: (id: string) => api.get<IndexBuildDetail>(`/api/v1/index-builds/${id}`),
+  create: (body: IndexBuildCreate) => api.post<IndexBuildCreated>("/api/v1/index-builds", body),
+  start: (id: string) => api.post<IndexBuildAccepted>(`/api/v1/index-builds/${id}/start`),
 };
 
 export const materializationsApi = {

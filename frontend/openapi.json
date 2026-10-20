@@ -803,6 +803,256 @@
         }
       }
     },
+    "/api/v1/corpora/{corpus_id}/snapshots": {
+      "post": {
+        "tags": [
+          "corpora"
+        ],
+        "summary": "Create Corpus Snapshot",
+        "description": "Freeze a selection of documents, or return the snapshot with the same composition.",
+        "operationId": "create_corpus_snapshot_api_v1_corpora__corpus_id__snapshots_post",
+        "parameters": [
+          {
+            "name": "corpus_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Corpus Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorpusSnapshotCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusSnapshotCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "corpora"
+        ],
+        "summary": "List Corpus Snapshots",
+        "description": "List the snapshots frozen from a corpus, newest first.",
+        "operationId": "list_corpus_snapshots_api_v1_corpora__corpus_id__snapshots_get",
+        "parameters": [
+          {
+            "name": "corpus_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Corpus Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_CorpusSnapshotRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/corpora/{corpus_id}/snapshots/{snapshot_id}": {
+      "get": {
+        "tags": [
+          "corpora"
+        ],
+        "summary": "Get Corpus Snapshot",
+        "description": "Return one snapshot of a corpus.",
+        "operationId": "get_corpus_snapshot_api_v1_corpora__corpus_id__snapshots__snapshot_id__get",
+        "parameters": [
+          {
+            "name": "corpus_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Corpus Id"
+            }
+          },
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Snapshot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusSnapshotRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/corpora/{corpus_id}/snapshots/{snapshot_id}/documents": {
+      "get": {
+        "tags": [
+          "corpora"
+        ],
+        "summary": "List Corpus Snapshot Documents",
+        "description": "List the documents frozen into a snapshot.",
+        "operationId": "list_corpus_snapshot_documents_api_v1_corpora__corpus_id__snapshots__snapshot_id__documents_get",
+        "parameters": [
+          {
+            "name": "corpus_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Corpus Id"
+            }
+          },
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Snapshot Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DocumentRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/corpora/{corpus_id}/documents/upload": {
       "post": {
         "tags": [
@@ -1428,6 +1678,288 @@
         }
       }
     },
+    "/api/v1/embedding-profiles": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Create Embedding Profile",
+        "description": "Create an embedding profile, or return the identical one that already exists.",
+        "operationId": "create_embedding_profile_api_v1_embedding_profiles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbeddingProfileCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingProfileCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "List Embedding Profiles",
+        "description": "List the embedding profiles.",
+        "operationId": "list_embedding_profiles_api_v1_embedding_profiles_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_EmbeddingProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/embedding-profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get Embedding Profile",
+        "description": "Return one embedding profile.",
+        "operationId": "get_embedding_profile_api_v1_embedding_profiles__profile_id__get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingProfileRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vector-store-profiles": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Create Vector Store Profile",
+        "description": "Create a vector store profile, or return the identical one that already exists.",
+        "operationId": "create_vector_store_profile_api_v1_vector_store_profiles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VectorStoreProfileCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorStoreProfileCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "List Vector Store Profiles",
+        "description": "List the vector store profiles.",
+        "operationId": "list_vector_store_profiles_api_v1_vector_store_profiles_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_VectorStoreProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vector-store-profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get Vector Store Profile",
+        "description": "Return one vector store profile.",
+        "operationId": "get_vector_store_profile_api_v1_vector_store_profiles__profile_id__get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorStoreProfileRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chunking-configurations": {
       "post": {
         "tags": [
@@ -1648,225 +2180,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChunkingConfigurationCoverage"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/materializations": {
-      "post": {
-        "tags": [
-          "materializations"
-        ],
-        "summary": "Start Materialization",
-        "description": "Launch a materialisation, or report the run already doing the same work.",
-        "operationId": "start_materialization_api_v1_materializations_post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MaterializationCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterializationAccepted"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "materializations"
-        ],
-        "summary": "List Materializations",
-        "description": "List the materialisation history, newest first.",
-        "operationId": "list_materializations_api_v1_materializations_get",
-        "parameters": [
-          {
-            "name": "corpus_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Corpus Id"
-            }
-          },
-          {
-            "name": "chunking_configuration_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Chunking Configuration Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page_MaterializationRead_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/materializations/{run_id}": {
-      "get": {
-        "tags": [
-          "materializations"
-        ],
-        "summary": "Get Materialization",
-        "description": "Return the progress of a run; polled every couple of seconds by the UI (RT-U05).\n\nServed entirely from the denormalised row, so following a run never depends on Temporal\nbeing reachable.",
-        "operationId": "get_materialization_api_v1_materializations__run_id__get",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterializationDetail"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/materializations/{run_id}/cancel": {
-      "post": {
-        "tags": [
-          "materializations"
-        ],
-        "summary": "Cancel Materialization",
-        "description": "Cancel a running materialisation, recording `cancelled` as its reason.",
-        "operationId": "cancel_materialization_api_v1_materializations__run_id__cancel_post",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterializationRead"
                 }
               }
             }
@@ -2186,6 +2499,427 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DocumentParseRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materializations": {
+      "post": {
+        "tags": [
+          "materializations"
+        ],
+        "summary": "Start Materialization",
+        "description": "Launch a materialisation, or report the run already doing the same work.",
+        "operationId": "start_materialization_api_v1_materializations_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterializationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializationAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "materializations"
+        ],
+        "summary": "List Materializations",
+        "description": "List the materialisation history, newest first.",
+        "operationId": "list_materializations_api_v1_materializations_get",
+        "parameters": [
+          {
+            "name": "corpus_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Corpus Id"
+            }
+          },
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chunking Configuration Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_MaterializationRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materializations/{run_id}": {
+      "get": {
+        "tags": [
+          "materializations"
+        ],
+        "summary": "Get Materialization",
+        "description": "Return the progress of a run; polled every couple of seconds by the UI (RT-U05).\n\nServed entirely from the denormalised row, so following a run never depends on Temporal\nbeing reachable.",
+        "operationId": "get_materialization_api_v1_materializations__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializationDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materializations/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "materializations"
+        ],
+        "summary": "Cancel Materialization",
+        "description": "Cancel a running materialisation, recording `cancelled` as its reason.",
+        "operationId": "cancel_materialization_api_v1_materializations__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/index-builds": {
+      "post": {
+        "tags": [
+          "index-builds"
+        ],
+        "summary": "Create Index Build",
+        "description": "Create an index build, or return the identical one that already exists.",
+        "operationId": "create_index_build_api_v1_index_builds_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexBuildCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexBuildCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "index-builds"
+        ],
+        "summary": "List Index Builds",
+        "description": "List index builds, newest first, optionally over one corpus snapshot.",
+        "operationId": "list_index_builds_api_v1_index_builds_get",
+        "parameters": [
+          {
+            "name": "corpus_snapshot_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Corpus Snapshot Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_IndexBuildRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/index-builds/{index_build_id}": {
+      "get": {
+        "tags": [
+          "index-builds"
+        ],
+        "summary": "Get Index Build",
+        "description": "Return an index build with its status and chunk count.",
+        "operationId": "get_index_build_api_v1_index_builds__index_build_id__get",
+        "parameters": [
+          {
+            "name": "index_build_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Index Build Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexBuildDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/index-builds/{index_build_id}/start": {
+      "post": {
+        "tags": [
+          "index-builds"
+        ],
+        "summary": "Start Index Build",
+        "description": "Launch indexing for a build, or report the run already doing the same work.",
+        "operationId": "start_index_build_api_v1_index_builds__index_build_id__start_post",
+        "parameters": [
+          {
+            "name": "index_build_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Index Build Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexBuildAccepted"
                 }
               }
             }
@@ -3284,6 +4018,109 @@
         "title": "CorpusRead",
         "description": "A corpus as exposed by the API."
       },
+      "CorpusSnapshotCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "document_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "CorpusSnapshotCreate",
+        "description": "Payload freezing a snapshot; without `document_ids` every stored document is taken."
+      },
+      "CorpusSnapshotCreated": {
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/CorpusSnapshotRead"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot",
+          "created"
+        ],
+        "title": "CorpusSnapshotCreated",
+        "description": "A snapshot with the outcome of the get-or-create that returned it."
+      },
+      "CorpusSnapshotRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "corpus_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "document_count": {
+            "type": "integer",
+            "title": "Document Count"
+          },
+          "composition_hash": {
+            "type": "string",
+            "title": "Composition Hash"
+          },
+          "frozen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Frozen At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "corpus_id",
+          "label",
+          "document_count",
+          "composition_hash",
+          "frozen_at"
+        ],
+        "title": "CorpusSnapshotRead",
+        "description": "A frozen selection of documents as exposed by the API."
+      },
       "CorpusUpdate": {
         "properties": {
           "name": {
@@ -3659,6 +4496,139 @@
         "title": "DocumentWithProvenancesRead",
         "description": "A document together with its origins, so the UI resolves the original (RT-U06)."
       },
+      "EmbeddingProfileCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "modality": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Modality"
+          },
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimensions"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "component_version_id",
+          "modality"
+        ],
+        "title": "EmbeddingProfileCreate",
+        "description": "Payload creating an embedding profile."
+      },
+      "EmbeddingProfileCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/EmbeddingProfileRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "profile"
+        ],
+        "title": "EmbeddingProfileCreated",
+        "description": "An embedding profile with the outcome of the get-or-create that returned it."
+      },
+      "EmbeddingProfileRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "modality": {
+            "type": "string",
+            "title": "Modality"
+          },
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimensions"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "component_version_id",
+          "modality",
+          "config_hash",
+          "created_at"
+        ],
+        "title": "EmbeddingProfileRead",
+        "description": "An embedding profile as exposed by the API."
+      },
       "FileOutcome": {
         "type": "string",
         "enum": [
@@ -3681,6 +4651,340 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IndexBuildAccepted": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "embedding_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Embedding Profile Id"
+          },
+          "vector_store_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vector Store Profile Id"
+          },
+          "chain_fingerprint": {
+            "type": "string",
+            "title": "Chain Fingerprint"
+          },
+          "external_index_ref": {
+            "type": "string",
+            "title": "External Index Ref"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArtifactStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started": {
+            "type": "boolean",
+            "title": "Started"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "corpus_snapshot_id",
+          "chunking_configuration_id",
+          "embedding_profile_id",
+          "vector_store_profile_id",
+          "chain_fingerprint",
+          "external_index_ref",
+          "status",
+          "created_at",
+          "started"
+        ],
+        "title": "IndexBuildAccepted",
+        "description": "A launched index build, stating whether this request is what started it."
+      },
+      "IndexBuildCreate": {
+        "properties": {
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "embedding_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Embedding Profile Id"
+          },
+          "vector_store_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vector Store Profile Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "external_index_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Index Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "corpus_snapshot_id",
+          "chunking_configuration_id",
+          "embedding_profile_id",
+          "vector_store_profile_id"
+        ],
+        "title": "IndexBuildCreate",
+        "description": "Payload creating an index build from an existing snapshot and profile chain."
+      },
+      "IndexBuildCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "index_build": {
+            "$ref": "#/components/schemas/IndexBuildRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "index_build"
+        ],
+        "title": "IndexBuildCreated",
+        "description": "An index build with the outcome of the get-or-create that returned it."
+      },
+      "IndexBuildDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "embedding_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Embedding Profile Id"
+          },
+          "vector_store_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vector Store Profile Id"
+          },
+          "chain_fingerprint": {
+            "type": "string",
+            "title": "Chain Fingerprint"
+          },
+          "external_index_ref": {
+            "type": "string",
+            "title": "External Index Ref"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArtifactStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "corpus_snapshot_id",
+          "chunking_configuration_id",
+          "embedding_profile_id",
+          "vector_store_profile_id",
+          "chain_fingerprint",
+          "external_index_ref",
+          "status",
+          "created_at",
+          "chunk_count"
+        ],
+        "title": "IndexBuildDetail",
+        "description": "An index build with the number of chunks it indexes."
+      },
+      "IndexBuildRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "embedding_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Embedding Profile Id"
+          },
+          "vector_store_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vector Store Profile Id"
+          },
+          "chain_fingerprint": {
+            "type": "string",
+            "title": "Chain Fingerprint"
+          },
+          "external_index_ref": {
+            "type": "string",
+            "title": "External Index Ref"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArtifactStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "corpus_snapshot_id",
+          "chunking_configuration_id",
+          "embedding_profile_id",
+          "vector_store_profile_id",
+          "chain_fingerprint",
+          "external_index_ref",
+          "status",
+          "created_at"
+        ],
+        "title": "IndexBuildRead",
+        "description": "A vector DB population configuration as exposed by the API."
       },
       "MaterializationAccepted": {
         "properties": {
@@ -4151,6 +5455,36 @@
         ],
         "title": "Page[CorpusRead]"
       },
+      "Page_CorpusSnapshotRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusSnapshotRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[CorpusSnapshotRead]"
+      },
       "Page_DocumentRead_": {
         "properties": {
           "items": {
@@ -4180,6 +5514,66 @@
           "offset"
         ],
         "title": "Page[DocumentRead]"
+      },
+      "Page_EmbeddingProfileRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingProfileRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[EmbeddingProfileRead]"
+      },
+      "Page_IndexBuildRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IndexBuildRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[IndexBuildRead]"
       },
       "Page_MaterializationRead_": {
         "properties": {
@@ -4240,6 +5634,36 @@
           "offset"
         ],
         "title": "Page[ParsingProfileRead]"
+      },
+      "Page_VectorStoreProfileRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VectorStoreProfileRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[VectorStoreProfileRead]"
       },
       "ParsePageRead": {
         "properties": {
@@ -4475,6 +5899,104 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VectorStoreProfileCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "index_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Index Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "component_version_id"
+        ],
+        "title": "VectorStoreProfileCreate",
+        "description": "Payload creating a vector store profile."
+      },
+      "VectorStoreProfileCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/VectorStoreProfileRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "profile"
+        ],
+        "title": "VectorStoreProfileCreated",
+        "description": "A vector store profile with the outcome of the get-or-create that returned it."
+      },
+      "VectorStoreProfileRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "index_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Index Params"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "component_version_id",
+          "config_hash",
+          "created_at"
+        ],
+        "title": "VectorStoreProfileRead",
+        "description": "A vector store profile as exposed by the API."
       }
     }
   }

@@ -225,6 +225,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/corpora/{corpus_id}/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Corpus Snapshots
+         * @description List the snapshots frozen from a corpus, newest first.
+         */
+        get: operations["list_corpus_snapshots_api_v1_corpora__corpus_id__snapshots_get"];
+        put?: never;
+        /**
+         * Create Corpus Snapshot
+         * @description Freeze a selection of documents, or return the snapshot with the same composition.
+         */
+        post: operations["create_corpus_snapshot_api_v1_corpora__corpus_id__snapshots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/corpora/{corpus_id}/snapshots/{snapshot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Corpus Snapshot
+         * @description Return one snapshot of a corpus.
+         */
+        get: operations["get_corpus_snapshot_api_v1_corpora__corpus_id__snapshots__snapshot_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/corpora/{corpus_id}/snapshots/{snapshot_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Corpus Snapshot Documents
+         * @description List the documents frozen into a snapshot.
+         */
+        get: operations["list_corpus_snapshot_documents_api_v1_corpora__corpus_id__snapshots__snapshot_id__documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/corpora/{corpus_id}/documents/upload": {
         parameters: {
             query?: never;
@@ -433,6 +497,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/embedding-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Embedding Profiles
+         * @description List the embedding profiles.
+         */
+        get: operations["list_embedding_profiles_api_v1_embedding_profiles_get"];
+        put?: never;
+        /**
+         * Create Embedding Profile
+         * @description Create an embedding profile, or return the identical one that already exists.
+         */
+        post: operations["create_embedding_profile_api_v1_embedding_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/embedding-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Embedding Profile
+         * @description Return one embedding profile.
+         */
+        get: operations["get_embedding_profile_api_v1_embedding_profiles__profile_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vector-store-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Vector Store Profiles
+         * @description List the vector store profiles.
+         */
+        get: operations["list_vector_store_profiles_api_v1_vector_store_profiles_get"];
+        put?: never;
+        /**
+         * Create Vector Store Profile
+         * @description Create a vector store profile, or return the identical one that already exists.
+         */
+        post: operations["create_vector_store_profile_api_v1_vector_store_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vector-store-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Vector Store Profile
+         * @description Return one vector store profile.
+         */
+        get: operations["get_vector_store_profile_api_v1_vector_store_profiles__profile_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chunking-configurations": {
         parameters: {
             query?: never;
@@ -511,73 +663,6 @@ export interface paths {
         get: operations["get_chunking_configuration_coverage_api_v1_chunking_configurations__configuration_id__coverage_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/materializations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Materializations
-         * @description List the materialisation history, newest first.
-         */
-        get: operations["list_materializations_api_v1_materializations_get"];
-        put?: never;
-        /**
-         * Start Materialization
-         * @description Launch a materialisation, or report the run already doing the same work.
-         */
-        post: operations["start_materialization_api_v1_materializations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/materializations/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Materialization
-         * @description Return the progress of a run; polled every couple of seconds by the UI (RT-U05).
-         *
-         *     Served entirely from the denormalised row, so following a run never depends on Temporal
-         *     being reachable.
-         */
-        get: operations["get_materialization_api_v1_materializations__run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/materializations/{run_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Cancel Materialization
-         * @description Cancel a running materialisation, recording `cancelled` as its reason.
-         */
-        post: operations["cancel_materialization_api_v1_materializations__run_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -678,6 +763,137 @@ export interface paths {
         get: operations["get_document_parse_api_v1_documents__document_id__parse_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/materializations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Materializations
+         * @description List the materialisation history, newest first.
+         */
+        get: operations["list_materializations_api_v1_materializations_get"];
+        put?: never;
+        /**
+         * Start Materialization
+         * @description Launch a materialisation, or report the run already doing the same work.
+         */
+        post: operations["start_materialization_api_v1_materializations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/materializations/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Materialization
+         * @description Return the progress of a run; polled every couple of seconds by the UI (RT-U05).
+         *
+         *     Served entirely from the denormalised row, so following a run never depends on Temporal
+         *     being reachable.
+         */
+        get: operations["get_materialization_api_v1_materializations__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/materializations/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Materialization
+         * @description Cancel a running materialisation, recording `cancelled` as its reason.
+         */
+        post: operations["cancel_materialization_api_v1_materializations__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/index-builds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Index Builds
+         * @description List index builds, newest first, optionally over one corpus snapshot.
+         */
+        get: operations["list_index_builds_api_v1_index_builds_get"];
+        put?: never;
+        /**
+         * Create Index Build
+         * @description Create an index build, or return the identical one that already exists.
+         */
+        post: operations["create_index_build_api_v1_index_builds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/index-builds/{index_build_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Index Build
+         * @description Return an index build with its status and chunk count.
+         */
+        get: operations["get_index_build_api_v1_index_builds__index_build_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/index-builds/{index_build_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Index Build
+         * @description Launch indexing for a build, or report the run already doing the same work.
+         */
+        post: operations["start_index_build_api_v1_index_builds__index_build_id__start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1255,6 +1471,54 @@ export interface components {
             updated_at: string;
         };
         /**
+         * CorpusSnapshotCreate
+         * @description Payload freezing a snapshot; without `document_ids` every stored document is taken.
+         */
+        CorpusSnapshotCreate: {
+            /** Label */
+            label: string;
+            /** Document Ids */
+            document_ids?: string[] | null;
+        };
+        /**
+         * CorpusSnapshotCreated
+         * @description A snapshot with the outcome of the get-or-create that returned it.
+         */
+        CorpusSnapshotCreated: {
+            snapshot: components["schemas"]["CorpusSnapshotRead"];
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+        };
+        /**
+         * CorpusSnapshotRead
+         * @description A frozen selection of documents as exposed by the API.
+         */
+        CorpusSnapshotRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Corpus Id
+             * Format: uuid
+             */
+            corpus_id: string;
+            /** Label */
+            label: string;
+            /** Document Count */
+            document_count: number;
+            /** Composition Hash */
+            composition_hash: string;
+            /**
+             * Frozen At
+             * Format: date-time
+             */
+            frozen_at: string;
+        };
+        /**
          * CorpusUpdate
          * @description Payload updating a corpus; omitted fields are left unchanged.
          */
@@ -1454,6 +1718,71 @@ export interface components {
             provenances?: components["schemas"]["DocumentProvenanceRead"][];
         };
         /**
+         * EmbeddingProfileCreate
+         * @description Payload creating an embedding profile.
+         */
+        EmbeddingProfileCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Modality */
+            modality: string;
+            /** Dimensions */
+            dimensions?: number | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * EmbeddingProfileCreated
+         * @description An embedding profile with the outcome of the get-or-create that returned it.
+         */
+        EmbeddingProfileCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            profile: components["schemas"]["EmbeddingProfileRead"];
+        };
+        /**
+         * EmbeddingProfileRead
+         * @description An embedding profile as exposed by the API.
+         */
+        EmbeddingProfileRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Modality */
+            modality: string;
+            /** Dimensions */
+            dimensions?: number | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * FileOutcome
          * @enum {string}
          */
@@ -1462,6 +1791,188 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * IndexBuildAccepted
+         * @description A launched index build, stating whether this request is what started it.
+         */
+        IndexBuildAccepted: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Embedding Profile Id
+             * Format: uuid
+             */
+            embedding_profile_id: string;
+            /**
+             * Vector Store Profile Id
+             * Format: uuid
+             */
+            vector_store_profile_id: string;
+            /** Chain Fingerprint */
+            chain_fingerprint: string;
+            /** External Index Ref */
+            external_index_ref: string;
+            status: components["schemas"]["ArtifactStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started */
+            started: boolean;
+            /** Detail */
+            detail?: string | null;
+        };
+        /**
+         * IndexBuildCreate
+         * @description Payload creating an index build from an existing snapshot and profile chain.
+         */
+        IndexBuildCreate: {
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Embedding Profile Id
+             * Format: uuid
+             */
+            embedding_profile_id: string;
+            /**
+             * Vector Store Profile Id
+             * Format: uuid
+             */
+            vector_store_profile_id: string;
+            /** Name */
+            name?: string | null;
+            /** External Index Ref */
+            external_index_ref?: string | null;
+        };
+        /**
+         * IndexBuildCreated
+         * @description An index build with the outcome of the get-or-create that returned it.
+         */
+        IndexBuildCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            index_build: components["schemas"]["IndexBuildRead"];
+        };
+        /**
+         * IndexBuildDetail
+         * @description An index build with the number of chunks it indexes.
+         */
+        IndexBuildDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Embedding Profile Id
+             * Format: uuid
+             */
+            embedding_profile_id: string;
+            /**
+             * Vector Store Profile Id
+             * Format: uuid
+             */
+            vector_store_profile_id: string;
+            /** Chain Fingerprint */
+            chain_fingerprint: string;
+            /** External Index Ref */
+            external_index_ref: string;
+            status: components["schemas"]["ArtifactStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Chunk Count */
+            chunk_count: number;
+        };
+        /**
+         * IndexBuildRead
+         * @description A vector DB population configuration as exposed by the API.
+         */
+        IndexBuildRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Embedding Profile Id
+             * Format: uuid
+             */
+            embedding_profile_id: string;
+            /**
+             * Vector Store Profile Id
+             * Format: uuid
+             */
+            vector_store_profile_id: string;
+            /** Chain Fingerprint */
+            chain_fingerprint: string;
+            /** External Index Ref */
+            external_index_ref: string;
+            status: components["schemas"]["ArtifactStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * MaterializationAccepted
@@ -1661,10 +2172,43 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[CorpusSnapshotRead] */
+        Page_CorpusSnapshotRead_: {
+            /** Items */
+            items?: components["schemas"]["CorpusSnapshotRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[DocumentRead] */
         Page_DocumentRead_: {
             /** Items */
             items?: components["schemas"]["DocumentRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[EmbeddingProfileRead] */
+        Page_EmbeddingProfileRead_: {
+            /** Items */
+            items?: components["schemas"]["EmbeddingProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[IndexBuildRead] */
+        Page_IndexBuildRead_: {
+            /** Items */
+            items?: components["schemas"]["IndexBuildRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -1687,6 +2231,17 @@ export interface components {
         Page_ParsingProfileRead_: {
             /** Items */
             items?: components["schemas"]["ParsingProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[VectorStoreProfileRead] */
+        Page_VectorStoreProfileRead_: {
+            /** Items */
+            items?: components["schemas"]["VectorStoreProfileRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -1811,6 +2366,63 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VectorStoreProfileCreate
+         * @description Payload creating a vector store profile.
+         */
+        VectorStoreProfileCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Index Params */
+            index_params?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * VectorStoreProfileCreated
+         * @description A vector store profile with the outcome of the get-or-create that returned it.
+         */
+        VectorStoreProfileCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            profile: components["schemas"]["VectorStoreProfileRead"];
+        };
+        /**
+         * VectorStoreProfileRead
+         * @description A vector store profile as exposed by the API.
+         */
+        VectorStoreProfileRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Index Params */
+            index_params?: {
+                [key: string]: unknown;
+            };
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
     };
     responses: never;
@@ -2335,6 +2947,142 @@ export interface operations {
             };
         };
     };
+    list_corpus_snapshots_api_v1_corpora__corpus_id__snapshots_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                corpus_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CorpusSnapshotRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_corpus_snapshot_api_v1_corpora__corpus_id__snapshots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                corpus_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorpusSnapshotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorpusSnapshotCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_corpus_snapshot_api_v1_corpora__corpus_id__snapshots__snapshot_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                corpus_id: string;
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorpusSnapshotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_corpus_snapshot_documents_api_v1_corpora__corpus_id__snapshots__snapshot_id__documents_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                corpus_id: string;
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_DocumentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upload_corpus_documents_api_v1_corpora__corpus_id__documents_upload_post: {
         parameters: {
             query?: never;
@@ -2729,6 +3477,198 @@ export interface operations {
             };
         };
     };
+    list_embedding_profiles_api_v1_embedding_profiles_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_EmbeddingProfileRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_embedding_profile_api_v1_embedding_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmbeddingProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmbeddingProfileCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_embedding_profile_api_v1_embedding_profiles__profile_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmbeddingProfileRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vector_store_profiles_api_v1_vector_store_profiles_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_VectorStoreProfileRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_vector_store_profile_api_v1_vector_store_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VectorStoreProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VectorStoreProfileCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_vector_store_profile_api_v1_vector_store_profiles__profile_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VectorStoreProfileRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_chunking_configurations_api_v1_chunking_configurations_get: {
         parameters: {
             query?: {
@@ -2878,135 +3818,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChunkingConfigurationCoverage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_materializations_api_v1_materializations_get: {
-        parameters: {
-            query?: {
-                corpus_id?: string | null;
-                chunking_configuration_id?: string | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_MaterializationRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_materialization_api_v1_materializations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MaterializationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterializationAccepted"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_materialization_api_v1_materializations__run_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterializationDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cancel_materialization_api_v1_materializations__run_id__cancel_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterializationRead"];
                 };
             };
             /** @description Validation Error */
@@ -3175,6 +3986,263 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentParseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_materializations_api_v1_materializations_get: {
+        parameters: {
+            query?: {
+                corpus_id?: string | null;
+                chunking_configuration_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MaterializationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_materialization_api_v1_materializations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterializationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializationAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_materialization_api_v1_materializations__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_materialization_api_v1_materializations__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_index_builds_api_v1_index_builds_get: {
+        parameters: {
+            query?: {
+                corpus_snapshot_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_IndexBuildRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_index_build_api_v1_index_builds_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexBuildCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexBuildCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_index_build_api_v1_index_builds__index_build_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                index_build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexBuildDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_index_build_api_v1_index_builds__index_build_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                index_build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexBuildAccepted"];
                 };
             };
             /** @description Validation Error */

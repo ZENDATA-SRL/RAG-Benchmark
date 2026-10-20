@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 const links = [
   { to: "/corpora", label: "Corpora", hint: "Documents" },
   { to: "/configurations", label: "Configurations", hint: "Parse + chunk" },
+  { to: "/indexes", label: "Indexes", hint: "Embed + store" },
   { to: "/components", label: "Components", hint: "Registry" },
 ];
 

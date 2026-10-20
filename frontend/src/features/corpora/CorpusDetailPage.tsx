@@ -16,6 +16,8 @@ import { UploadDialog } from "@/features/documents/UploadDialog";
 import { MaterializeDialog } from "@/features/materializations/MaterializeDialog";
 import { PreviewDialog } from "@/features/materializations/PreviewDialog";
 import { ProgressPanel } from "@/features/materializations/ProgressPanel";
+import { SnapshotDialog } from "@/features/snapshots/SnapshotDialog";
+import { SnapshotsPanel } from "@/features/snapshots/SnapshotsPanel";
 
 import { AcquisitionBar } from "./AcquisitionBar";
 import { CorpusFormDialog } from "./CorpusFormDialog";
@@ -37,6 +39,7 @@ export function CorpusDetailPage() {
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [materializing, setMaterializing] = useState(false);
+  const [freezing, setFreezing] = useState(false);
   const [previewing, setPreviewing] = useState<DocumentRead | null>(null);
   const [removing, setRemoving] = useState<DocumentRead | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -114,6 +117,14 @@ export function CorpusDetailPage() {
               Preview on one document
             </Button>
             <Button onClick={() => setMaterializing(true)}>Materialise chunks</Button>
+            <Button
+              variant="secondary"
+              disabled={items.length === 0}
+              onClick={() => setFreezing(true)}
+              title="Freeze the documents an index will search over"
+            >
+              Freeze snapshot
+            </Button>
           </div>
         </div>
 
@@ -127,6 +138,8 @@ export function CorpusDetailPage() {
             <ProgressPanel runId={runId} documents={items} onClose={() => setRunId(null)} />
           </div>
         ) : null}
+
+        <SnapshotsPanel corpusId={corpusId} />
 
         <div className="mt-6">
           {documents.isLoading ? <TableSkeleton /> : null}
@@ -273,6 +286,10 @@ export function CorpusDetailPage() {
             setMaterializing(false);
           }}
         />
+      ) : null}
+
+      {freezing ? (
+        <SnapshotDialog corpusId={corpusId} selectedIds={[...selected]} onClose={() => setFreezing(false)} />
       ) : null}
 
       {previewing ? (
