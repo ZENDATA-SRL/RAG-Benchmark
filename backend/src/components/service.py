@@ -166,7 +166,9 @@ class ComponentService:
                 field_path=_field_path(error), reason=error.message
             ) from error
 
-    async def mark_unavailable(self, version_id: uuid.UUID, reason: str) -> ComponentVersion:
+    async def mark_unavailable(
+        self, version_id: uuid.UUID, reason: str
+    ) -> ComponentVersion:
         """Flag a version as not executable, keeping the row and the reason.
 
         Excluding a component from the choices is a state change and not a deletion: the
@@ -220,7 +222,9 @@ class ComponentService:
         """
         if await self.components.get_by_id(component_id) is None:
             raise ComponentNotFoundError(component_id)
-        return await self.versions.list_versions(component_id, only_available=only_available)
+        return await self.versions.list_versions(
+            component_id, only_available=only_available
+        )
 
     async def get_component(self, component_id: uuid.UUID) -> Component:
         """Return a component by id.

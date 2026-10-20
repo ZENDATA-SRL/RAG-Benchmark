@@ -32,7 +32,9 @@ class ComponentRepository:
         )
         return (await self.session.execute(statement)).scalar_one_or_none()
 
-    async def list_by_type(self, component_type: ComponentType | None = None) -> Sequence[Component]:
+    async def list_by_type(
+        self, component_type: ComponentType | None = None
+    ) -> Sequence[Component]:
         """List components, optionally of one type, ordered by type then key.
 
         The order is stable and not by creation date because this feeds the UI dropdowns:

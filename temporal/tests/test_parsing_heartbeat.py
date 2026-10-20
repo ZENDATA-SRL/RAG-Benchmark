@@ -47,7 +47,9 @@ async def test_a_fast_parse_returns_without_heartbeating(monkeypatch) -> None:
     monkeypatch.setattr(
         parsing,
         "_run_parser",
-        lambda key, storage_uri, filename, params: {"pages": [{"page": 1, "text": "quick"}]},
+        lambda key, storage_uri, filename, params: {
+            "pages": [{"page": 1, "text": "quick"}]
+        },
     )
 
     beats: list[float] = []

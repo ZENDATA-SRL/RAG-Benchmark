@@ -43,7 +43,9 @@ class PyPdfParser:
             # only to disable printing and open with no password at all.
             try:
                 if reader.decrypt("") == 0:
-                    raise PermanentParsingError("encrypted_pdf", "PDF is password protected")
+                    raise PermanentParsingError(
+                        "encrypted_pdf", "PDF is password protected"
+                    )
             except (PdfReadError, NotImplementedError) as error:
                 raise PermanentParsingError("encrypted_pdf", str(error)) from error
 

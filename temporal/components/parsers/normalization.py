@@ -34,7 +34,9 @@ _PUNCTUATION = {
     "\u00a0": " ",
 }
 
-_TRANSLATION = {ord(source): target for source, target in {**_LIGATURES, **_PUNCTUATION}.items()}
+_TRANSLATION = {
+    ord(source): target for source, target in {**_LIGATURES, **_PUNCTUATION}.items()
+}
 
 # A word split across a line by a hyphen: "de-\nsillabazione" -> "desillabazione". Only
 # joined when a letter precedes the hyphen and a letter follows the break, so genuine

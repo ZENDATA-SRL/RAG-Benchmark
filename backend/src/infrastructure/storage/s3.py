@@ -90,7 +90,11 @@ class S3ObjectStorage(ObjectStorage):
         try:
             self._client.head_object(Bucket=self._bucket, Key=key)
         except ClientError as error:
-            if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
+            if error.response.get("Error", {}).get("Code") in {
+                "404",
+                "NoSuchKey",
+                "NotFound",
+            }:
                 return False
             raise
         return True

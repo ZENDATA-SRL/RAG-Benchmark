@@ -56,7 +56,9 @@ async def list_component_versions(
 
 
 @router.post("", response_model=ComponentRead, status_code=status.HTTP_201_CREATED)
-async def create_component(payload: ComponentCreate, session: SessionDep) -> ComponentRead:
+async def create_component(
+    payload: ComponentCreate, session: SessionDep
+) -> ComponentRead:
     """Register a component, returning the existing one if it is already known."""
     component = await ComponentService(session).register_component(
         payload.type, payload.key, payload.display_name
@@ -89,7 +91,9 @@ async def mark_version_unavailable(
     version_id: uuid.UUID, payload: ComponentVersionUnavailable, session: SessionDep
 ) -> ComponentVersionRead:
     """Exclude a version from the available choices, recording the reason."""
-    version = await ComponentService(session).mark_unavailable(version_id, payload.reason)
+    version = await ComponentService(session).mark_unavailable(
+        version_id, payload.reason
+    )
     return ComponentVersionRead.model_validate(version)
 
 

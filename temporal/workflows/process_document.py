@@ -55,7 +55,11 @@ class ProcessDocumentWorkflow:
             retry_policy=_RETRY_POLICY,
         )
         if parse.status != "ready":
-            return {"status": "failed", "reason": "parse_failed", "document_id": document_id}
+            return {
+                "status": "failed",
+                "reason": "parse_failed",
+                "document_id": document_id,
+            }
 
         chunk: ChunkResultOutput = await workflow.execute_activity(
             chunk_document,

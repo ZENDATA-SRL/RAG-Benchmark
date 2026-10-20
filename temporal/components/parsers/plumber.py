@@ -52,7 +52,9 @@ class PdfPlumberParser:
                     "no extractable text (likely a scanned PDF); OCR is out of scope",
                 )
 
-            return ParseOutput(pages=pages, metadata=self._metadata(pdf, page_count=len(pages)))
+            return ParseOutput(
+                pages=pages, metadata=self._metadata(pdf, page_count=len(pages))
+            )
 
     @staticmethod
     def _open(stream: IO[bytes]) -> pdfplumber.PDF:
@@ -64,7 +66,9 @@ class PdfPlumberParser:
             # `args[0]` because the wrapper is raised without `from`.
             original = error.args[0] if error.args else error
             if isinstance(original, PDFPasswordIncorrect):
-                raise PermanentParsingError("encrypted_pdf", "PDF is password protected") from error
+                raise PermanentParsingError(
+                    "encrypted_pdf", "PDF is password protected"
+                ) from error
             raise PermanentParsingError("corrupt_pdf", str(error)) from error
 
     @staticmethod

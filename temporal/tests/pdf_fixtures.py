@@ -33,9 +33,17 @@ def make_pdf(pages_text: list[str]) -> bytes:
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
             f"/Resources << /Font << /F1 {font_id} 0 R >> >> /Contents {content_id} 0 R >>"
         ).encode()
-        text = pages_text[index].replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        text = (
+            pages_text[index]
+            .replace("\\", "\\\\")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+        )
         stream = f"BT /F1 12 Tf 72 700 Td ({text}) Tj ET".encode()
-        parts[content_id] = b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream)
+        parts[content_id] = b"<< /Length %d >>\nstream\n%s\nendstream" % (
+            len(stream),
+            stream,
+        )
 
     buffer = io.BytesIO()
     buffer.write(b"%PDF-1.4\n")

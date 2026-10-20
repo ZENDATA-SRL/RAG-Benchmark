@@ -12,7 +12,10 @@ from temporal.activities.chunking import ChunkResultOutput
 from temporal.activities.parsing import ParseResult
 from temporal.activities.reads import ConfigurationResolved
 from temporal.task_queues import WORKER_TASK_QUEUES, TaskQueue
-from temporal.workflows.materialize_chunks import MaterializeChunksWorkflow, MaterializeInput
+from temporal.workflows.materialize_chunks import (
+    MaterializeChunksWorkflow,
+    MaterializeInput,
+)
 from temporal.workflows.process_document import ProcessDocumentWorkflow
 
 pytestmark = pytest.mark.asyncio
@@ -27,7 +30,9 @@ def _mock_activities(*, failing: set[str], needing: list[str] | None):
     progress_writes: list[dict] = []
 
     @activity.defn(name="resolve_configuration")
-    async def resolve_configuration(chunking_configuration_id: str) -> ConfigurationResolved:
+    async def resolve_configuration(
+        chunking_configuration_id: str,
+    ) -> ConfigurationResolved:
         return ConfigurationResolved(
             parsing_profile_id=str(uuid.uuid4()),
             chunking_profile_id=str(uuid.uuid4()),

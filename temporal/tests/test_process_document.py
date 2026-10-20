@@ -25,7 +25,9 @@ def _mock_activities(*, parse_status: str = "ready"):
     """Stand-ins for the DB/storage activities, so the workflow logic is tested in isolation."""
 
     @activity.defn(name="resolve_configuration")
-    async def resolve_configuration(chunking_configuration_id: str) -> ConfigurationResolved:
+    async def resolve_configuration(
+        chunking_configuration_id: str,
+    ) -> ConfigurationResolved:
         return ConfigurationResolved(
             parsing_profile_id=str(uuid.uuid4()),
             chunking_profile_id=str(uuid.uuid4()),

@@ -8,7 +8,10 @@ from temporal.components.chunkers.recursive import RecursiveChunker
 
 def _parse_output(pages: list[str]) -> ParseOutput:
     return ParseOutput(
-        pages=[ParsePage(page=index, text=text) for index, text in enumerate(pages, start=1)],
+        pages=[
+            ParsePage(page=index, text=text)
+            for index, text in enumerate(pages, start=1)
+        ],
         metadata={"page_count": len(pages), "producer": None},
     )
 
@@ -76,7 +79,8 @@ def test_markdown_prefers_heading_boundaries() -> None:
     assert len(chunks) > 1
     assert all(len(chunk["text"]) <= 180 for chunk in chunks)
     headings_at_start = [
-        chunk["text"].lstrip().startswith("#") or chunk["text"].lstrip().startswith("##")
+        chunk["text"].lstrip().startswith("#")
+        or chunk["text"].lstrip().startswith("##")
         for chunk in chunks[1:]
     ]
     assert any(headings_at_start)
@@ -84,7 +88,9 @@ def test_markdown_prefers_heading_boundaries() -> None:
 
 def test_markdown_is_deterministic() -> None:
     chunker = MarkdownChunker()
-    parse = _parse_output(["# Alpha\n\n" + "beta gamma. " * 30, "## Delta\n\n" + "epsilon. " * 30])
+    parse = _parse_output(
+        ["# Alpha\n\n" + "beta gamma. " * 30, "## Delta\n\n" + "epsilon. " * 30]
+    )
     params = {"chunk_size": 120, "overlap": 20, "strip_headers_footers": False}
     assert chunker.chunk(parse, params) == chunker.chunk(parse, params)
 

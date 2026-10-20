@@ -58,6 +58,8 @@ class Chunker(Protocol):
     single document's content hash.
     """
 
-    def chunk(self, parse_output: ParseOutput, params: dict[str, Any]) -> list[ChunkPayload]:
+    def chunk(
+        self, parse_output: ParseOutput, params: dict[str, Any]
+    ) -> list[ChunkPayload]:
         """Split a parse output into chunks, honouring the profile parameters."""
         ...
