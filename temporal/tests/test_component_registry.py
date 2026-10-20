@@ -4,7 +4,9 @@ import pytest
 from src.components.builtin import (
     BUILTIN_DESCRIPTORS,
     CHUNKER_DESCRIPTORS,
+    EMBEDDER_DESCRIPTORS,
     PARSER_DESCRIPTORS,
+    VECTOR_STORE_DESCRIPTORS,
     Chunker,
     Parser,
 )
@@ -12,10 +14,12 @@ from src.components.builtin import (
 from temporal.components import (
     BUILTIN_CHUNKERS,
     BUILTIN_PARSERS,
+    BUILTIN_VECTOR_STORES,
     assert_registry_complete,
     resolve_chunker,
     resolve_parser,
 )
+from temporal.components.embedders.shared import BUILTIN_EMBEDDERS, resolve_embedder
 
 
 def test_every_declared_builtin_has_an_implementation() -> None:
@@ -32,8 +36,13 @@ def test_no_implementation_without_a_descriptor() -> None:
     declared_parsers = {descriptor.key for descriptor in PARSER_DESCRIPTORS}
     declared_chunkers = {descriptor.key for descriptor in CHUNKER_DESCRIPTORS}
 
+    declared_embedders = {descriptor.key for descriptor in EMBEDDER_DESCRIPTORS}
+    declared_vector_stores = {descriptor.key for descriptor in VECTOR_STORE_DESCRIPTORS}
+
     assert set(BUILTIN_PARSERS) == declared_parsers
     assert set(BUILTIN_CHUNKERS) == declared_chunkers
+    assert set(BUILTIN_EMBEDDERS) == declared_embedders
+    assert set(BUILTIN_VECTOR_STORES) == declared_vector_stores
 
 
 def test_implementations_satisfy_their_protocols() -> None:
@@ -59,9 +68,30 @@ def test_resolving_an_unknown_key_raises() -> None:
         resolve_parser("not-a-parser")
 
 
+def test_resolving_an_unknown_embedder_raises() -> None:
+    with pytest.raises(ValueError):
+        resolve_embedder("not-an-embedder", {})
+
+
+def test_missing_embedder_fails_the_startup_check(monkeypatch) -> None:
+    """An embedder declared to the API but absent from the worker must stop the boot."""
+    monkeypatch.delitem(BUILTIN_EMBEDDERS, EMBEDDER_DESCRIPTORS[0].key)
+
+    with pytest.raises(RuntimeError, match=EMBEDDER_DESCRIPTORS[0].key):
+        assert_registry_complete()
+
+
+def test_missing_vector_store_fails_the_startup_check(monkeypatch) -> None:
+    monkeypatch.delitem(BUILTIN_VECTOR_STORES, VECTOR_STORE_DESCRIPTORS[0].key)
+
+    with pytest.raises(RuntimeError, match=VECTOR_STORE_DESCRIPTORS[0].key):
+        assert_registry_complete()
+
+
 def test_descriptors_are_unique_per_type_and_key() -> None:
     """A duplicate would make the seed's get-or-create write the second over the first."""
     identities = [
-        (descriptor.component_type, descriptor.key) for descriptor in BUILTIN_DESCRIPTORS
+        (descriptor.component_type, descriptor.key)
+        for descriptor in BUILTIN_DESCRIPTORS
     ]
     assert len(identities) == len(set(identities))

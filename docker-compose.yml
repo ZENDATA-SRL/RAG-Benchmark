@@ -118,6 +118,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      chromadb:
+        condition: service_started
     environment:
       TEMPORAL_HOST: temporal:7233
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
@@ -130,6 +132,8 @@ services:
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-minioadmin}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-rag-bench}
+      CHROMA_HOST: ${WORKER_CHROMA_HOST:-chromadb}
+      CHROMA_PORT: ${WORKER_CHROMA_PORT:-8000}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -147,16 +151,18 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Needed from Milestone 3 (embedding + retrieval), not by the MVP flow.
-  # chromadb:
-  #   image: chromadb/chroma:latest
-  #   ports:
-  #     - "8001:8000"
-  #   volumes:
-  #     - chroma_data:/chroma/chroma
+  # Vector store written by index builds. Pinned to the `chromadb` client version in
+  # `pyproject.toml`: the HTTP API is only guaranteed compatible on the same release.
+  # Exposed on 8001 because the API (uvicorn) already uses 8000 on the host.
+  chromadb:
+    image: chromadb/chroma:1.5.9
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/data
 
 volumes:
   postgres_data:
   minio_data:
   temporal_postgres_data:
-  # chroma_data:
+  chroma_data:

@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     app_name: str = "RAG Benchmark API"
     app_version: str = "0.1.0"
 
-    database_url: str = "postgresql+asyncpg://postgres:password@localhost:5432/rag-bench"
+    database_url: str = (
+        "postgresql+asyncpg://postgres:password@localhost:5432/rag-bench"
+    )
     database_echo: bool = False
     database_pool_size: int = 5
     database_max_overflow: int = 10
@@ -39,6 +41,9 @@ class Settings(BaseSettings):
     temporal_host: str = "localhost:7233"
     temporal_namespace: str = "default"
     temporal_task_queue: str = "rag-bench"
+
+    chroma_host: str = "localhost"
+    chroma_port: int = 8001
 
     max_upload_bytes: int = 200 * 1024 * 1024
     allowed_mime_types: tuple[str, ...] = ("application/pdf",)

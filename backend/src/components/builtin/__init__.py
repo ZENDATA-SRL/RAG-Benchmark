@@ -102,6 +102,7 @@ VECTOR_STORE_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
         capabilities={},
     ),
 )
+
 BUILTIN_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
     PARSER_DESCRIPTORS
     + CHUNKER_DESCRIPTORS
@@ -117,13 +118,16 @@ BUILTIN_KEYS: dict[ComponentType, frozenset[str]] = {
     ComponentType.PARSER: frozenset(d.key for d in PARSER_DESCRIPTORS),
     ComponentType.CHUNKER: frozenset(d.key for d in CHUNKER_DESCRIPTORS),
     ComponentType.EMBEDDER: frozenset(d.key for d in EMBEDDER_DESCRIPTORS),
+    ComponentType.VECTOR_STORE: frozenset(d.key for d in VECTOR_STORE_DESCRIPTORS),
 }
 
 __all__ = [
     "BUILTIN_DESCRIPTORS",
     "BUILTIN_KEYS",
     "CHUNKER_DESCRIPTORS",
+    "EMBEDDER_DESCRIPTORS",
     "PARSER_DESCRIPTORS",
+    "VECTOR_STORE_DESCRIPTORS",
     "BuiltinDescriptor",
     "ChunkPayload",
     "Chunker",

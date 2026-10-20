@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from src.components.builtin.chunkers import markdown, recursive
-from src.components.builtin.parsers import pdfplumber, pypdf
+from src.components.builtin import BUILTIN_DESCRIPTORS
+from src.components.builtin.chunkers import recursive
+from src.components.builtin.parsers import pypdf
+from src.components.builtin.vector_stores import chroma
 from src.components.exceptions import (
     ComponentVersionNotFoundError,
     InvalidComponentParamsError,
@@ -24,14 +26,18 @@ async def test_register_component_is_idempotent(session) -> None:
     service = ComponentService(session)
 
     first = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
-    second = await service.register_component(ComponentType.PARSER, pypdf.KEY, "Renamed")
+    second = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "Renamed"
+    )
 
     assert first.id == second.id
 
 
 async def test_register_version_is_idempotent(session) -> None:
     service = ComponentService(session)
-    component = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
+    component = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "PyPDF"
+    )
 
     first = await service.register_version(
         component_id=component.id, version="1", params_schema=pypdf.PARAMS_SCHEMA
@@ -50,7 +56,7 @@ async def test_seed_twice_yields_declared_components_with_one_version(session) -
 
     components = await ComponentService(session).list_components()
     keys = sorted(component.key for component in components)
-    assert keys == sorted([pypdf.KEY, pdfplumber.KEY, recursive.KEY, markdown.KEY])
+    assert keys == sorted(descriptor.key for descriptor in BUILTIN_DESCRIPTORS)
 
     for component in components:
         versions = await ComponentService(session).list_versions(component.id)
@@ -60,7 +66,9 @@ async def test_seed_twice_yields_declared_components_with_one_version(session) -
 async def test_http_runtime_is_rejected(session) -> None:
     """`http` is modelled but has no client, so it must fail loudly."""
     service = ComponentService(session)
-    component = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
+    component = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "PyPDF"
+    )
 
     with pytest.raises(UnsupportedRuntimeError):
         await service.register_version(
@@ -82,10 +90,34 @@ async def test_builtin_without_implementation_is_rejected(session) -> None:
         await service.register_version(component_id=component.id, version="1")
 
 
+async def test_declared_vector_store_is_accepted(session) -> None:
+    """Vector stores are checked against their declarations like every other type."""
+    service = ComponentService(session)
+    component = await service.register_component(
+        ComponentType.VECTOR_STORE, chroma.KEY, chroma.DISPLAY_NAME
+    )
+
+    version = await service.register_version(component_id=component.id, version="1")
+
+    assert version.component_id == component.id
+
+
+async def test_undeclared_vector_store_is_rejected(session) -> None:
+    service = ComponentService(session)
+    component = await service.register_component(
+        ComponentType.VECTOR_STORE, "not-a-vector-store", "Ghost"
+    )
+
+    with pytest.raises(UnknownBuiltinError):
+        await service.register_version(component_id=component.id, version="1")
+
+
 async def test_invalid_params_schema_is_rejected(session) -> None:
     """A broken schema must fail at registration, not as a broken form later."""
     service = ComponentService(session)
-    component = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
+    component = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "PyPDF"
+    )
 
     with pytest.raises(InvalidParamsSchemaError):
         await service.register_version(
@@ -150,7 +182,9 @@ async def test_validate_params_on_missing_version(session) -> None:
 async def test_mark_unavailable_keeps_the_row_and_the_reason(session) -> None:
     """Excluding a component is a state change with a motive, not a deletion."""
     service = ComponentService(session)
-    component = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
+    component = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "PyPDF"
+    )
     version = await service.register_version(component_id=component.id, version="1")
 
     updated = await service.mark_unavailable(version.id, "missing credential")
@@ -165,7 +199,9 @@ async def test_mark_unavailable_keeps_the_row_and_the_reason(session) -> None:
 
 async def test_mark_available_clears_the_reason(session) -> None:
     service = ComponentService(session)
-    component = await service.register_component(ComponentType.PARSER, pypdf.KEY, "PyPDF")
+    component = await service.register_component(
+        ComponentType.PARSER, pypdf.KEY, "PyPDF"
+    )
     version = await service.register_version(component_id=component.id, version="1")
     await service.mark_unavailable(version.id, "missing credential")
 

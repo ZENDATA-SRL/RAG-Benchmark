@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from src.components.builtin.chunkers import markdown, recursive
+from src.components.builtin import BUILTIN_DESCRIPTORS
+from src.components.builtin.chunkers import recursive
 from src.components.builtin.parsers import pdfplumber, pypdf
 from src.components.registry_seed import seed_builtin_components
 
@@ -19,7 +20,9 @@ async def test_health_is_open(client) -> None:
     assert response.json() == {"status": "ok"}
 
 
-async def test_list_components_exposes_the_builtins_with_their_schema(client, session) -> None:
+async def test_list_components_exposes_the_builtins_with_their_schema(
+    client, session
+) -> None:
     """The acceptance of the DoD: `GET /api/v1/components` feeds the dynamic forms (RT-U01)."""
     await seed_builtin_components(session)
 
@@ -28,7 +31,7 @@ async def test_list_components_exposes_the_builtins_with_their_schema(client, se
     assert response.status_code == 200
     body = response.json()
     by_key = {component["key"]: component for component in body}
-    assert set(by_key) == {pypdf.KEY, pdfplumber.KEY, recursive.KEY, markdown.KEY}
+    assert set(by_key) == {descriptor.key for descriptor in BUILTIN_DESCRIPTORS}
 
     chunker = by_key[recursive.KEY]
     assert chunker["type"] == "chunker"
@@ -57,7 +60,9 @@ async def test_list_components_filters_by_type(client, session) -> None:
 
 async def test_list_versions_of_a_component(client, session) -> None:
     await seed_builtin_components(session)
-    component_id = (await client.get(COMPONENTS_URL, params={"type": "parser"})).json()[0]["id"]
+    component_id = (await client.get(COMPONENTS_URL, params={"type": "parser"})).json()[
+        0
+    ]["id"]
 
     response = await client.get(f"{COMPONENTS_URL}/{component_id}/versions")
 
@@ -80,7 +85,8 @@ async def test_register_version_over_http_runtime_is_a_domain_error(client) -> N
     """A domain error must serialise as `{code, message, details}` and not as a 500."""
     component_id = (
         await client.post(
-            COMPONENTS_URL, json={"type": "parser", "key": pypdf.KEY, "display_name": "PyPDF"}
+            COMPONENTS_URL,
+            json={"type": "parser", "key": pypdf.KEY, "display_name": "PyPDF"},
         )
     ).json()["id"]
 
@@ -109,7 +115,8 @@ async def test_unknown_component_returns_the_uniform_404(client) -> None:
 async def test_invalid_params_schema_returns_422_with_the_reason(client) -> None:
     component_id = (
         await client.post(
-            COMPONENTS_URL, json={"type": "parser", "key": pypdf.KEY, "display_name": "PyPDF"}
+            COMPONENTS_URL,
+            json={"type": "parser", "key": pypdf.KEY, "display_name": "PyPDF"},
         )
     ).json()["id"]
 
@@ -135,7 +142,9 @@ async def test_mark_version_unavailable_then_available(client, session) -> None:
     assert unavailable.json()["is_available"] is False
     assert unavailable.json()["unavailable_reason"] == "missing credential"
 
-    filtered = await client.get(COMPONENTS_URL, params={"type": "parser", "only_available": True})
+    filtered = await client.get(
+        COMPONENTS_URL, params={"type": "parser", "only_available": True}
+    )
     assert filtered.json()[0]["versions"] == []
 
     restored = await client.post(f"{COMPONENTS_URL}/versions/{version_id}/available")
