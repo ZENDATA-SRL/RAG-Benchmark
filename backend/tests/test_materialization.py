@@ -3,18 +3,19 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from src.artifacts.repository import ChunkRepository
+from src.artifacts.service import ArtefactService
 from src.components.builtin.chunkers import recursive
 from src.components.builtin.parsers import pypdf
 from src.components.service import ComponentService
 from src.documents.models import Document
-from src.infrastructure.database.enums import ArtifactStatus, ComponentType, DocumentStatus
-from src.pipelines.repository import ChunkRepository
-from src.pipelines.service import (
-    ArtefactService,
-    ChunkingConfigurationService,
-    MaterializationRunService,
-    ProfileService,
+from src.infrastructure.database.enums import (
+    ArtifactStatus,
+    ComponentType,
+    DocumentStatus,
 )
+from src.materializations.service import MaterializationRunService
+from src.pipelines.service import ChunkingConfigurationService, ProfileService
 
 pytestmark = pytest.mark.integration
 
@@ -96,9 +97,7 @@ async def test_rematerialisation_clears_orphan_chunks(session) -> None:
     )
 
     # First attempt writes two chunks, then fails.
-    await artefacts.complete_chunk_result(
-        chunk_result, [{"text": "a"}, {"text": "b"}]
-    )
+    await artefacts.complete_chunk_result(chunk_result, [{"text": "a"}, {"text": "b"}])
     await artefacts.fail_artefact(chunk_result, error="boom")
 
     # Re-materialisation: clear orphans, then rewrite from ordinal 0 without a violation.
@@ -136,7 +135,9 @@ async def test_materialisation_run_progress_is_monotonic_and_sums(session) -> No
         workflow_id=workflow_id, progress={"ready": 15, "failed": 1, "cached": 4}
     )
     assert final is not None
-    total = final.progress["ready"] + final.progress["failed"] + final.progress["cached"]
+    total = (
+        final.progress["ready"] + final.progress["failed"] + final.progress["cached"]
+    )
     assert total + final.progress["pending"] == final.document_count
     assert final.status is ArtifactStatus.FAILED
     assert final.finished_at is not None

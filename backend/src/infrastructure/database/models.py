@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.artifacts.models import Chunk, ChunkResult, ParsingResult
 from src.components.models import Component, ComponentVersion
 from src.corpora.models import (
     Corpus,
@@ -8,17 +9,14 @@ from src.corpora.models import (
     CorpusSnapshotDocument,
 )
 from src.documents.models import Document
+from src.indexes.models import IndexBuild
 from src.infrastructure.database.base import Base
+from src.materializations.models import MaterializationRun
 from src.pipelines.models import (
-    Chunk,
     ChunkingConfiguration,
     ChunkingProfile,
-    ChunkResult,
     EmbeddingProfile,
-    IndexBuild,
-    MaterializationRun,
     ParsingProfile,
-    ParsingResult,
     RetrievalProfile,
     VectorStoreProfile,
 )

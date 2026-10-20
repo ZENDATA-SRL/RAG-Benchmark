@@ -54,6 +54,11 @@ class ArtifactStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+# A run or artefact that reached one of these is over: relaunching the same work reopens
+# the row, and cancelling it is refused.
+TERMINAL_ARTIFACT_STATUSES = (ArtifactStatus.READY, ArtifactStatus.FAILED)
+
+
 class ComponentType(str, enum.Enum):
     SOURCE = "source"
     PARSER = "parser"

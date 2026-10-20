@@ -6,10 +6,10 @@ import json
 import logging
 import uuid
 
+from src.artifacts.service import ArtefactService
 from src.components.service import ComponentService
 from src.infrastructure.storage import ObjectStorage, get_object_storage, storage_key
 from src.pipelines.models import ChunkingConfiguration, ChunkingProfile
-from src.pipelines.service import ArtefactService
 from src.settings import get_settings
 from temporalio import activity
 

@@ -4,6 +4,7 @@ import dataclasses
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.artifacts.service import ArtefactService
 from src.components.builtin.chunkers import recursive
 from src.components.builtin.parsers import pypdf
 from src.components.registry_seed import seed_builtin_components
@@ -13,11 +14,7 @@ from src.documents.models import Document
 from src.infrastructure.database.enums import ComponentType, DocumentStatus
 from src.infrastructure.storage.base import parse_key
 from src.pipelines.models import ChunkingConfiguration, ParsingProfile
-from src.pipelines.service import (
-    ArtefactService,
-    ChunkingConfigurationService,
-    ProfileService,
-)
+from src.pipelines.service import ChunkingConfigurationService, ProfileService
 
 
 @dataclasses.dataclass
@@ -70,8 +67,12 @@ async def make_configuration(
     await seed_builtin_components(session)
     components = ComponentRepository(session)
     versions = ComponentVersionRepository(session)
-    parser_component = await components.get_by_type_and_key(ComponentType.PARSER, pypdf.KEY)
-    chunker_component = await components.get_by_type_and_key(ComponentType.CHUNKER, recursive.KEY)
+    parser_component = await components.get_by_type_and_key(
+        ComponentType.PARSER, pypdf.KEY
+    )
+    chunker_component = await components.get_by_type_and_key(
+        ComponentType.CHUNKER, recursive.KEY
+    )
     assert parser_component is not None and chunker_component is not None
     parser = (await versions.list_versions(parser_component.id))[0]
     chunker = (await versions.list_versions(chunker_component.id))[0]
@@ -144,7 +145,9 @@ async def build_scenario(
     chunk_size: int = 500,
 ) -> Scenario:
     """A corpus of `ready + failed + missing` documents, materialised accordingly."""
-    parsing_profile, configuration = await make_configuration(session, chunk_size=chunk_size)
+    parsing_profile, configuration = await make_configuration(
+        session, chunk_size=chunk_size
+    )
     corpus = Corpus(name=f"corpus {uuid.uuid4().hex[:8]}")
     session.add(corpus)
     await session.flush()
@@ -159,10 +162,16 @@ async def build_scenario(
 
     for document in groups["ready"]:
         await materialise(
-            session, document, parsing_profile, configuration, chunk_count=chunks_per_document
+            session,
+            document,
+            parsing_profile,
+            configuration,
+            chunk_count=chunks_per_document,
         )
     for document in groups["failed"]:
-        await materialise(session, document, parsing_profile, configuration, error="boom")
+        await materialise(
+            session, document, parsing_profile, configuration, error="boom"
+        )
 
     return Scenario(
         corpus=corpus,

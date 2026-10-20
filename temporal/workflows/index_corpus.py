@@ -9,7 +9,7 @@ from temporalio.common import RetryPolicy
 with workflow.unsafe.imports_passed_through():
     import uuid
 
-    from src.pipelines.workflow_ids import materialize_workflow_id
+    from src.infrastructure.temporal.workflow_ids import materialize_workflow_id
 
     from temporal.activities.embed import embed_batch
     from temporal.activities.indexing import (

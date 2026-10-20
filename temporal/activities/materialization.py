@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import uuid
 
-from src.pipelines.service import ArtefactService, MaterializationRunService
+from src.artifacts.service import ArtefactService
+from src.materializations.service import MaterializationRunService
 from temporalio import activity
 
 from temporal.config import activity_session

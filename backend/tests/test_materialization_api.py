@@ -6,12 +6,12 @@ import uuid
 import pytest
 from src.documents.models import Document
 from src.infrastructure.database.enums import ArtifactStatus, DocumentStatus
-from src.pipelines.service import MaterializationRunService
-from src.pipelines.workflow_ids import (
+from src.infrastructure.temporal.workflow_ids import (
     CHUNKING_TASK_QUEUE,
     MATERIALIZE_CHUNKS_WORKFLOW,
     materialize_workflow_id,
 )
+from src.materializations.service import MaterializationRunService
 from tests.pipeline_factory import build_scenario, make_configuration, make_document
 
 pytestmark = pytest.mark.integration
@@ -21,7 +21,8 @@ MATERIALIZATIONS = "/api/v1/materializations"
 
 async def _start(client, *, configuration_id: str, **payload) -> object:
     return await client.post(
-        MATERIALIZATIONS, json={"chunking_configuration_id": configuration_id, **payload}
+        MATERIALIZATIONS,
+        json={"chunking_configuration_id": configuration_id, **payload},
     )
 
 
@@ -108,9 +109,13 @@ async def test_the_document_order_does_not_change_the_workflow_id(
     scenario = await build_scenario(session, missing=3)
     ids = [str(document.id) for document in scenario.documents]
 
-    first = await _start(client, configuration_id=scenario.configuration_id, document_ids=ids)
+    first = await _start(
+        client, configuration_id=scenario.configuration_id, document_ids=ids
+    )
     second = await _start(
-        client, configuration_id=scenario.configuration_id, document_ids=list(reversed(ids))
+        client,
+        configuration_id=scenario.configuration_id,
+        document_ids=list(reversed(ids)),
     )
 
     assert first.json()["workflow_id"] == second.json()["workflow_id"]
@@ -141,7 +146,9 @@ async def test_a_different_document_set_is_a_different_run(
     scenario = await build_scenario(session, missing=2)
     ids = [str(document.id) for document in scenario.documents]
 
-    first = await _start(client, configuration_id=scenario.configuration_id, document_ids=ids)
+    first = await _start(
+        client, configuration_id=scenario.configuration_id, document_ids=ids
+    )
     second = await _start(
         client, configuration_id=scenario.configuration_id, document_ids=ids[:1]
     )
@@ -166,7 +173,9 @@ async def test_concurrency_is_forwarded_to_the_workflow(
     assert fake_workflows.started[0].arg["max_concurrency"] == 3
 
 
-async def test_launching_with_neither_documents_nor_corpus_is_a_422(client, session) -> None:
+async def test_launching_with_neither_documents_nor_corpus_is_a_422(
+    client, session
+) -> None:
     _, configuration = await make_configuration(session)
 
     response = await _start(client, configuration_id=str(configuration.id))
@@ -262,7 +271,9 @@ async def test_progress_is_served_from_the_run_row_without_touching_temporal(
     scenario = await build_scenario(session, missing=4)
     run_id = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()["id"]
     workflow_id = fake_workflows.started[0].workflow_id
@@ -285,11 +296,14 @@ async def test_a_finished_run_reports_the_reason_of_every_failed_document(
     scenario = await build_scenario(session, ready=1, failed=1)
     run_id = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()["id"]
     await MaterializationRunService(session).complete_run(
-        workflow_id=fake_workflows.started[0].workflow_id, progress={"ready": 1, "failed": 1}
+        workflow_id=fake_workflows.started[0].workflow_id,
+        progress={"ready": 1, "failed": 1},
     )
 
     body = (await client.get(f"{MATERIALIZATIONS}/{run_id}")).json()
@@ -307,7 +321,9 @@ async def test_a_fully_successful_run_is_ready_and_has_no_failures(
     scenario = await build_scenario(session, ready=2)
     run_id = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()["id"]
     await MaterializationRunService(session).complete_run(
@@ -327,7 +343,9 @@ async def test_history_lists_every_run_and_filters_by_corpus(
     second = await build_scenario(session, missing=1)
     for scenario in (first, second):
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
 
     everything = (await client.get(MATERIALIZATIONS)).json()
@@ -350,7 +368,9 @@ async def test_history_is_newest_first(client, session, fake_workflows) -> None:
     newer = await build_scenario(session, missing=1)
     for scenario in (older, newer):
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     # `created_at` defaults to `now()`, which is the transaction timestamp and therefore
     # identical for both rows here; a real run per request gets distinct ones.
@@ -380,7 +400,9 @@ async def test_history_can_be_paginated(client, session, fake_workflows) -> None
     assert page["total"] == rest["total"] == 3
     assert len(page["items"]) == 2
     assert len(rest["items"]) == 1
-    ids = {item["id"] for item in page["items"]} | {item["id"] for item in rest["items"]}
+    ids = {item["id"] for item in page["items"]} | {
+        item["id"] for item in rest["items"]
+    }
     assert len(ids) == 3
 
 
@@ -402,7 +424,9 @@ async def test_cancelling_a_running_materialisation_stops_the_workflow_and_recor
     scenario = await build_scenario(session, missing=2)
     run_id = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()["id"]
 
@@ -415,12 +439,16 @@ async def test_cancelling_a_running_materialisation_stops_the_workflow_and_recor
     assert fake_workflows.cancelled == [fake_workflows.started[0].workflow_id]
 
 
-async def test_cancelling_a_finished_run_is_refused(client, session, fake_workflows) -> None:
+async def test_cancelling_a_finished_run_is_refused(
+    client, session, fake_workflows
+) -> None:
     """Cancelling something already done would rewrite a terminal state into a lie."""
     scenario = await build_scenario(session, ready=1)
     run_id = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()["id"]
     await MaterializationRunService(session).complete_run(
@@ -441,7 +469,9 @@ async def test_relaunching_after_a_cancellation_starts_a_new_workflow(
     scenario = await build_scenario(session, missing=2)
     first = (
         await _start(
-            client, configuration_id=scenario.configuration_id, corpus_id=scenario.corpus_id
+            client,
+            configuration_id=scenario.configuration_id,
+            corpus_id=scenario.corpus_id,
         )
     ).json()
     await client.post(f"{MATERIALIZATIONS}/{first['id']}/cancel")

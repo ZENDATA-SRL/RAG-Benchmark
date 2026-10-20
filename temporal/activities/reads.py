@@ -4,12 +4,12 @@ import dataclasses
 import uuid
 
 from src.components.models import ComponentVersion
+from src.indexes.models import IndexBuild
 from src.pipelines.exceptions import ProfileNotFoundError
 from src.pipelines.models import (
     ChunkingConfiguration,
     ChunkingProfile,
     EmbeddingProfile,
-    IndexBuild,
     ParsingProfile,
 )
 from temporalio import activity
@@ -30,7 +30,9 @@ class ConfigurationResolved:
 
 
 @activity.defn
-async def resolve_configuration(chunking_configuration_id: str) -> ConfigurationResolved:
+async def resolve_configuration(
+    chunking_configuration_id: str,
+) -> ConfigurationResolved:
     """Read the parsing and chunking profiles a chunking configuration points at.
 
     Raises:
@@ -41,7 +43,9 @@ async def resolve_configuration(chunking_configuration_id: str) -> Configuration
             ChunkingConfiguration, uuid.UUID(chunking_configuration_id)
         )
         if configuration is None:
-            raise ProfileNotFoundError("chunking configuration", chunking_configuration_id)
+            raise ProfileNotFoundError(
+                "chunking configuration", chunking_configuration_id
+            )
         return ConfigurationResolved(
             parsing_profile_id=str(configuration.parsing_profile_id),
             chunking_profile_id=str(configuration.chunking_profile_id),
@@ -99,6 +103,7 @@ async def load_embedder_component(
         raise ProfileNotFoundError("embedder", embedder_profile_id)
     key = await _component_key(session, profile.component_version_id, "embedder")
     return key, dict(profile.params)
+
 
 async def _component_key(session, component_version_id: uuid.UUID, kind: str) -> str:
     version = await session.get(ComponentVersion, component_version_id)

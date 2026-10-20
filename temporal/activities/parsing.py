@@ -6,11 +6,11 @@ import io
 import json
 import uuid
 
+from src.artifacts.service import ArtefactService
 from src.components.service import ComponentService
 from src.infrastructure.storage import ObjectStorage, get_object_storage
 from src.infrastructure.storage.base import parse_key, storage_key
 from src.pipelines.models import ParsingProfile
-from src.pipelines.service import ArtefactService
 from src.settings import get_settings
 from temporalio import activity
 
@@ -23,6 +23,7 @@ from temporal.config import activity_session
 # two-minute heartbeat timeout, so a parse that is merely slow is not mistaken for a stuck
 # one, and a genuinely stuck worker is still detected in seconds.
 _HEARTBEAT_INTERVAL_SECONDS = 15.0
+
 
 @dataclasses.dataclass
 class ParseResult:
@@ -76,7 +77,9 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
         await asyncio.to_thread(_write_parse, output_key, output)
         output_text = "\n".join([page["text"] for page in output["pages"]])
         completed = await artefacts.complete_parsing_result(
-            parsing_result, output_uri=_storage().build_uri(output_key), output_text=output_text
+            parsing_result,
+            output_uri=_storage().build_uri(output_key),
+            output_text=output_text,
         )
         return ParseResult(str(completed.id), "ready")
 
@@ -90,7 +93,9 @@ async def _parse_with_heartbeat(
     worker thread doing the parsing. The loop therefore reports liveness on a timer while the
     thread works, which is what tells a slow parse apart from a stuck one.
     """
-    task = asyncio.create_task(asyncio.to_thread(_run_parser, key, storage_uri, filename, params))
+    task = asyncio.create_task(
+        asyncio.to_thread(_run_parser, key, storage_uri, filename, params)
+    )
     elapsed = 0.0
     while True:
         done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_INTERVAL_SECONDS)

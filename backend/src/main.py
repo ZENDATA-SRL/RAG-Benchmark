@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.artifacts.router import router as artifacts_router
 from src.components.registry_seed import seed_builtin_components
 from src.components.router import router as components_router
 from src.core.exceptions import DomainError
@@ -19,8 +20,10 @@ from src.core.logging import (
 )
 from src.corpora.router import router as corpora_router
 from src.documents.router import router as documents_router
+from src.indexes.router import router as indexes_router
 from src.infrastructure.database.session import dispose_engine, session_factory
 from src.infrastructure.temporal import reset_workflow_client
+from src.materializations.router import router as materializations_router
 from src.pipelines.router import router as pipelines_router
 from src.settings import get_settings
 from src.sources.seed import seed_upload_source
@@ -77,7 +80,9 @@ def create_app() -> FastAPI:
         return response
 
     @app.exception_handler(DomainError)
-    async def domain_error_handler(request: Request, error: DomainError) -> JSONResponse:
+    async def domain_error_handler(
+        request: Request, error: DomainError
+    ) -> JSONResponse:
         """Serialise every domain error into one shape, so the UI parses a single contract."""
         logger.info("domain error %s: %s", error.code, error.message)
         return JSONResponse(
@@ -98,6 +103,9 @@ def create_app() -> FastAPI:
     app.include_router(corpora_router, prefix=API_PREFIX)
     app.include_router(documents_router, prefix=API_PREFIX)
     app.include_router(pipelines_router, prefix=API_PREFIX)
+    app.include_router(artifacts_router, prefix=API_PREFIX)
+    app.include_router(materializations_router, prefix=API_PREFIX)
+    app.include_router(indexes_router, prefix=API_PREFIX)
 
     return app
 

@@ -7,7 +7,8 @@ from src.core.hashing import composition_hash
 
 # Names the API needs to launch work without importing the worker package: dependencies
 # flow `temporal -> backend`, so the side that *starts* a workflow and the side that
-# *serves* it read the same constants from here.
+# *serves* it read the same constants from here. Kept in infrastructure rather than in a
+# domain module because several modules start workflows and the worker serves them all.
 MATERIALIZE_CHUNKS_WORKFLOW = "MaterializeChunksWorkflow"
 INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"

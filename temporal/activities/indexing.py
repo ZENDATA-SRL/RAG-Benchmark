@@ -5,11 +5,10 @@ import uuid
 
 from sqlalchemy import select
 from src.corpora.repository import CorpusSnapshotRepository
-from src.infrastructure.database.enums import ArtifactStatus
+from src.indexes.models import IndexBuild
+from src.indexes.repository import IndexBuildRepository
+from src.infrastructure.database.enums import TERMINAL_ARTIFACT_STATUSES, ArtifactStatus
 from src.pipelines.exceptions import ProfileNotFoundError
-from src.pipelines.models import IndexBuild
-from src.pipelines.repository import ChunkRepository
-from src.pipelines.service import TERMINAL_ARTIFACT_STATUSES
 from temporalio import activity
 
 from temporal.config import activity_session
@@ -106,7 +105,9 @@ async def complete_index_build(workflow_id: str, failed: bool = False) -> None:
 async def count_index_chunks(index_build_id: str) -> int:
     """Return how many chunks the build will embed."""
     async with activity_session() as session:
-        return await ChunkRepository(session).count_for_index_build(uuid.UUID(index_build_id))
+        return await IndexBuildRepository(session).count_chunks(
+            uuid.UUID(index_build_id)
+        )
 
 
 @activity.defn
@@ -115,7 +116,7 @@ async def fetch_index_chunk_batch(
 ) -> ChunkBatch:
     """Return the next page of chunk text to embed for an index build."""
     async with activity_session() as session:
-        chunks = await ChunkRepository(session).list_for_index_build(
+        chunks = await IndexBuildRepository(session).list_chunks(
             uuid.UUID(index_build_id), limit=limit, offset=offset
         )
         return ChunkBatch(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.pipelines.workflow_ids import (
+from src.infrastructure.temporal.workflow_ids import (
     index_corpus_workflow_id,
     materialize_workflow_id,
     process_document_workflow_id,
