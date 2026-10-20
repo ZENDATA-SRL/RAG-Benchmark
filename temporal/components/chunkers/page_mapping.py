@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from bisect import bisect_right
 from dataclasses import dataclass
 
@@ -67,13 +68,25 @@ def locate_chunk(paged: PagedText, chunk: str, search_from: int) -> tuple[int, i
     """Find where ``chunk`` sits in ``paged.text`` at or after ``search_from``.
 
     Chunkers emit their output in document order, so a running cursor makes the lookup
-    linear and unambiguous even when the same text repeats. When the splitter has stripped
-    whitespace and the chunk is no longer an exact substring, we fall back to the search
-    cursor so the chunk is still attributed to a plausible position rather than dropped.
+    linear and unambiguous even when the same text repeats. Some splitters rewrite
+    whitespace (the Markdown header splitter turns line breaks into ``"  \\n"``), so the chunk
+    is then no longer an exact substring; the second attempt matches it token by token,
+    ignoring whitespace differences, and returns the span of the original text it covers.
+    Only when both fail do we fall back to the search cursor, so the chunk is still
+    attributed to a plausible position rather than dropped.
 
     Returns the ``[start, end)`` offsets of the chunk in the joined text.
     """
     start = paged.text.find(chunk, search_from)
-    if start == -1:
-        start = min(search_from, len(paged.text))
+    if start != -1:
+        return start, start + len(chunk)
+
+    tokens = chunk.split()
+    if tokens:
+        pattern = re.compile(r"\s+".join(re.escape(token) for token in tokens))
+        match = pattern.search(paged.text, search_from)
+        if match is not None:
+            return match.start(), match.end()
+
+    start = min(search_from, len(paged.text))
     return start, start + len(chunk)

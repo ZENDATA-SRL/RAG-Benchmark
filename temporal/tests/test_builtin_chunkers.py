@@ -130,3 +130,21 @@ def test_markdown_strip_headers_drops_heading_lines() -> None:
     assert "# Title" not in joined
     assert "## Section A" not in joined
     assert any(chunk["metadata"].get("Header 1") == "Title" for chunk in chunks)
+
+
+def test_markdown_page_span_survives_rewritten_whitespace() -> None:
+    # MarkdownHeaderTextSplitter rewrites line breaks, so a chunk is not an exact substring
+    # of the joined pages; the span must still follow the chunk through the document.
+    pages = [
+        "\n".join(f"Page {number} line {line} some words here" for line in range(6))
+        for number in range(1, 7)
+    ]
+    chunks = MarkdownChunker().chunk(
+        _parse_output(pages),
+        {"chunk_size": 300, "overlap": 0, "strip_headers_footers": False},
+    )
+    firsts = [chunk["metadata"]["page"] for chunk in chunks]
+    assert firsts == sorted(firsts)
+    assert firsts[0] == 1
+    assert chunks[-1]["metadata"]["page_span"][1] == 6
+    assert max(firsts) > 3

@@ -5,7 +5,6 @@ services:
   # common case on a development machine. Start this one only if you have none:
   #   docker compose --profile postgres up -d --wait
   postgres:
-    profiles: ["postgres"]
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
