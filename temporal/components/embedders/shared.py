@@ -22,7 +22,9 @@ def _bedrock(params: dict) -> Embeddings:
     from langchain_aws import BedrockEmbeddings
 
     # Explicit credentials are optional: when omitted, boto3 falls back to its
-    # default chain (AWS_* env vars, then the worker's service role).
+    # default chain (AWS_* env vars, the `AWS_PROFILE` of a mounted ~/.aws, then the
+    # worker's service role). The region likewise: without a param or AWS_REGION, the
+    # profile's own region applies, so it is not forced here.
     credentials = {
         name: params[name]
         for name in (
@@ -34,10 +36,7 @@ def _bedrock(params: dict) -> Embeddings:
     }
     return BedrockEmbeddings(
         model_id=params.get("model_name", "amazon.titan-embed-image-v1"),
-        region_name=params.get("region")
-        or os.getenv("AWS_REGION")
-        or os.getenv("AWS_DEFAULT_REGION")
-        or "us-east-1",
+        region_name=params.get("region") or None,
         **credentials,
     )
 
