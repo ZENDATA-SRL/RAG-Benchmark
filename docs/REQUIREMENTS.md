@@ -196,7 +196,7 @@ La piattaforma deve poter attingere documenti da sistemi diversi senza che l'ute
 | RF-R05 | Un componente non disponibile (dipendenza mancante, servizio irraggiungibile, credenziale assente) si esclude dichiarando il motivo, senza far fallire l'operazione |
 | RF-R06 | Versionare i componenti: la stessa chiave può avere più versioni attive contemporaneamente |
 
-**Nota su RF-R04.** `builtin` copre i componenti che manteniamo noi (parser standard, chunker, retriever, embedder); aggiungerne uno richiede un deploy della piattaforma. `http` copre tutto ciò che è esterno — ed è il caso principale per gli agenti sviluppati internamente da altri team: il fornitore deploya dove vuole, con le proprie dipendenze e il proprio ciclo di rilascio, e la piattaforma non conosce nulla della sua implementazione. Questo isolamento delle dipendenze è il motivo per cui `http` è preferibile a un caricamento dinamico di plugin Python in-process.
+**Nota su RF-R04.** `builtin` copre i componenti che manteniamo noi (parser standard, chunker, retriever, embedder, sistemi di risposta di riferimento come un workflow RAG o un agente con tool call); aggiungerne uno richiede un deploy della piattaforma. `http` copre tutto ciò che è esterno — ed è il caso principale per gli agenti sviluppati internamente da altri team: il fornitore deploya dove vuole, con le proprie dipendenze e il proprio ciclo di rilascio, e la piattaforma non conosce nulla della sua implementazione. Questo isolamento delle dipendenze è il motivo per cui `http` è preferibile a un caricamento dinamico di plugin Python in-process.
 
 **Contratto del fornitore di risposta.**
 
@@ -207,7 +207,7 @@ POST /answer
   "attachments": [...],            // opzionale, per domande multimodali
   "retrieval_endpoint": "https://.../retrieve",
   "retrieval_token": "...",        // scoped alla singola esecuzione
-  "config": { ... },               // parametri validati contro lo schema dichiarato
+  "config": { ... },               // params del profilo di risposta, validati contro lo schema dichiarato
   "run_context": { "execution_id": "...", "trace_id": "..." }
 }
 →
@@ -222,6 +222,8 @@ POST /answer
 ```
 
 Le citazioni sono opzionali: senza di esse le metriche di retrieval si calcolano comunque sulla traccia server-side del tool, ma si perde la metrica di attribuzione.
+
+**Parametri e versioni del sistema di risposta.** Tutto ciò che altera il comportamento del sistema (modello, system prompt, temperatura, tool disponibili, numero massimo di chiamate) è un parametro dichiarato nello schema e arriva in `config`; ciò che non lo è fa parte dell'implementazione, e cambiarlo richiede una nuova versione del componente. È l'unico modo per attribuire una variazione di performance a una variazione del sistema. Per un sistema `http` è una responsabilità del fornitore, non verificata dalla piattaforma, che registra comunque `usage.model` per ogni esecuzione. Un sistema `builtin` riceve lo stesso input e restituisce lo stesso output del contratto, ma è invocato in-process dal worker e interroga il retrieval attraverso lo stesso servizio strumentato del tool, così le sue chiamate sono tracciate come quelle di un agente esterno.
 
 ### 4.5 Dataset di valutazione
 
@@ -278,7 +280,7 @@ Il segnale semantico è ciò che recupera le tabelle, dove il matching lessicale
 | ID | Requisito |
 |---|---|
 | RF-E01 | Definire un esperimento di tipo **puro retrieval** o **Q&A end-to-end** su uno snapshot di corpus e uno di QA set |
-| RF-E02 | Definire più **varianti** come combinazione di indice × profilo di retrieval × sistema di risposta |
+| RF-E02 | Definire più **varianti** come combinazione di indice × profilo di retrieval × profilo di risposta (sistema di risposta + parametri) |
 | RF-E03 | Generare automaticamente le varianti da una griglia di parametri |
 | RF-E04 | Designare una variante come **baseline** per i confronti |
 | RF-E05 | Configurare il numero di **ripetizioni** per domanda, per gestire il non determinismo di LLM e agenti |
@@ -334,6 +336,7 @@ Il segnale semantico è ciò che recupera le tabelle, dove il matching lessicale
 | RF-L06 | Evidenziare le domande in cui le varianti divergono maggiormente (candidate all'ispezione manuale) |
 | RF-L07 | Esportare i risultati in CSV |
 | RF-L08 | Rendere visibile lo **snapshot di corpus** di ogni risultato e impedire il confronto implicito fra snapshot diversi |
+| RF-L09 | Confrontare le performance di risposta **per sistema di risposta** (tipo e versione) e **per profilo di risposta** a parità di sistema, mostrando quali parametri differiscono fra due profili |
 
 ---
 
@@ -497,6 +500,7 @@ Il modello si articola in sette blocchi. Le entità sono descritte per **ruolo e
 | Entità | Ruolo |
 |---|---|
 | **Profilo di parsing / chunking / embedding / vector store** | configurazioni riusabili, ciascuna con hash di configurazione |
+| **Profilo di risposta** | sistema di risposta + parametri (modello, prompt, ...), con hash di configurazione; ogni cambio di parametri è un nuovo profilo |
 | **Configurazione di chunking** | la coppia (profilo di parsing, profilo di chunking); è la **dimensione di confrontabilità** del gold a livello chunk |
 | **Risultato di parsing** | output di un parser su **un documento**; chiave di cache: documento + profilo di parsing |
 | **Risultato di chunking** | output di un chunker su **un documento**; chiave di cache: documento + configurazione di chunking |
@@ -517,7 +521,7 @@ Il modello si articola in sette blocchi. Le entità sono descritte per **ruolo e
 |---|---|
 | **Componente** | identità logica (tipo + chiave), per esempio `parser/azure_di` |
 | **Versione di componente** | implementazione concreta: runtime (`builtin` o `http`), endpoint, schema dei parametri, capability |
-| **Sistema di risposta** e sue versioni | caso particolare: identifica un fornitore di risposta con la sua configurazione |
+| **Sistema di risposta** e sue versioni | componente di tipo `answer_system`, `builtin` (fornito dalla piattaforma) o `http` (fornitore esterno); i parametri con cui è usato stanno nel profilo di risposta |
 
 ### 6.5 Dataset di valutazione
 
@@ -553,7 +557,7 @@ Questa è la parte in cui si concretizza la decisione di §3.1.
 | Entità | Ruolo |
 |---|---|
 | **Esperimento** | tipo (retrieval o Q&A), snapshot di corpus e QA set, ripetizioni, ambito di calcolo del retrieval |
-| **Variante** | indice × profilo di retrieval × versione del sistema di risposta |
+| **Variante** | indice × profilo di retrieval × profilo di risposta |
 | **Run** | una esecuzione dell'esperimento, con snapshot integrale della configurazione |
 | **Esecuzione** | una domanda × variante × ripetizione; unità di idempotenza e di resume |
 | **Chiamata di retrieval** | una invocazione del tool; un agente agentico ne produce N per esecuzione |

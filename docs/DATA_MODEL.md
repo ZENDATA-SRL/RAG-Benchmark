@@ -206,7 +206,7 @@ Composizione immutabile dello snapshot (mai modificata dopo il freeze).
 
 ## Blocco 3 — Pipeline (§6.3)
 
-I profili di parsing/chunking/embedding/vector store referenziano una **versione di componente** (blocco 4) e memorizzano i parametri con un `config_hash` per il caching content-addressed (RF-P07).
+I profili di parsing/chunking/embedding/vector store/risposta referenziano una **versione di componente** (blocco 4) e memorizzano i parametri con un `config_hash` per il caching content-addressed (RF-P07).
 
 ### `parsing_profiles`
 
@@ -280,6 +280,27 @@ Configurazione di retrieval completa (RF-P06). Referenziato dalle varianti, non 
 | `context_policy` | JSONB | | composizione del contesto |
 | `config_hash` | TEXT | NOT NULL UNIQUE | |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+### `answer_profiles`
+Configurazione di un **sistema di risposta**: quale sistema (versione di componente di tipo `answer_system`) e con quali parametri (modello, system prompt, temperatura, numero massimo di tool call, ...). Referenziato dalle varianti, non è uno stadio materializzato.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `name` | TEXT | NOT NULL | escluso dall'hash |
+| `component_version_id` | UUID | FK → component_versions, NOT NULL | il componente deve avere tipo `answer_system` |
+| `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo `params_schema` della versione; il system prompt è incluso per valore |
+| `config_hash` | TEXT | NOT NULL UNIQUE | hash(component_version + params) |
+| `parent_profile_id` | UUID | FK → answer_profiles, NULL | profilo da cui è stato derivato, per mostrare cosa è cambiato |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+> **Due assi di variazione, due livelli del modello.** Il *tipo di sistema* (workflow RAG, agente con tool call) è il componente; la sua *implementazione* è la versione di componente; i suoi *parametri* sono il profilo. Cambiare prompt o modello produce un nuovo `config_hash`, quindi un nuovo profilo; due configurazioni identiche restano una riga sola. Le performance si confrontano raggruppando le varianti per componente o versione (confronto fra sistemi) o per profilo a parità di versione (confronto fra parametri dello stesso sistema).
+
+> **Cosa deve stare nei parametri.** Tutto ciò che altera il comportamento del sistema è un parametro dichiarato nello `params_schema`, e quindi entra nell'hash; ciò che non lo è fa parte dell'implementazione e cambiarlo richiede una nuova versione. Per un sistema `builtin` la regola è garantita dalla piattaforma, che possiede il codice e versiona descrittore e implementazione insieme. Per un sistema `http` è una responsabilità del fornitore, dichiarata nel contratto e non verificata: la piattaforma registra comunque il modello che il sistema riporta in `executions.usage`, così una discrepanza con il modello del profilo resta visibile.
+
+> **Credenziali.** Le chiavi del modello non stanno nei `params` (finirebbero nel database): un sistema `builtin` le legge dall'ambiente del worker, uno `http` le gestisce per conto proprio.
+
+> **Prompt condivisi (v2).** Se i prompt diventano lunghi e riusati da più profili, si estraggono in una tabella `prompts` content-addressed (hash del testo) e `params` li referenzia per hash: l'identità del profilo non cambia natura.
 
 ### `parsing_results`
 Output di un parser su un **singolo documento**. Chiave di cache: **documento + profilo di parsing** (RF-P07).
@@ -433,18 +454,14 @@ Implementazione concreta. Più versioni attive contemporaneamente (RF-R06).
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (component_id, version) | |
 
-### `answer_systems`
-Caso particolare di componente (tipo `answer_system`): fornitore di risposta. Modellato come vista/uso di `components` + `component_versions`; qui i campi specifici del contratto (§4.4).
+### Sistemi di risposta
+Un sistema di risposta è un componente di tipo `answer_system`; non ha una tabella propria. Endpoint, parametri ammessi e capability stanno su `component_versions`:
 
-| Campo | Tipo | Vincoli | Note |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `component_version_id` | UUID | FK → component_versions, NOT NULL UNIQUE | |
-| `answer_endpoint` | TEXT | NOT NULL | POST /answer |
-| `supports_citations` | BOOLEAN | NOT NULL DEFAULT false | abilita metriche di attribuzione |
-| `supports_attachments` | BOOLEAN | NOT NULL DEFAULT false | domande multimodali |
-| `default_config` | JSONB | NOT NULL DEFAULT '{}' | |
-| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+- `runtime = builtin`: sistemi forniti dalla piattaforma (per esempio un workflow RAG di riferimento o un agente con tool call), eseguiti dal worker in-process. Il retrieval passa dallo stesso servizio strumentato del tool esposto agli agenti esterni, quindi `retrieval_calls` e `retrieval_hits` si popolano allo stesso modo.
+- `runtime = http`: sistemi esterni che rispettano il contratto `POST /answer` all'`endpoint` della versione.
+- `capabilities` dichiara `supports_citations` (abilita le metriche di attribuzione) e `supports_attachments` (domande multimodali); i default della configurazione sono i `default` dello `params_schema`.
+
+I parametri con cui un sistema viene usato in una variante stanno in `answer_profiles` (blocco 3).
 
 > Le versioni di **judge** (RF-V03) e **reranker** sono anch'esse `component_versions` con il proprio `type`; il judge versiona modello + prompt + rubrica dentro `params_schema`/`capabilities` o nella tabella `evaluators` (blocco 7).
 
@@ -635,7 +652,7 @@ Tipo (retrieval o Q&A), snapshot di corpus e QA set, ripetizioni, ambito di calc
 > **Copertura del gold (RF-E09).** Alla creazione dell'esperimento va verificato che i `gold_documents` delle domande dello `qa_set_snapshot` siano contenuti nei documenti dello snapshot. Se non lo sono, due comportamenti ammessi: allargare lo snapshot ai documenti gold mancanti (default suggerito), oppure escludere quelle domande dal denominatore delle metriche di retrieval con `evaluations.exclusion_reason = 'gold_document_not_in_snapshot'`. Il terzo comportamento — contarle come fallimenti del retriever — è quello che si ottiene non facendo nulla, ed è quello da evitare.
 
 ### `variants`
-Indice × profilo di retrieval × versione del sistema di risposta (RF-E02). Per esperimenti di puro retrieval `answer_system_version_id` è NULL.
+Indice × profilo di retrieval × profilo di risposta (RF-E02). Per esperimenti di puro retrieval `answer_profile_id` è NULL.
 
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
@@ -644,8 +661,7 @@ Indice × profilo di retrieval × versione del sistema di risposta (RF-E02). Per
 | `name` | TEXT | NOT NULL | |
 | `index_build_id` | UUID | FK → index_builds, NOT NULL | |
 | `retrieval_profile_id` | UUID | FK → retrieval_profiles, NOT NULL | |
-| `answer_system_version_id` | UUID | FK → component_versions, NULL | NULL se retrieval puro |
-| `answer_config` | JSONB | NOT NULL DEFAULT '{}' | config passata a /answer |
+| `answer_profile_id` | UUID | FK → answer_profiles, NULL | NULL se retrieval puro; i `params` sono la `config` passata al sistema |
 | `is_baseline` | BOOLEAN | NOT NULL DEFAULT false | baseline dei confronti (RF-E04) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
@@ -655,6 +671,8 @@ Indice × profilo di retrieval × versione del sistema di risposta (RF-E02). Per
 > - **Fra esperimenti diversi** serve in più lo stesso `corpus_snapshot_id`: a livello chunk stesso snapshot **e** stessa configurazione, a livello documento stesso snapshot. Snapshot diversi non sono confrontabili su nulla senza dichiararlo, perché i distrattori fanno parte della misura.
 >
 > La UI applica il vincolo come raggruppamento (RT-U02).
+>
+> **Isolare l'effetto del sistema di risposta.** Per misurare come cambiano le risposte al variare del sistema o dei suoi parametri, le varianti di un esperimento tengono fissi `index_build_id` e `retrieval_profile_id` e differiscono solo per `answer_profile_id`. Fra esperimenti diversi il confronto vale solo a parità di `qa_set_snapshot_id` e `corpus_snapshot_id`.
 
 ### `runs`
 Una esecuzione dell'esperimento, con **snapshot integrale della configurazione** (RF-E07).
@@ -826,7 +844,8 @@ erDiagram
     documents ||--o{ corpus_snapshot_documents : parte_di
 
     components ||--o{ component_versions : versiona
-    component_versions ||--o| answer_systems : specializza
+    component_versions ||--o{ answer_profiles : usa
+    answer_profiles ||--o{ answer_profiles : deriva
     component_versions ||--o{ parsing_profiles : usa
     component_versions ||--o{ chunking_profiles : usa
     component_versions ||--o{ embedding_profiles : usa
@@ -867,6 +886,7 @@ erDiagram
     experiments ||--o{ variants : combina
     index_builds ||--o{ variants : indice
     retrieval_profiles ||--o{ variants : profilo
+    answer_profiles ||--o{ variants : risposta
     experiments ||--o{ runs : esegue
     runs ||--o{ executions : produce
     variants ||--o{ executions : per
@@ -891,7 +911,7 @@ erDiagram
 - **Cosa costa lavoro umano.** Cambiare embedder, vector store, top-k, strategia, reranker o sistema di risposta: nulla. Aggiungere o togliere documenti da un corpus: nulla (solo chunking dei nuovi, automatico). Cambiare profilo di parsing o di chunking: conferme umane sui chunk gold, eventualmente parziali (RF-T08). È l'unica voce con costo, ed è deliberata (§3.1).
 - **Object storage (RT-O02, RT-P02).** In DB solo riferimenti (`storage_uri`, `output_uri`, `answer_payload_uri`), mai contenuti voluminosi. I documenti referenziati da uno snapshot non vanno mai cancellati fisicamente.
 - **Partizionamento (RT-P01).** `executions`, `retrieval_calls`, `retrieval_hits` crescono come domande × varianti × ripetizioni × top-k: partizionare per `run_id` fin dall'inizio.
-- **Leaderboard (RT-P03).** Vista materializzata su `metric_aggregates`, con join `variants → index_builds` per ottenere `chunking_configuration_id` (raggruppamento per configurazione di chunking) e `corpus_snapshot_id` (ambito di confrontabilità), aggiornata a fine run.
+- **Leaderboard (RT-P03).** Vista materializzata su `metric_aggregates`, con join `variants → index_builds` per ottenere `chunking_configuration_id` (raggruppamento per configurazione di chunking) e `corpus_snapshot_id` (ambito di confrontabilità), e `variants → answer_profiles → component_versions` per raggruppare per sistema di risposta e per profilo; aggiornata a fine run.
 - **Sicurezza (RT-S01/04).** Nessuna credenziale in chiaro: solo `credential_ref` verso variabili d'ambiente/segreti.
 - **Estendibilità v2.** Multi-tenancy → aggiungere `tenant_id` come dimensione; costi → nuova entità `usage_records` collegata a `executions`; conversazioni multi-turno → `conversation_id`/`turn_index` su `questions`/`executions`; snapshot su più corpora → rendere `corpus_snapshots.corpus_id` nullable (additivo; l'operazione inversa non lo sarebbe).
 - **Chunker corpus-scoped (v2).** Se servisse un chunker che deduplica boilerplate sull'intero corpus, si aggiunge `chunk_results.corpus_snapshot_id` nullable: non nullo solo per quei chunker, che perdono il riuso cross-snapshot. Fino ad allora `capabilities.scope` ammette solo `document`.
@@ -915,14 +935,14 @@ erDiagram
 | 13 | Pipeline | `embedding_profiles` |
 | 14 | Pipeline | `vector_store_profiles` |
 | 15 | Pipeline | `retrieval_profiles` |
-| 16 | Pipeline | `parsing_results` |
-| 17 | Pipeline | `chunking_configurations` |
-| 18 | Pipeline | `chunk_results` |
-| 19 | Pipeline | `chunks` |
-| 20 | Pipeline | `index_builds` |
-| 21 | Componenti | `components` |
-| 22 | Componenti | `component_versions` |
-| 23 | Componenti | `answer_systems` |
+| 16 | Pipeline | `answer_profiles` |
+| 17 | Pipeline | `parsing_results` |
+| 18 | Pipeline | `chunking_configurations` |
+| 19 | Pipeline | `chunk_results` |
+| 20 | Pipeline | `chunks` |
+| 21 | Pipeline | `index_builds` |
+| 22 | Componenti | `components` |
+| 23 | Componenti | `component_versions` |
 | 24 | Dataset | `qa_sets` |
 | 25 | Dataset | `qa_set_snapshots` |
 | 26 | Dataset | `questions` |
