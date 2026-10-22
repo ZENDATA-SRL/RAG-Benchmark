@@ -23,10 +23,23 @@ made of.
 ```bash
 cp .env.example .env          # adjust if a port is already taken
 uv sync
-docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, chromadb, worker
+docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, chromadb, qdrant, frontend
 uv run alembic -c backend/alembic.ini upgrade head
 cd backend && uv run uvicorn src.main:app --reload
-cd frontend && npm install && npm run dev   # http://localhost:5173
+PYTHONPATH=.:backend uv run python -m temporal.worker   # from the repository root, own terminal
+```
+
+The UI is served on <http://localhost:5173> by the `frontend` Compose service. To run it from
+a local checkout instead, stop that service and use
+`cd frontend && npm install && npm run dev`.
+
+`postgres` and `worker` are opt-in Compose profiles. The worker (it parses, chunks, embeds
+and indexes; without it materialisations and index builds stay pending) can run from the
+checkout as above or as a container, which reads AWS credentials for Bedrock from `~/.aws`
+(see the Temporal README):
+
+```bash
+docker compose --profile worker up -d --build worker
 ```
 
 With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
@@ -63,8 +76,7 @@ POSTGRES_PORT=5433 docker compose --profile postgres up -d --wait
 # then, in .env: DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/rag-bench
 ```
 
-The UI answers on `http://localhost:5173` (`docker compose up frontend` if you prefer the
-container). The API answers on `http://localhost:8000`:
+The API answers on `http://localhost:8000`:
 
 | Endpoint | Purpose |
 |---|---|
@@ -72,15 +84,19 @@ container). The API answers on `http://localhost:8000`:
 | `GET /api/v1/components` | Registered components with their JSON Schema; feeds the dynamic forms of the UI |
 | `GET /docs` | OpenAPI documentation |
 
-Other consoles: MinIO on [`localhost:9001`](http://localhost:9001), Temporal on
-[`localhost:8080`](http://localhost:8080).
+Other consoles and services: MinIO on [`localhost:9001`](http://localhost:9001), Temporal on
+[`localhost:8080`](http://localhost:8080), ChromaDB on `localhost:8001`, Qdrant on
+[`localhost:6333`](http://localhost:6333/dashboard).
 
 ## Configuration
 
 `.env` is the **single source of truth**: `docker-compose.yml` provisions the containers
 from it and the application reads it through `Settings`, so the credentials cannot drift
-apart. Copy it from `.env.example`, which documents every variable and contains no real
-secret. Credentials never live in the database (RT-S01).
+apart. Copy it from `.env.example`, which documents every variable (database, object
+storage, Temporal, ChromaDB, Qdrant, AWS profile for the worker, upload limits, CORS) and
+contains no real secret. The aim is that credentials never live in the database (RT-S01);
+the one known exception, embedder keys typed into profile params, is listed in the Temporal
+README.
 
 ## Tests
 
@@ -114,12 +130,19 @@ backend/
     materializations/ chunk materialisation runs and their progress
     indexes/          index builds over a corpus snapshot
     sources/          connections and imports
+    dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/
-frontend/             React + Vite UI: corpus, upload, configuration, chunks
+frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, components
 scripts/              mvp_smoke.py, the end-to-end check of the backend flow
 temporal/             worker, workflows, activities and builtin implementations
-  components/         parser, chunker and embedder code, invoked only by the worker
+  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes
+  workflows/          ProcessDocument, MaterializeChunks, IndexCorpus
+  components/         parser, chunker, embedder and vector store code, invoked only by the worker
   tests/
+docs/                 requirements and data model
+sprint/               sprint plan (in Italian)
+docker-compose.yml    postgres (opt-in), minio, temporal, chromadb, qdrant, worker (opt-in), frontend
+Dockerfile.worker     image of the Temporal worker
 ```
 
 Module conventions and dependency direction are in
@@ -134,8 +157,9 @@ Split in two on purpose, and the direction matters:
   `capabilities`). Declarative only. The API seeds the registry and renders the UI forms from
   these without importing any parsing library.
 - **`temporal/components/`** — the implementations and the `BUILTIN_PARSERS` /
-  `BUILTIN_CHUNKERS` maps (embedders are resolved in `components/embedders/shared.py`) that resolve a key to running code. Only the worker executes them.
+  `BUILTIN_CHUNKERS` / `BUILTIN_VECTOR_STORES` maps (embedders are resolved in
+  `components/embedders/shared.py`) that resolve a key to running code. Only the worker executes them.
 
 Dependencies flow `temporal → backend`, never the reverse. The API can tell that a component
-key was *declared*; only the worker can tell it is *runnable*, so it calls
+key was *declared*; only the worker can tell it is *runnable*, so the worker calls
 `assert_registry_complete()` at startup and fails there if a descriptor has no implementation.

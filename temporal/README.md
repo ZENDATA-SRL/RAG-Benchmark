@@ -51,7 +51,7 @@ temporal/
     parsers/          pypdf, plumber (pdfplumber), normalization, PermanentParsingError
     chunkers/         recursive, markdown, header_footer (page furniture), page_mapping (offset -> page)
     embedders/        shared.py: BUILTIN_EMBEDDERS, resolve_embedder(key, params) -> LangChain Embeddings
-    vector_stores/    chroma.py: ChromaVectorStore (collection per index build, upsert by chunk id)
+    vector_stores/    chroma.py, qdrant.py: ChromaVectorStore, QdrantVectorStore (collection per index build, upsert by chunk id)
   tests/
 ```
 
@@ -65,7 +65,7 @@ launching the same work twice is rejected or reported instead of duplicated.
 |---|---|---|
 | `ProcessDocumentWorkflow` | `resolve_configuration` → `parse_document` → `chunk_document` for one document | A permanent parse failure returns `{status: "failed"}` instead of raising, so the parent can aggregate. Parsing heartbeats every few seconds (2 min heartbeat timeout, 30 min budget) |
 | `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | Takes a list of document ids or a corpus snapshot, paged 500 ids at a time. `continue_as_new` every 500 documents (RT-O05). Re-running a finished set finds everything cached and does no parsing |
-| `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot, creates the Chroma collection, then for each batch of 100 chunks embeds to object storage and upserts into the collection, and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed, and marks it `failed` if an activity fails for good. `continue_as_new` every 100 batches, carrying offset and counters only |
+| `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot, creates the vector store collection, then for each batch of 100 chunks embeds to object storage and upserts into the collection, and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed, and marks it `failed` if an activity fails for good. `continue_as_new` every 100 batches, carrying offset and counters only |
 
 ## Activities
 

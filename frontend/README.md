@@ -4,6 +4,16 @@ Browser client for the benchmark flow: create a corpus, upload PDFs, compose a
 chunking configuration from the component registry, materialise, and inspect chunks
 on the native PDF; then freeze a snapshot of the corpus and build an index over it.
 
+## Pages
+
+| Route | Page |
+|---|---|
+| `/corpora`, `/corpora/:corpusId` | Corpora list; corpus detail with upload, documents, snapshots, preview and materialisation |
+| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text |
+| `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
+| `/indexes` | Embedding and vector store profiles and index builds |
+| `/components` | The component registry |
+
 ## Indexing
 
 - **Corpus page → Freeze snapshot**: every stored document, or the selected ones. The

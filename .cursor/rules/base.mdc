@@ -9,4 +9,5 @@ alwaysApply: true
 - Do not introduce new architectural patterns or new dependencies unless explicitly requested.
 - Keep code simple and readable; avoid clever abstractions.
 - If requirements are ambiguous, make the smallest reasonable assumption and state it.
+- Documentation is part of the change: whenever you modify code, configuration, routes, components, env vars, Compose services or the UI, update the READMEs that describe them in the same change (see the `keep-docs-in-sync` skill), and say so if no doc needed updating.
 - Do not reference design files chapters as they may change over time. Just provide logical descriptions

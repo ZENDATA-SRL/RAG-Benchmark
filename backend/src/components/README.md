@@ -25,7 +25,7 @@ serve the registry on its own. The executable code lives in `temporal/components
 - One module per component, each exposing `KEY`, `VERSION`, `DISPLAY_NAME`, `PARAMS_SCHEMA`
   (and `CAPABILITIES` for parsers and chunkers): `parsers/{pypdf,pdfplumber}`,
   `chunkers/{recursive,markdown}`, `embedder/{openai_embedder,bedrock_embedder}`,
-  `vector_stores/chroma`.
+  `vector_stores/{chroma,qdrant}`.
 
 ## Adding a builtin component
 

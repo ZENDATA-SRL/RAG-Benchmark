@@ -30,7 +30,7 @@ row, whatever the user called them.
 | `POST/GET /parsing-profiles`, `GET …/{id}` | Parsing profiles |
 | `POST/GET /chunking-profiles`, `GET …/{id}` | Chunking profiles |
 | `POST/GET /embedding-profiles`, `GET …/{id}` | Embedding profiles. `dimensions`, when set, is checked against the vectors the worker gets back |
-| `POST/GET /vector-store-profiles`, `GET …/{id}` | Vector store profiles; for `chromadb`, `index_params` holds the HNSW configuration of the collection |
+| `POST/GET /vector-store-profiles`, `GET …/{id}` | Vector store profiles; for `chromadb` and `qdrant`, `index_params` holds the distance space and the HNSW configuration of the collection |
 | `POST/GET /chunking-configurations`, `GET …/{id}` | Configurations, with profiles inlined |
 | `POST /chunking-configurations/compose` | Both profiles and the configuration in one call |
 

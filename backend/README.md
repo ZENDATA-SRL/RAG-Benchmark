@@ -31,7 +31,7 @@ was `created` or reused.
 | Module | Responsibility |
 |---|---|
 | `main.py` | App factory, request-id middleware, `DomainError` → HTTP handler, router registration; the lifespan seeds the builtin registry and the `upload` source |
-| `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, upload limits, CORS) |
+| `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, ChromaDB, Qdrant, upload limits, CORS) |
 | `dependencies.py` | FastAPI dependencies for object storage and the workflow client |
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
 | `infrastructure/database/` | Declarative `Base` + mixins (UUID pk, `created_at`, `updated_at`), PostgreSQL enums, async session |
@@ -60,6 +60,7 @@ carrying `params_schema` (JSON Schema) and `capabilities`. `ComponentService.val
 checks a profile's params against the schema of its version.
 
 - `GET /components` — components with their versions and schemas; drives the UI forms.
+- `GET /components/{id}/versions` — the versions of one component.
 - `POST /components`, `POST /components/{id}/versions` — register custom components.
 - `POST /components/versions/{id}/unavailable|available` — retire or restore a version.
 - `registry_seed.py` — at every startup registers one row per descriptor in
@@ -172,7 +173,7 @@ chunks are rows. The full schema and its rationale are in
 ```
 POST /corpora/{id}/snapshots          freeze the documents → CorpusSnapshot
 POST /embedding-profiles              embedder + params (+ declared dimensions)
-POST /vector-store-profiles           vector store + index params (HNSW for chromadb)
+POST /vector-store-profiles           vector store + index params (space and HNSW for chromadb and qdrant)
 POST /index-builds                    snapshot + chunking configuration + embedding + vector store
                                       → IndexBuild(pending), reused if the chain_fingerprint exists
 POST /index-builds/{id}/start         → IndexCorpusWorkflow on the worker
@@ -180,5 +181,6 @@ GET  /index-builds/{id}               status: pending → running → ready | fa
 ```
 
 The workflow materialises the chunks, embeds them in batches to object storage and upserts
-each batch into a Chroma collection named after the build's `external_index_ref`. What it
-does step by step is described in the Temporal README.
+each batch into a vector store collection (ChromaDB or Qdrant, as the vector store profile
+says) named after the build's `external_index_ref`. What it does step by step is described in
+the Temporal README.
