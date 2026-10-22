@@ -181,7 +181,7 @@ class IndexCorpusService:
         """Start indexing for a build, or report the run already doing the same work.
 
         The workflow id is a function of the index build id, so a second identical request
-        is refused by Temporal itself and reported as the existing run (RT-O01).
+        is refused by Temporal itself and reported as the existing run.
         """
         build = await self.builds.get(index_build_id)
         workflow_id = index_corpus_workflow_id(index_build_id)

@@ -31,7 +31,7 @@ async def run_worker() -> None:
 
     client = await connect(settings)
 
-    # One worker per task queue (RT-O03). In the MVP a single process serves all three, but
+    # One worker per task queue. In the MVP a single process serves all three, but
     # keeping them as distinct workers is what lets a queue be moved to its own worker later
     # without touching the workflow ids already executed.
     workers = [

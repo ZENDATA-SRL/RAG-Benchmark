@@ -46,7 +46,7 @@ async def embed_batch(
     """Embed one page of a build's chunks and persist the vectors to object storage.
 
     The chunks are read here and not passed in: their text would make the activity input
-    grow with the chunk size, past the payload limit (RT-O02). Each stored record carries
+    grow with the chunk size, past the payload limit. Each stored record carries
     the chunk text and its document next to the vector, so the upsert into the vector
     store reads only this file and never recomputes embeddings.
 

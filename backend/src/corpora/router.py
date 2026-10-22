@@ -70,7 +70,7 @@ async def update_corpus(
 
 @router.delete("/{corpus_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_corpus(corpus_id: uuid.UUID, session: SessionDep) -> None:
-    """Delete a corpus, refusing if snapshots were already frozen from it (RF-C05)."""
+    """Delete a corpus, refusing if snapshots were already frozen from it."""
     await CorpusService(session).delete(corpus_id)
 
 
@@ -118,7 +118,7 @@ async def remove_corpus_document(
 async def get_corpus_progress(
     corpus_id: uuid.UUID, session: SessionDep
 ) -> CorpusProgress:
-    """Return the acquisition progress of a corpus, per document status (RF-C04)."""
+    """Return the acquisition progress of a corpus, per document status."""
     by_status = await CorpusService(session).progress(corpus_id)
     return CorpusProgress(
         corpus_id=corpus_id, total=sum(by_status.values()), by_status=by_status

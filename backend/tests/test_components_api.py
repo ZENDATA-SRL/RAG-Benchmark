@@ -23,7 +23,7 @@ async def test_health_is_open(client) -> None:
 async def test_list_components_exposes_the_builtins_with_their_schema(
     client, session
 ) -> None:
-    """The acceptance of the DoD: `GET /api/v1/components` feeds the dynamic forms (RT-U01)."""
+    """`GET /api/v1/components` feeds the dynamic forms."""
     await seed_builtin_components(session)
 
     response = await client.get(COMPONENTS_URL)

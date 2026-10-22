@@ -35,7 +35,7 @@ class ParseResult:
 
 @activity.defn
 async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResult:
-    """Parse one document under one parsing profile, writing the output to storage (RF-P07).
+    """Parse one document under one parsing profile, writing the output to storage.
 
     Steps: claim the parse (returning immediately if a ready one is cached), download the
     document, resolve and validate the builtin parser, parse, write the JSON to
@@ -87,7 +87,7 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
 async def _parse_with_heartbeat(
     key: str, storage_uri: str, filename: str, params: dict
 ) -> dict:
-    """Run the parser in a thread while heartbeating from the event loop (RT-O04).
+    """Run the parser in a thread while heartbeating from the event loop.
 
     `activity.heartbeat` schedules on the running loop, so it cannot be called from the
     worker thread doing the parsing. The loop therefore reports liveness on a timer while the

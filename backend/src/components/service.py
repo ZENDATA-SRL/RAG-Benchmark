@@ -79,7 +79,7 @@ class ComponentService:
         """Return the version for `(component_id, version)`, creating it if absent.
 
         Validates before writing: the `params_schema` must be a syntactically valid JSON
-        Schema, because it is what the UI renders a form from (RT-U01), and the runtime must
+        Schema, because it is what the UI renders a form from, and the runtime must
         be one this build can actually execute.
 
         Args:

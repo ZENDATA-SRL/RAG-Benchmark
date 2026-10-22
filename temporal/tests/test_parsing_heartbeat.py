@@ -16,7 +16,7 @@ async def test_the_parse_heartbeats_while_the_thread_works(monkeypatch) -> None:
 
     Regression test: calling it from the thread raised `RuntimeError: no running event loop`
     and killed the activity, leaving the workflow pending until its heartbeat timeout. The
-    loop must report liveness *while* the blocking parse occupies its thread (RT-O04).
+    loop must report liveness *while* the blocking parse occupies its thread.
     """
     monkeypatch.setattr(parsing, "_HEARTBEAT_INTERVAL_SECONDS", 0.01)
 

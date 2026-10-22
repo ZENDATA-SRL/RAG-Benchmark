@@ -94,7 +94,7 @@ async def set_document_metadata(
     storage: StorageDep,
     settings: SettingsDep,
 ) -> DocumentRead:
-    """Replace the metadata of a document, which becomes a retrieval filter (RF-C02)."""
+    """Replace the metadata of a document, which becomes a retrieval filter."""
     document = await DocumentService(session, storage, settings).set_metadata(
         document_id, payload.metadata
     )
@@ -108,7 +108,7 @@ async def download_document(
     storage: StorageDep,
     settings: SettingsDep,
 ) -> StreamingResponse:
-    """Stream the original bytes of a document, for the native preview of the UI (RT-U04)."""
+    """Stream the original bytes of a document, for the native preview of the UI."""
     document, stream = await DocumentService(session, storage, settings).open_content(
         document_id
     )

@@ -34,7 +34,7 @@ async def _start(client, *, configuration_id: str, **payload) -> object:
 async def test_launching_over_a_corpus_returns_a_run_and_starts_one_workflow(
     client, session, fake_workflows
 ) -> None:
-    """Acceptance of 4.3: one call, a run to poll, and the workflow that will do the work."""
+    """One call, a run to poll, and the workflow that will do the work."""
     scenario = await build_scenario(session, missing=3)
 
     response = await _start(
@@ -82,7 +82,7 @@ async def test_the_workflow_id_is_derived_from_the_configuration_and_the_documen
 async def test_launching_the_same_work_twice_yields_one_run_and_one_workflow(
     client, session, fake_workflows
 ) -> None:
-    """A double click is not a user error (RT-O01): the second call reports the first run."""
+    """A double click is not a user error: the second call reports the first run."""
     scenario = await build_scenario(session, missing=2)
 
     first = await _start(
@@ -267,7 +267,7 @@ async def test_an_unknown_corpus_is_a_404(client, session) -> None:
 async def test_progress_is_served_from_the_run_row_without_touching_temporal(
     client, session, fake_workflows
 ) -> None:
-    """The UI polls this every couple of seconds (RT-U05), so it must not ask Temporal."""
+    """The UI polls this every couple of seconds, so it must not ask Temporal."""
     scenario = await build_scenario(session, missing=4)
     run_id = (
         await _start(

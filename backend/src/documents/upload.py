@@ -87,7 +87,7 @@ def assert_within_limit(content_length: int | None, settings: Settings) -> None:
     """Reject an oversized request before its body is read.
 
     Checked on the declared length so a 2 GB body is refused at the first bytes instead of
-    being spooled to disk only to be discarded (RF-S12). The per-file limit still applies
+    being spooled to disk only to be discarded. The per-file limit still applies
     afterwards, because `Content-Length` covers the whole multipart envelope and a client
     is free not to send it.
 

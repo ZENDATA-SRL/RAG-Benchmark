@@ -26,7 +26,7 @@ def _pdf(body: bytes = b"%PDF-1.4 first") -> io.BytesIO:
 async def test_same_content_under_two_names_is_one_document_with_two_provenances(
     session, fake_storage, settings
 ) -> None:
-    """Identity is the content: two names for the same bytes are one document (RF-S06)."""
+    """Identity is the content: two names for the same bytes are one document."""
     service = DocumentService(session, fake_storage, settings)
     connection_id = await _connection_id(session)
 
@@ -111,7 +111,7 @@ async def test_a_stored_document_is_readable_and_content_addressed(
 async def test_an_unsupported_mime_type_does_not_stop_the_batch(
     session, fake_storage, settings
 ) -> None:
-    """A rejected file is reported and the others still make it (RF-S11)."""
+    """A rejected file is reported and the others still make it."""
     service = DocumentService(session, fake_storage, settings)
     connection_id = await _connection_id(session)
 
@@ -136,7 +136,7 @@ async def test_an_unsupported_mime_type_does_not_stop_the_batch(
 async def test_a_storage_failure_marks_the_document_failed_without_stopping_the_batch(
     session, fake_storage, settings
 ) -> None:
-    """A backend refusal leaves `failed` with the reason and spares the rest (RF-C04)."""
+    """A backend refusal leaves `failed` with the reason and spares the rest."""
     service = DocumentService(session, fake_storage, settings)
     connection_id = await _connection_id(session)
 

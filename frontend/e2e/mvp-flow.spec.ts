@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Full MVP path in the browser. Needs the API on :8000 (Vite proxies /api and /health).
- * Sprint 6 will harden this into the repository's end-to-end check.
  */
 test("a new user can walk the MVP without a terminal", async ({ page, request }) => {
   const health = await request.get("http://localhost:8000/health").catch(() => null);

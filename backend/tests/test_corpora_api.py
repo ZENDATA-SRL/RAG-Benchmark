@@ -117,7 +117,7 @@ async def test_adding_an_unknown_document_is_rejected(client) -> None:
 async def test_removing_a_document_keeps_the_document_and_its_snapshots(
     client, session
 ) -> None:
-    """A removal from a corpus touches neither the document nor a frozen snapshot (RF-C05)."""
+    """A removal from a corpus touches neither the document nor a frozen snapshot."""
     corpus_id, document_ids = await _corpus_with_documents(client, count=2)
 
     snapshots = CorpusSnapshotService(session)
@@ -145,7 +145,7 @@ async def test_removing_a_document_keeps_the_document_and_its_snapshots(
 
 
 async def test_a_corpus_with_snapshots_cannot_be_deleted(client, session) -> None:
-    """Deleting would cascade the snapshots away and with them past measurements (RF-C05)."""
+    """Deleting would cascade the snapshots away and with them past measurements."""
     corpus_id, document_ids = await _corpus_with_documents(client, count=1)
 
     await CorpusSnapshotService(session).get_or_create(
@@ -173,7 +173,7 @@ async def test_a_corpus_without_snapshots_is_deleted(client) -> None:
 
 
 async def test_corpus_progress_reports_every_status(client) -> None:
-    """Every status is present, zero included, so the UI renders a stable set of bars (RF-C04)."""
+    """Every status is present, zero included, so the UI renders a stable set of bars."""
     corpus_id, _ = await _corpus_with_documents(client, count=2)
 
     response = await client.get(f"{CORPORA_URL}/{corpus_id}/progress")

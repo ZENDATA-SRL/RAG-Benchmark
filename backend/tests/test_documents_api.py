@@ -14,7 +14,7 @@ def _files(*items: tuple[str, bytes, str]) -> list[tuple[str, tuple[str, bytes, 
 
 
 async def test_uploading_three_files_with_one_unsupported_returns_200(client) -> None:
-    """A `.txt` in the batch is skipped, the two PDFs are imported, the request is 200 (RF-S11)."""
+    """A `.txt` in the batch is skipped, the two PDFs are imported, the request is 200."""
     response = await client.post(
         f"{DOCUMENTS_URL}/upload",
         files=_files(
@@ -53,7 +53,7 @@ async def test_reuploading_the_same_file_reports_skipped_duplicate(client) -> No
 
 
 async def test_a_document_card_exposes_its_hash_and_provenances(client) -> None:
-    """The card carries `content_hash` and every origin, so the UI can reach the original (RT-U06)."""
+    """The card carries `content_hash` and every origin, so the UI can reach the original."""
     upload = await client.post(
         f"{DOCUMENTS_URL}/upload", files=_files(("uno.pdf", b"%PDF-1.4 uno", PDF))
     )
@@ -75,7 +75,7 @@ async def test_a_document_card_exposes_its_hash_and_provenances(client) -> None:
 
 
 async def test_the_document_content_is_streamed_back_unchanged(client) -> None:
-    """The download returns the uploaded bytes, for the native preview of the UI (RT-U04)."""
+    """The download returns the uploaded bytes, for the native preview of the UI."""
     body = b"%PDF-1.4 scaricabile"
     upload = await client.post(
         f"{DOCUMENTS_URL}/upload", files=_files(("dl.pdf", body, PDF))
@@ -102,7 +102,7 @@ async def test_listing_documents_filters_by_status(client) -> None:
 
 
 async def test_document_metadata_can_be_replaced(client) -> None:
-    """Metadata is a property of the file and becomes a retrieval filter (RF-C02)."""
+    """Metadata is a property of the file and becomes a retrieval filter."""
     upload = await client.post(
         f"{DOCUMENTS_URL}/upload", files=_files(("m.pdf", b"%PDF-1.4 m", PDF))
     )

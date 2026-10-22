@@ -38,7 +38,7 @@ class ChunkRead(BaseModel):
     """A chunk as exposed by the API.
 
     `metadata` carries the page the chunk came from, which is what lets the UI show *where*
-    in the document a chunk lives (RT-U04).
+    in the document a chunk lives.
     """
 
     model_config = ConfigDict(from_attributes=True)

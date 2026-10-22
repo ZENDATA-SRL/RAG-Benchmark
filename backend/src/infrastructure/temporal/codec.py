@@ -26,7 +26,7 @@ class PayloadTooLargeError(Exception):
 
 
 class SizeGuardCodec(PayloadCodec):
-    """A codec that refuses payloads above a hard size threshold (RT-O02).
+    """A codec that refuses payloads above a hard size threshold.
 
     It encodes nothing — the bytes pass through unchanged — but it is the mechanical guard
     that stops the day someone passes the full text of a 300-page PDF to an activity. Such a
@@ -52,7 +52,7 @@ class SizeGuardCodec(PayloadCodec):
 def data_converter() -> DataConverter:
     """The data converter every client and worker shares.
 
-    Wraps the default converter with `SizeGuardCodec`, so the payload size limit of RT-O02
+    Wraps the default converter with `SizeGuardCodec`, so the payload size limit
     is enforced by the transport itself and cannot be forgotten at a call site — including
     when the caller is the API rather than an activity.
     """

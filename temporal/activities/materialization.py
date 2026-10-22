@@ -18,7 +18,7 @@ async def open_materialization_run(
     document_count: int,
     corpus_id: str | None,
 ) -> str:
-    """Create (or reuse) the denormalised run row and return its id (RT-O07)."""
+    """Create (or reuse) the denormalised run row and return its id."""
     async with activity_session() as session:
         run = await MaterializationRunService(session).open_run(
             workflow_id=workflow_id,
@@ -35,7 +35,7 @@ async def documents_needing_chunking(
 ) -> list[str]:
     """Return the subset of documents without a ready chunk result for the configuration.
 
-    This is what makes growing a corpus cheap: only the new documents are chunked (RF-C05).
+    This is what makes growing a corpus cheap: only the new documents are chunked.
     """
     async with activity_session() as session:
         needing = await ArtefactService(session).documents_needing_chunking(
@@ -79,7 +79,7 @@ async def snapshot_documents_needing_chunking(
 
 @activity.defn
 async def record_progress(workflow_id: str, progress: dict[str, int]) -> None:
-    """Write the workflow's current tally onto the run row for the UI to poll (RT-U05)."""
+    """Write the workflow's current tally onto the run row for the UI to poll."""
     async with activity_session() as session:
         await MaterializationRunService(session).update_progress(
             workflow_id=workflow_id, progress=progress

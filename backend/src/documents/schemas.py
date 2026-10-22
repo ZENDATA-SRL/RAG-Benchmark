@@ -35,13 +35,13 @@ class DocumentRead(BaseModel):
 
 
 class DocumentWithProvenancesRead(DocumentRead):
-    """A document together with its origins, so the UI resolves the original (RT-U06)."""
+    """A document together with its origins, so the UI resolves the original."""
 
     provenances: list[DocumentProvenanceRead] = Field(default_factory=list)
 
 
 class DocumentMetadataUpdate(BaseModel):
-    """Payload replacing the metadata of a document (RF-C02).
+    """Payload replacing the metadata of a document.
 
     The shape is free because the keys become retrieval filters and are not known to the
     platform; it is a filter surface and not a notes field.
@@ -60,10 +60,10 @@ class UploadFileResult(BaseModel):
 
 
 class UploadResponse(BaseModel):
-    """Summary of an upload request, one entry per submitted file (RF-S07).
+    """Summary of an upload request, one entry per submitted file.
 
     Returned with `200` even when some files were rejected: the outcome is per file, and a
-    single unsupported attachment must not discard the batch (RF-S11).
+    single unsupported attachment must not discard the batch.
     """
 
     import_run_id: uuid.UUID

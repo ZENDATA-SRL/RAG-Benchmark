@@ -138,7 +138,7 @@ class FakeWorkflowClient:
 
     Records every launch, and reproduces the one behaviour the API depends on: a second
     start with an id already running reports `started=False` instead of raising, which is
-    how Temporal's duplicate-id rejection reaches the caller (RT-O01). The real workflows
+    how Temporal's duplicate-id rejection reaches the caller. The real workflows
     are covered by `temporal/tests`.
     """
 

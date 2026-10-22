@@ -81,6 +81,6 @@ def test_document_key_layout() -> None:
 
 
 def test_parse_key_groups_by_profile() -> None:
-    """Two profiles parsing the same document must not overwrite each other (RT-O02)."""
+    """Two profiles parsing the same document must not overwrite each other."""
     content_hash = hashlib.sha256(b"content").hexdigest()
     assert parse_key("aaaa", content_hash) != parse_key("bbbb", content_hash)

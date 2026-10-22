@@ -18,7 +18,7 @@ What stays in the backend is the *declaration*:
 | `ParseOutput`, `ChunkPayload` | — |
 | descriptors: key, version, `params_schema`, `capabilities` | `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS`, `BUILTIN_EMBEDDERS`, `BUILTIN_VECTOR_STORES` |
 
-The API must serve `params_schema` to render the UI forms (RT-U01) with no worker running, so
+The API must serve `params_schema` to render the UI forms with no worker running, so
 the schemas cannot live only here. Dependencies therefore flow **`temporal → backend`**; the
 reverse would be a cycle, since the worker already imports `ArtefactService`, the object
 storage and the session factory.
@@ -39,11 +39,11 @@ notices a descriptor whose implementation was never written. Two checks close th
 ```
 temporal/
   client.py         connect to the Temporal frontend with the shared data converter
-  codec.py          SizeGuardCodec: rejects payloads over 128 KB (RT-O02), re-exported from the backend
+  codec.py          SizeGuardCodec: rejects payloads over 128 KB, re-exported from the backend
   config.py         worker engine + `activity_session()` (one transaction per activity), data converter
-  task_queues.py    ingestion / parsing / chunking / embedding queues (RT-O03)
+  task_queues.py    ingestion / parsing / chunking / embedding queues
   worker.py         one Worker per queue, registers all workflows and activities, asserts the registry
-  workflow_ids.py   deterministic workflow ids (RT-O01), re-exported from the backend
+  workflow_ids.py   deterministic workflow ids, re-exported from the backend
   activities/       see below
   workflows/        see below
   components/
@@ -64,7 +64,7 @@ launching the same work twice is rejected or reported instead of duplicated.
 | Workflow | Does | Notes |
 |---|---|---|
 | `ProcessDocumentWorkflow` | `resolve_configuration` → `parse_document` → `chunk_document` for one document | A permanent parse failure returns `{status: "failed"}` instead of raising, so the parent can aggregate. Parsing heartbeats every few seconds (2 min heartbeat timeout, 30 min budget) |
-| `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | Takes a list of document ids or a corpus snapshot, paged 500 ids at a time. `continue_as_new` every 500 documents (RT-O05). Re-running a finished set finds everything cached and does no parsing |
+| `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | Takes a list of document ids or a corpus snapshot, paged 500 ids at a time. `continue_as_new` every 500 documents. Re-running a finished set finds everything cached and does no parsing |
 | `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot, creates the vector store collection, then for each batch of 100 chunks embeds to object storage and upserts into the collection, and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed, and marks it `failed` if an activity fails for good. `continue_as_new` every 100 batches, carrying offset and counters only |
 
 ## Activities
@@ -101,7 +101,7 @@ storage and only their URI is passed around, which is what the 128 KB payload gu
   document ids in its input; for corpora of a few thousand documents that path can exceed
   the payload limit. Index builds use the snapshot path and are not affected.
 - Embedder credentials *can* still be typed into profile params, which are stored in the
-  database; this conflicts with RT-S01 (credentials never in the database). Leave them empty
+  database; this conflicts with the rule that credentials never live in the database. Leave them empty
   and use the credentials below instead.
 
 ## AWS credentials (Bedrock)

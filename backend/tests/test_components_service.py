@@ -50,7 +50,7 @@ async def test_register_version_is_idempotent(session) -> None:
 
 
 async def test_seed_twice_yields_declared_components_with_one_version(session) -> None:
-    """The acceptance of 1.6: two consecutive startups leave the declared builtins only."""
+    """Two consecutive startups leave the declared builtins only."""
     await seed_builtin_components(session)
     await seed_builtin_components(session)
 

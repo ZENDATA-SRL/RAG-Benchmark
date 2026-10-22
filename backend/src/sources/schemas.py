@@ -15,7 +15,7 @@ from src.infrastructure.database.enums import (
 
 
 class SourceConnectionRead(BaseModel):
-    """A source connection as exposed by the API; never carries a secret (RT-S01)."""
+    """A source connection as exposed by the API; never carries a secret."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -29,7 +29,7 @@ class SourceConnectionRead(BaseModel):
 
 
 class DocumentProvenanceRead(BaseModel):
-    """Where one copy of a document came from (RT-U06)."""
+    """Where one copy of a document came from."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,7 +53,7 @@ class ImportFileResultRead(BaseModel):
 
 
 class ImportRunRead(BaseModel):
-    """Summary of an import run (RF-S07)."""
+    """Summary of an import run."""
 
     model_config = ConfigDict(from_attributes=True)
 

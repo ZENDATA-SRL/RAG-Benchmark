@@ -1,5 +1,5 @@
 # Image for the Temporal worker. The backend runs locally via uvicorn in development, but
-# the worker is the process docker compose is expected to bring up (Sprint 3 DoD): it needs
+# the worker is the process docker compose is expected to bring up: it needs
 # `pypdf` and the text splitters the API image deliberately does not carry.
 FROM python:3.12-slim
 

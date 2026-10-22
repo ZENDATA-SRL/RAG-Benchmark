@@ -185,7 +185,7 @@ def create_profiles(client: httpx.Client, parser_version: str, chunker_version: 
         f"({'created' if first['created'] else 'already existed'})"
     )
 
-    # Same parameters, different name: the hash excludes the name (RF-P07), so the original
+    # Same parameters, different name: the hash excludes the name, so the original
     # row comes back and the response must say so, or the user cannot explain the mismatch.
     again = request(
         client,
@@ -221,7 +221,7 @@ def create_profiles(client: httpx.Client, parser_version: str, chunker_version: 
     )
     check(
         rejected["code"] == "invalid_component_params",
-        "parameters outside the schema are refused server-side (RT-U01)",
+        "parameters outside the schema are refused server-side",
     )
     check("field_path" in rejected["details"], "the rejection names the offending field")
 
@@ -273,7 +273,7 @@ def materialize(
     accepted = request(client, "POST", "/materializations", expect=202, json=payload)
     # Not asserted as `started`: the workflow id is a function of the configuration and the
     # document set, so a repeat of this script joins the run it launched last time. That is
-    # the idempotency of RT-O01, and step "launch the same work twice" checks it explicitly.
+    # the idempotency of the workflow id, and step "launch the same work twice" checks it explicitly.
     ok(
         f"run {accepted['id']} "
         f"({'started' if accepted['started'] else 'already in flight, following it'})"
@@ -282,7 +282,7 @@ def materialize(
 
 
 def poll_until_finished(client: httpx.Client, run_id: str) -> dict[str, Any]:
-    """Follow a run the way the UI does: `GET` every couple of seconds (RT-U05)."""
+    """Follow a run the way the UI does: `GET` every couple of seconds."""
     deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
     last = ""
     while True:
@@ -308,7 +308,7 @@ def poll_until_finished(client: httpx.Client, run_id: str) -> dict[str, Any]:
 def preview_one_document(
     client: httpx.Client, *, configuration_id: str, document_id: str
 ) -> None:
-    step("Preview the configuration on a single document (RF-P08)")
+    step("Preview the configuration on a single document")
     run = materialize(client, configuration_id=configuration_id, document_ids=[document_id])
     check(run["document_count"] == 1, "the preview covered exactly one document")
     check(
@@ -349,7 +349,7 @@ def materialize_corpus(
 def check_idempotent_launch(
     client: httpx.Client, *, configuration_id: str, corpus_id: str
 ) -> None:
-    step("Launch the same work twice in a row (RT-O01)")
+    step("Launch the same work twice in a row")
     payload = {"chunking_configuration_id": configuration_id, "corpus_id": corpus_id}
     first = request(client, "POST", "/materializations", expect=202, json=payload)
     second = request(client, "POST", "/materializations", expect=202, json=payload)
@@ -401,7 +401,7 @@ def check_parse_preview(
         f"{filename} parsed into {parse['total']} pages, as authored",
     )
 
-    # Page 3 specifically: the acceptance of 4.5 is that the text of a given page is the
+    # Page 3 specifically: what matters is that the text of a given page is the
     # text of that page, not merely that something came back.
     third = request(
         client,
@@ -421,7 +421,7 @@ def check_parse_preview(
 def check_chunks(
     client: httpx.Client, *, configuration_id: str, document_ids: dict[str, str]
 ) -> dict[str, Any]:
-    step("List the chunks of a document (RF-P08)")
+    step("List the chunks of a document")
     document_id = document_ids["handbook.pdf"]
     chunks = request(
         client,
@@ -452,7 +452,7 @@ def check_chunks(
     )
     check(
         all("page" in chunk["metadata"] for chunk in chunks["items"]),
-        "every chunk carries the page it came from (RT-U04)",
+        "every chunk carries the page it came from",
     )
 
     first = chunks["items"][0]

@@ -13,10 +13,10 @@ from src.infrastructure.database.enums import ARTIFACT_STATUS, ArtifactStatus
 
 
 class MaterializationRun(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """The denormalised record of one user-triggered chunk materialisation (RT-O07).
+    """The denormalised record of one user-triggered chunk materialisation.
 
     `chunk_results` alone cannot answer "which request produced these, and how many are
-    still pending": this row does, so the UI shows progress (RT-U05) without polling
+    still pending": this row does, so the UI shows progress without polling
     Temporal on every refresh. The authoritative state stays in Temporal; this is a copy
     kept fresh by the run's activities, exactly as `import_runs` and `index_builds` do.
 

@@ -72,7 +72,7 @@ async def list_materializations(
 async def get_materialization(
     run_id: uuid.UUID, session: SessionDep
 ) -> MaterializationDetail:
-    """Return the progress of a run; polled every couple of seconds by the UI (RT-U05).
+    """Return the progress of a run; polled every couple of seconds by the UI.
 
     Served entirely from the denormalised row, so following a run never depends on Temporal
     being reachable.

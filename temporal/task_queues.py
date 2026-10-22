@@ -4,7 +4,7 @@ from enum import StrEnum
 
 
 class TaskQueue(StrEnum):
-    """Task queues, one per resource profile (RT-O03).
+    """Task queues, one per resource profile.
 
     In the MVP `PARSING` and `CHUNKING` can be served by the same worker, but the queues
     are kept distinct from the start: splitting them later would change the ids of workflows

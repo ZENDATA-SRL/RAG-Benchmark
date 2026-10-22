@@ -61,7 +61,7 @@ class MaterializationLaunch:
 
 
 class MaterializationRunService:
-    """The denormalised progress of a user-triggered chunk materialisation (RT-O07).
+    """The denormalised progress of a user-triggered chunk materialisation.
 
     Reads and writes the run row and the artefacts it summarises, and nothing else:
     following a run must not depend on Temporal being reachable, which is the whole reason
@@ -233,7 +233,7 @@ class MaterializationRunService:
 class MaterializationService:
     """Launch and cancel a chunk materialisation over a set of documents.
 
-    The same entry point serves the preview on a handful of files (RF-P08) and a whole
+    The same entry point serves the preview on a handful of files and a whole
     corpus, exactly as the same workflow does: the difference is the size of the document
     list, not the code path, so what the user previews is what the corpus run will produce.
     Reading a run's progress belongs to `MaterializationRunService`, which needs no Temporal
@@ -260,7 +260,7 @@ class MaterializationService:
 
         The workflow id is a function of the configuration and the document *set*, so a
         second identical request is refused by Temporal itself and reported as the existing
-        run: a double click on the launch button is not a user error (RT-O01).
+        run: a double click on the launch button is not a user error.
 
         Args:
             chunking_configuration_id: Configuration to materialise.
@@ -304,8 +304,8 @@ class MaterializationService:
     async def cancel(self, run_id: uuid.UUID) -> MaterializationRun:
         """Cancel a running materialisation, recording `cancelled` as its reason.
 
-        Not required by the requirements for chunking (RF-E08 is about experiments), but a
-        user who launched a chunking over two hundred wrong files looks for this immediately.
+        Not strictly needed for chunking, but a user who launched a chunking over two
+        hundred wrong files looks for this immediately.
 
         Raises:
             MaterializationRunNotFoundError: If the run does not exist.

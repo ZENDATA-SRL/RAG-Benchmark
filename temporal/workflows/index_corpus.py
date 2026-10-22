@@ -35,7 +35,7 @@ _EMBED_TIMEOUT = timedelta(minutes=15)
 _UPSERT_TIMEOUT = timedelta(minutes=5)
 _RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 _EMBED_BATCH_SIZE = 100
-# continue_as_new before embedding history grows too large (RT-O05).
+# continue_as_new before embedding history grows too large.
 _CONTINUE_AFTER_BATCHES = 100
 
 

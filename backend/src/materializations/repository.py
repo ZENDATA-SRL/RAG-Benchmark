@@ -24,7 +24,7 @@ class MaterializationRunRepository:
         return await self.session.get(MaterializationRun, run_id)
 
     async def get_by_workflow_id(self, workflow_id: str) -> MaterializationRun | None:
-        """Resolve a run by its deterministic Temporal workflow id (RT-O01)."""
+        """Resolve a run by its deterministic Temporal workflow id."""
         stmt = select(MaterializationRun).where(
             MaterializationRun.workflow_id == workflow_id
         )

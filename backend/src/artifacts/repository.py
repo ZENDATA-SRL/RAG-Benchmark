@@ -130,7 +130,7 @@ class ChunkResultRepository:
         document_ids: Sequence[uuid.UUID] | None = None,
         limit: int = 50,
     ) -> Sequence[ChunkResult]:
-        """Failed chunk results of a configuration, to explain a run's failures (RT-O07).
+        """Failed chunk results of a configuration, to explain a run's failures.
 
         `document_ids` narrows the set to a corpus; omitted, the whole configuration is
         considered, which is what a run launched on explicit ids needs.

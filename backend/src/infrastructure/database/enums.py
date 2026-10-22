@@ -80,7 +80,7 @@ def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
 
     Args:
         enum_cls: Python enum class to map.
-        name: Name of the PostgreSQL type (matches `DATA_MODEL.md`).
+        name: Name of the PostgreSQL type.
     """
     return SAEnum(
         enum_cls,

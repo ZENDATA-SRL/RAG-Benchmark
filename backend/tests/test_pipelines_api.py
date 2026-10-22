@@ -52,14 +52,14 @@ async def _compose(client, session, *, chunk_size: int = 500) -> dict:
 
 
 # --------------------------------------------------------------------------------------
-# 4.1 profiles
+# profiles
 # --------------------------------------------------------------------------------------
 
 
 async def test_creating_the_same_profile_under_two_names_returns_one_row(
     client, session
 ) -> None:
-    """Acceptance of 4.1: dedup is on the parameters, and the response admits it (RF-P07)."""
+    """Dedup is on the parameters, and the response admits it."""
     parser_version, _ = await _version_ids(session)
 
     first = await client.post(
@@ -83,7 +83,7 @@ async def test_creating_the_same_profile_under_two_names_returns_one_row(
 async def test_params_outside_the_schema_are_refused_with_the_field_path(
     client, session
 ) -> None:
-    """Server side of RT-U01: without it the UI validation is only cosmetic."""
+    """Server-side validation: without it the UI validation is only cosmetic."""
     parser_version, _ = await _version_ids(session)
 
     response = await client.post(
@@ -230,7 +230,7 @@ async def test_configuration_from_an_unknown_profile_is_a_404(client, session) -
 async def test_coverage_of_a_half_materialised_corpus_sums_to_the_corpus_size(
     client, session
 ) -> None:
-    """Acceptance of 4.2: three counts, and their sum is the size of the corpus."""
+    """Three counts, and their sum is the size of the corpus."""
     scenario = await build_scenario(session, ready=2, failed=1, missing=2)
 
     response = await client.get(
@@ -308,7 +308,7 @@ async def test_chunks_are_returned_in_ordinal_order_and_paginated(client, sessio
 async def test_the_same_document_under_two_configurations_yields_different_chunks(
     client, session
 ) -> None:
-    """Acceptance of 4.4: two configurations over one document, both inspectable."""
+    """Two configurations over one document, both inspectable."""
     small = await build_scenario(session, ready=1, chunks_per_document=3)
     document = small.ready[0]
     parsing_profile, big = await make_configuration(session, chunk_size=900)

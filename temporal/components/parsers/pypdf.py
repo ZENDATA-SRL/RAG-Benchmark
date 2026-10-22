@@ -25,7 +25,7 @@ class PyPdfParser:
 
         The page is kept as the unit of extraction, not a single joined string, because it
         is the anchor the chunker propagates onto chunks and the UI uses to show where a
-        chunk came from (RT-U04): losing it here means it cannot be recovered downstream.
+        chunk came from: losing it here means it cannot be recovered downstream.
 
         Raises:
             PermanentParsingError: If the file is corrupt or encrypted (`corrupt_pdf` /

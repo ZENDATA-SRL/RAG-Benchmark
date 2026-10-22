@@ -41,7 +41,7 @@ class CorpusSnapshotNotFoundError(NotFoundError, CorpusError):
 
 
 class CorpusHasSnapshotsError(ConflictError, CorpusError):
-    """Raised when a corpus with frozen snapshots is deleted (RF-C05).
+    """Raised when a corpus with frozen snapshots is deleted.
 
     Deleting it would invalidate the compositions the experiments already measured, so the
     snapshots are what makes a metric interpretable and the corpus cannot outlive them.

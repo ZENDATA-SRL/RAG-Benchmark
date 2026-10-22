@@ -22,7 +22,7 @@ def materialize_workflow_id(
 
     The id is a function of the configuration and the *set* of documents, so relaunching
     the same materialisation is rejected by Temporal itself for a duplicate workflow id:
-    idempotency is a property of the id, not application logic (RT-O01).
+    idempotency is a property of the id, not application logic.
     """
     return materialize_workflow_id_for_composition(
         chunking_configuration_id, composition_hash(document_ids)

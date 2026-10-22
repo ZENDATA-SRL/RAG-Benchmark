@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 _READ_CHUNK_BYTES = 1024 * 1024
 
 # Above this the spool rolls over from memory to a temporary file on disk, so a big upload
-# costs disk and not resident memory (RF-S12).
+# costs disk and not resident memory.
 _SPOOL_MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -62,12 +62,12 @@ class DocumentService:
     """Acquisition of documents: content hashing, storage, deduplication, provenance.
 
     The identity of a document is its content, never its name or its origin. Uploading the
-    same bytes twice therefore yields one row with two provenances (RF-S06), which is what
+    same bytes twice therefore yields one row with two provenances, which is what
     makes the same file arriving from two sources one document in every later metric.
 
     A file is read exactly once. The storage key derives from the sha-256, which is only
     known after the last byte, so the stream is spooled while it is hashed instead of being
-    read twice or buffered whole (RF-S12). The spool was preferred over a staging key plus a
+    read twice or buffered whole. The spool was preferred over a staging key plus a
     server-side copy: it needs no cleanup path and no second round trip, and the cost is
     local disk that is already required to receive a multipart body.
     """
@@ -96,7 +96,7 @@ class DocumentService:
             stream: Readable binary stream of the file, consumed once.
             filename: Name declared by the client, kept for display and for the extension.
             content_type: MIME type declared by the client.
-            connection_id: Connection the file is attributed to, for provenance (RF-S05).
+            connection_id: Connection the file is attributed to, for provenance.
             original_uri: How the file was identified at the source; defaults to `filename`,
                 which is all the identity a manual upload has.
 
@@ -142,7 +142,7 @@ class DocumentService:
     ) -> list[UploadOutcome]:
         """Ingest several files, isolating the failure of each from the others.
 
-        One rejected or broken file must not discard the ones that were fine (RF-S11), so
+        One rejected or broken file must not discard the ones that were fine, so
         each file is processed in its own savepoint and its outcome reported individually.
         The request therefore succeeds even when some files did not.
 
@@ -180,7 +180,7 @@ class DocumentService:
     async def list_provenances(
         self, document_id: uuid.UUID
     ) -> Sequence[DocumentProvenance]:
-        """List where a document came from, so the UI can link back to the original (RT-U06).
+        """List where a document came from, so the UI can link back to the original.
 
         Raises:
             DocumentNotFoundError: If the document does not exist.
@@ -191,7 +191,7 @@ class DocumentService:
     async def set_metadata(
         self, document_id: uuid.UUID, metadata: dict[str, object]
     ) -> Document:
-        """Replace the metadata of a document (RF-C02).
+        """Replace the metadata of a document.
 
         Metadata lives on the document and not on the corpus membership because it
         describes the file, and the same file in two corpora must not be described twice.
@@ -321,7 +321,7 @@ class DocumentService:
     async def _store_content(
         self, document: Document, spool: IO[bytes], content_type: str
     ) -> None:
-        """Upload the spooled bytes and move the document to its final status (RF-C04)."""
+        """Upload the spooled bytes and move the document to its final status."""
         key = document_key(document.content_hash, document.filename)
         spool.seek(0)
         try:

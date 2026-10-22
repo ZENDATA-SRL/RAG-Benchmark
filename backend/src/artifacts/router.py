@@ -60,7 +60,7 @@ async def list_document_chunks(
     limit: int = Query(default=100, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
 ) -> DocumentChunksRead:
-    """List the chunks of a document under a configuration, in `ordinal` order (RF-P08)."""
+    """List the chunks of a document under a configuration, in `ordinal` order."""
     chunks, total, chunk_result = await InspectionService(session, storage).list_chunks(
         document_id=document_id,
         chunking_configuration_id=chunking_configuration_id,

@@ -31,7 +31,7 @@ class CorpusService:
 
     Membership is mutable while snapshots are not: this class only ever touches
     `corpus_documents`, so removing a document changes what the *next* snapshot will
-    contain and leaves every existing one intact (RF-C05).
+    contain and leaves every existing one intact.
     """
 
     def __init__(self, session: AsyncSession) -> None:
@@ -98,7 +98,7 @@ class CorpusService:
         Raises:
             CorpusNotFoundError: If the corpus does not exist.
             CorpusHasSnapshotsError: If snapshots exist, because deleting the corpus would
-                cascade them away and with them the meaning of past measurements (RF-C05).
+                cascade them away and with them the meaning of past measurements.
         """
         corpus = await self.get(corpus_id)
         snapshots = await self.snapshots.list_by_corpus(corpus_id, limit=1)
@@ -137,7 +137,7 @@ class CorpusService:
         """Detach a document from a corpus.
 
         The document itself and every snapshot that froze it are untouched: this is a
-        "remove from corpus", not a "delete document" (RF-C05).
+        "remove from corpus", not a "delete document".
 
         Raises:
             CorpusNotFoundError: If the corpus does not exist.
@@ -168,7 +168,7 @@ class CorpusService:
         return [document for _, document in rows], total
 
     async def progress(self, corpus_id: uuid.UUID) -> dict[str, int]:
-        """Acquisition progress of a corpus, as a count per document status (RF-C04).
+        """Acquisition progress of a corpus, as a count per document status.
 
         Every status is present, zero included, so the UI renders a stable set of bars
         instead of one that appears and disappears with the data.

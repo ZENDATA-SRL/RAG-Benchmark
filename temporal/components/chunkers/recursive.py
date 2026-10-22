@@ -59,7 +59,7 @@ class RecursiveChunker:
                     text=chunk,
                     modality="text",
                     metadata={"page": first_page, "page_span": [first_page, last_page]},
-                    # The parser already emits the RT-M01 canonical form, so the chunk text
+                    # The parser already emits the canonical normalised form, so the chunk text
                     # is its own normalised form; kept explicit for the lexical matcher.
                     text_normalized=chunk,
                 )

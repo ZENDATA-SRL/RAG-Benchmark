@@ -99,7 +99,7 @@ async def get_parsing_profile(
 async def create_chunking_profile(
     payload: ChunkingProfileCreate, session: SessionDep
 ) -> ChunkingProfileCreated:
-    """Create a chunking profile, or return the identical one that already exists (RF-P07)."""
+    """Create a chunking profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_chunking_profile(
         name=payload.name,
         component_version_id=payload.component_version_id,

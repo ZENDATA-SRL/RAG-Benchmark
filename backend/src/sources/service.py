@@ -41,8 +41,8 @@ class UploadImportService:
     A manual upload is a degenerate import: the file is already in the request body, so
     there is nothing to enumerate and nothing to resume. It therefore runs synchronously
     and never reaches Temporal, which is reserved for long, restartable work with remote
-    enumeration. The run is still recorded, because the per-file summary (RF-S07) and the
-    provenance (RF-S05) are the same for every source and the UI reads one shape only.
+    enumeration. The run is still recorded, because the per-file summary and the
+    provenance are the same for every source and the UI reads one shape only.
     """
 
     def __init__(self, session: AsyncSession) -> None:

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application configuration read from environment variables / `.env`.
 
-    Credentials live here and never in the database (RT-S01): the storage keys and the
+    Credentials live here and never in the database: the storage keys and the
     connection strings are read from the environment at startup.
     """
 

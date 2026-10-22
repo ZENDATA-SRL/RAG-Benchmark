@@ -97,7 +97,7 @@ class ArtefactService:
     async def complete_parsing_result(
         self, parsing_result: ParsingResult, *, output_uri: str, output_text: str
     ) -> ParsingResult:
-        """Mark a parse as `ready` with the storage reference of its output (RT-O02)."""
+        """Mark a parse as `ready` with the storage reference of its output."""
         parsing_result.output_uri = output_uri
         parsing_result.output_text = output_text
         parsing_result.status = ArtifactStatus.READY
@@ -197,7 +197,7 @@ class ArtefactService:
     async def fail_artefact(
         self, artefact: ParsingResult | ChunkResult, *, error: str
     ) -> ParsingResult | ChunkResult:
-        """Mark an artefact as failed without interrupting the rest of the run (RT-O06)."""
+        """Mark an artefact as failed without interrupting the rest of the run."""
         artefact.status = ArtifactStatus.FAILED
         artefact.error = error
         await self.session.flush()
@@ -285,7 +285,7 @@ class ParsePage:
 
 
 class InspectionService:
-    """Reading back what parsing and chunking produced, per document (RF-P08).
+    """Reading back what parsing and chunking produced, per document.
 
     The point of the platform is to make the two stages *visible*: "the chunking looks
     strange" almost always means "the parse looks strange", and without a way to look at each

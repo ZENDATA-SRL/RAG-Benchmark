@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Minimal chunk shape shared by inspection, annotation, and transfer (RT-U03). */
+/** Minimal chunk shape shared by inspection, annotation, and transfer. */
 export type NavigableChunk = {
   id: string;
   ordinal: number;

@@ -59,7 +59,7 @@ class TemporalWorkflowClient(WorkflowClient):
     ) -> StartedWorkflow:
         """Start a workflow, reporting an already-running id as `started=False`.
 
-        Idempotency is delegated to Temporal: the id is deterministic (RT-O01), so the
+        Idempotency is delegated to Temporal: the id is deterministic, so the
         server itself rejects the duplicate and this method turns that rejection into a
         normal outcome.
         """

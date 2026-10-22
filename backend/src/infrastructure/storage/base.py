@@ -66,7 +66,7 @@ def parse_key(parsing_profile_config_hash: str, content_hash: str) -> str:
     Shape: `parses/{parsing_profile_config_hash}/{content_hash}.json`. Grouping by
     profile hash first means the whole output of one parsing configuration is a single
     prefix, so re-parsing with different parameters never overwrites a previous result
-    and both stay inspectable (RT-O02).
+    and both stay inspectable.
 
     Args:
         parsing_profile_config_hash: `parsing_profiles.config_hash`.

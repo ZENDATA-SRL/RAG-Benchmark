@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 async def seed_upload_source(session: AsyncSession) -> ImportSelection:
     """Register the singleton manual-upload connection and its selection, idempotently.
 
-    Provenance is mandatory for every document (RF-S05), so the connection uploads are
+    Provenance is mandatory for every document, so the connection uploads are
     attributed to has to exist before the first upload. Seeding it at startup rather than
     lazily on first use keeps the row stable and visible in the sources listing from boot.
 

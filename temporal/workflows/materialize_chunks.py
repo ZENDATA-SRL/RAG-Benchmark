@@ -23,7 +23,7 @@ _ACTIVITY_TIMEOUT = timedelta(minutes=2)
 _CHILD_TIMEOUT = timedelta(hours=1)
 _RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 
-# continue_as_new before the history grows unwieldy (RT-O05). Conservative on purpose: a
+# continue_as_new before the history grows unwieldy. Conservative on purpose: a
 # child completion adds several events, so a slice of 500 keeps a single run's history well
 # within Temporal's limits while rarely triggering for real corpora.
 _CONTINUE_AFTER = 500

@@ -22,10 +22,10 @@ from src.infrastructure.database.enums import ARTIFACT_STATUS, ArtifactStatus
 class ParsingResult(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Output of a parser on a **single** document; cache key: document + parsing profile.
 
-    `output_uri` is nullable, unlike the table in `DATA_MODEL.md`: the row is inserted
+    `output_uri` is nullable, unlike what the data model would suggest: the row is inserted
     when the artefact is claimed (`pending`) so that the cache key acts as the lock, and
     the storage reference only exists once the parse succeeded. The CHECK constraint
-    keeps the doc's guarantee where it matters, i.e. a `ready` parse always has an output.
+    keeps the guarantee where it matters, i.e. a `ready` parse always has an output.
     """
 
     __tablename__ = "parsing_results"

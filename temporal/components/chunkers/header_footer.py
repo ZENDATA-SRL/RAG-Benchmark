@@ -15,10 +15,10 @@ _PAGE_NUMBER = re.compile(
 def strip_headers_footers(
     parse_output: ParseOutput, *, repetition_threshold: float = 0.6
 ) -> ParseOutput:
-    """Drop repeated page furniture before splitting (RF-P03).
+    """Drop repeated page furniture before splitting.
 
     The heuristic is deliberately **document-local**, as `capabilities.scope = document`
-    requires: a corpus-scoped filter would violate RF-P10. A line is furniture when it sits
+    requires: a corpus-scoped filter would break the per-document scope. A line is furniture when it sits
     in the first or last position of a page and either looks like page numbering or repeats
     identically across at least `repetition_threshold` of the multi-page document.
 

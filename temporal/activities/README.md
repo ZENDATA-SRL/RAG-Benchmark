@@ -9,7 +9,7 @@ Rules every activity follows:
 - **Idempotent.** The artefact is *claimed* first (`ArtefactService.claim_*`): a `ready`
   result is returned as is, so a retry or a re-run does no work twice.
 - **Small payloads.** Inputs and outputs are ids, offsets and URIs. Parse output and
-  embeddings are written to object storage (RT-O02); the codec rejects anything over 128 KB.
+  embeddings are written to object storage; the codec rejects anything over 128 KB.
   Lists that grow with the corpus (snapshot documents, chunk texts) are read by the
   activity that needs them, a page at a time, never passed in.
 - **Blocking code off the event loop.** Parsers, chunkers and embedders run through

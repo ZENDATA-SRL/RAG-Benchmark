@@ -111,7 +111,7 @@ class DeduplicatedRead(BaseModel):
     """Base for responses that must confess a get-or-create.
 
     `created` is not decoration: the profile tables deduplicate on the hash of the
-    behaviour and exclude the name from it (RF-P07), so asking for a profile that already
+    behaviour and exclude the name from it, so asking for a profile that already
     exists under another name returns the original row. Saying so is the only way the user
     can understand why the name they typed is not the one they got back.
     """

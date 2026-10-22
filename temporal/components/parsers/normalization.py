@@ -17,7 +17,7 @@ _LIGATURES = {
 }
 
 # Curly quotes, primes and dashes to their ascii equivalents, so the same word typed with
-# a smart-quote apostrophe and a plain one match during lexical retrieval (Milestone 6).
+# a smart-quote apostrophe and a plain one match during lexical retrieval.
 _PUNCTUATION = {
     "\u2018": "'",
     "\u2019": "'",
@@ -48,7 +48,7 @@ _BLANK_LINES = re.compile(r"\n{3,}")
 
 
 def normalize_text(text: str) -> str:
-    """Normalise extracted page text to the one canonical form used downstream (RT-M01).
+    """Normalise extracted page text to the one canonical form used downstream.
 
     De-hyphenates words broken across a line, collapses runs of spaces and tabs, drops the
     soft hyphen, maps typographic punctuation and ligatures to their canonical ascii form,

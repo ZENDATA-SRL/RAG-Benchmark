@@ -56,7 +56,7 @@ async def resolve_index_build(index_build_id: str) -> IndexBuildResolved:
 
 @activity.defn
 async def open_index_build(workflow_id: str, index_build_id: str) -> None:
-    """Mark an index build as running and bind it to the workflow id (RT-O07)."""
+    """Mark an index build as running and bind it to the workflow id."""
     async with activity_session() as session:
         build = await session.get(IndexBuild, uuid.UUID(index_build_id))
         if build is None:

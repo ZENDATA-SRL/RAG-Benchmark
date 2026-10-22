@@ -18,7 +18,7 @@ def worker_data_converter() -> DataConverter:
     """The data converter every client and worker shares.
 
     Defined once in `src.infrastructure.temporal` because the API is a Temporal client too:
-    the payload size limit of RT-O02 must hold on both sides of the queue.
+    the payload size limit must hold on both sides of the queue.
     """
     return data_converter()
 

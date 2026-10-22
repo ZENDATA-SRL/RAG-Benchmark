@@ -49,7 +49,7 @@ class CorpusDocumentRemoved(BaseModel):
     """Result of detaching a document from a corpus.
 
     States explicitly that the snapshots survive, because "remove" is the one word a user
-    could read as "delete the file and everything measured on it" (RF-C05).
+    could read as "delete the file and everything measured on it".
     """
 
     corpus_id: uuid.UUID
@@ -62,7 +62,7 @@ class CorpusDocumentRemoved(BaseModel):
 
 
 class CorpusProgress(BaseModel):
-    """Acquisition progress of a corpus, one count per document status (RF-C04)."""
+    """Acquisition progress of a corpus, one count per document status."""
 
     corpus_id: uuid.UUID
     total: int

@@ -94,7 +94,7 @@ Other consoles and services: MinIO on [`localhost:9001`](http://localhost:9001),
 from it and the application reads it through `Settings`, so the credentials cannot drift
 apart. Copy it from `.env.example`, which documents every variable (database, object
 storage, Temporal, ChromaDB, Qdrant, AWS profile for the worker, upload limits, CORS) and
-contains no real secret. The aim is that credentials never live in the database (RT-S01);
+contains no real secret. The aim is that credentials never live in the database;
 the one known exception, embedder keys typed into profile params, is listed in the Temporal
 README.
 

@@ -11,7 +11,7 @@ from src.infrastructure.database.enums import ArtifactStatus
 class MaterializationCreate(BaseModel):
     """Payload launching a materialisation.
 
-    Either an explicit document list — the preview on a few files (RF-P08) — or a corpus,
+    Either an explicit document list — the preview on a few files — or a corpus,
     whose documents are resolved server-side. The same endpoint and the same workflow serve
     both, so a preview is exactly what the full run will do.
     """
@@ -41,7 +41,7 @@ class DocumentFailureRead(BaseModel):
 class MaterializationRead(BaseModel):
     """A materialisation run as exposed by the API.
 
-    Denormalised on purpose (RT-O07): the UI polls this every couple of seconds and must not
+    Denormalised on purpose: the UI polls this every couple of seconds and must not
     make Temporal answer each refresh. The authoritative state stays in Temporal.
     """
 
@@ -71,7 +71,7 @@ class MaterializationAccepted(MaterializationRead):
 
     `started` is false when the deterministic workflow id was already running: two identical
     launches produce one workflow and two `202`s with the same `id`, because a double click is
-    not a user error (RT-O01).
+    not a user error.
     """
 
     started: bool

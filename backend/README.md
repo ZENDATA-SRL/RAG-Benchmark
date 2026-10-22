@@ -36,7 +36,7 @@ was `created` or reused.
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
 | `infrastructure/database/` | Declarative `Base` + mixins (UUID pk, `created_at`, `updated_at`), PostgreSQL enums, async session |
 | `infrastructure/storage/` | `ObjectStorage` protocol, S3/MinIO implementation, key helpers (`document_key`, `parse_key`) |
-| `infrastructure/temporal/` | `WorkflowClient` protocol (`start`, `cancel`) and its Temporal implementation, `SizeGuardCodec` (payloads over 128 KB are rejected, RT-O02), and `workflow_ids.py` (workflow names, task queues, deterministic ids) |
+| `infrastructure/temporal/` | `WorkflowClient` protocol (`start`, `cancel`) and its Temporal implementation, `SizeGuardCodec` (payloads over 128 KB are rejected), and `workflow_ids.py` (workflow names, task queues, deterministic ids) |
 | `components/` | Registry of pluggable components, see below |
 | `documents/` | Upload, content-hash deduplication, provenance, metadata, content download |
 | `corpora/` | Corpora, their documents, progress, and immutable snapshots |

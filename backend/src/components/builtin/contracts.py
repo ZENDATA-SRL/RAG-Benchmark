@@ -14,7 +14,7 @@ class ParseOutput(TypedDict):
     """What a parser returns, and what gets written to object storage as JSON.
 
     Kept to `pages` + a free-form `metadata` on purpose: it must be JSON-serialisable
-    because the artefact lives on object storage and not in the database (RT-O02), and it
+    because the artefact lives on object storage and not in the database, and it
     must survive a re-parse with a different component. A richer parser (Azure DI,
     Docling) adds keys inside `metadata` or extra keys per page without breaking a chunker
     that only reads `pages[].text`.

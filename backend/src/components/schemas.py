@@ -39,7 +39,7 @@ class ComponentRead(BaseModel):
 
 
 class ComponentWithVersionsRead(ComponentRead):
-    """A component together with its versions, so the UI builds its forms in one call (RT-U01)."""
+    """A component together with its versions, so the UI builds its forms in one call."""
 
     versions: list[ComponentVersionRead] = Field(default_factory=list)
 

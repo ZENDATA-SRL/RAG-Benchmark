@@ -104,7 +104,7 @@ services:
     ports:
       - "8080:8080"
 
-  # The durable-execution worker (Sprint 3): parses PDFs and chunks documents off the HTTP
+  # The durable-execution worker: parses PDFs and chunks documents off the HTTP
   # path. Opt-in like `postgres`, because in development the worker is usually run from a
   # local checkout for fast iteration:
   #   docker compose --profile worker up -d --build worker
@@ -148,7 +148,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Sprint 5: Vite dev server. The browser talks only to this origin; the container
+  # Vite dev server. The browser talks only to this origin; the container
   # proxies /api and /health to the API on the host (uvicorn is not containerised).
   frontend:
     build:
