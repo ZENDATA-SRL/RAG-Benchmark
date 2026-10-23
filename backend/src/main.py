@@ -25,6 +25,7 @@ from src.infrastructure.database.session import dispose_engine, session_factory
 from src.infrastructure.temporal import reset_workflow_client
 from src.materializations.router import router as materializations_router
 from src.pipelines.router import router as pipelines_router
+from src.retrieval.router import router as retrieval_router
 from src.settings import get_settings
 from src.sources.seed import seed_upload_source
 
@@ -106,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(artifacts_router, prefix=API_PREFIX)
     app.include_router(materializations_router, prefix=API_PREFIX)
     app.include_router(indexes_router, prefix=API_PREFIX)
+    app.include_router(retrieval_router, prefix=API_PREFIX)
 
     return app
 
