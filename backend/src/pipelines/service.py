@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.components.models import ComponentVersion
 from src.components.service import ComponentService
-from src.core.get_or_create import get_or_create, get_or_create_reporting
+from src.core.get_or_create import get_or_create_reporting
 from src.core.hashing import combined_config_hash, config_hash, hash_json
+from src.infrastructure.database.enums import RetrievalStrategy
+from src.pipelines.constants import SUPPORTED_RETRIEVAL_STRATEGIES
 from src.pipelines.exceptions import (
     ChunkingConfigurationNotFoundError,
     ProfileNotFoundError,
     UnsupportedChunkerScopeError,
+    UnsupportedRetrievalFeatureError,
 )
 from src.pipelines.models import (
     ChunkingConfiguration,
@@ -247,31 +250,42 @@ class ProfileService:
         ), await repository.count()
 
     async def get_or_create_retrieval_profile(
-        self, *, name: str, top_k: int, strategy: str, **options: Any
-    ) -> RetrievalProfile:
+        self,
+        *,
+        name: str,
+        top_k: int,
+        strategy: RetrievalStrategy = RetrievalStrategy.DENSE,
+        score_threshold: float | None = None,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> tuple[RetrievalProfile, bool]:
         """Return the retrieval profile for a retrieval configuration.
 
-        Unlike the other profiles this one has no component version of its own: the
-        reranker is the only component it may reference, and it is part of `options` as
-        `reranker_version_id`.
+        Unlike the other profiles this one has no component version of its own, so the
+        hash covers its columns directly.
 
         Args:
             name: Readable label, excluded from the hash.
             top_k: Number of results returned.
-            strategy: dense / sparse / hybrid / multi_vector.
-            **options: Any other column of `retrieval_profiles`, e.g. `pre_rerank_k`,
-                `fusion_weights`, `mmr`, `score_threshold`, `metadata_filters`,
-                `query_transforms`, `reranker_version_id`, `context_policy`.
+            strategy: Only `dense` is executable today.
+            score_threshold: Hits scoring below it are dropped.
+            metadata_filters: Pairs a document's metadata must contain to be searched.
 
         Returns:
-            The existing profile with this configuration, or the newly created one.
+            The profile and whether this call created it.
+
+        Raises:
+            UnsupportedRetrievalFeatureError: If the strategy is not executable yet.
         """
-        columns: dict[str, Any] = {"top_k": top_k, "strategy": strategy, **options}
-        hashed = {
-            key: str(value) if isinstance(value, uuid.UUID) else value
-            for key, value in columns.items()
+        strategy = RetrievalStrategy(strategy)
+        if strategy not in SUPPORTED_RETRIEVAL_STRATEGIES:
+            raise UnsupportedRetrievalFeatureError("strategy", strategy.value)
+        columns: dict[str, Any] = {
+            "top_k": top_k,
+            "strategy": strategy,
+            "score_threshold": score_threshold,
+            "metadata_filters": metadata_filters,
         }
-        digest = hash_json(hashed)
+        digest = hash_json({**columns, "strategy": strategy.value})
         repository = ProfileRepository(self.session, RetrievalProfile)
 
         async def create() -> RetrievalProfile:
@@ -281,11 +295,33 @@ class ProfileService:
             await self.session.flush()
             return profile
 
-        return await get_or_create(
+        return await get_or_create_reporting(
             self.session,
             lookup=lambda: repository.get_by_config_hash(digest),
             create=create,
         )
+
+    async def get_retrieval_profile(self, profile_id: uuid.UUID) -> RetrievalProfile:
+        """Return a retrieval profile by id.
+
+        Raises:
+            ProfileNotFoundError: If it does not exist.
+        """
+        profile = await ProfileRepository(self.session, RetrievalProfile).get_by_id(
+            profile_id
+        )
+        if profile is None:
+            raise ProfileNotFoundError("retrieval", profile_id)
+        return profile
+
+    async def list_retrieval_profiles(
+        self, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[RetrievalProfile], int]:
+        """One page of retrieval profiles and the size of the whole set."""
+        repository = ProfileRepository(self.session, RetrievalProfile)
+        return await repository.list(
+            limit=limit, offset=offset
+        ), await repository.count()
 
     async def _get_or_create(
         self,

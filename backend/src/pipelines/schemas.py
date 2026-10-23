@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.infrastructure.database.enums import RetrievalStrategy
+
 # --------------------------------------------------------------------------------------
 # Profiles
 # --------------------------------------------------------------------------------------
@@ -66,6 +68,20 @@ class VectorStoreProfileRead(BaseModel):
     created_at: dt.datetime
 
 
+class RetrievalProfileRead(BaseModel):
+    """A retrieval profile as exposed by the API: the fields the engine applies today."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    top_k: int
+    strategy: RetrievalStrategy
+    score_threshold: float | None = None
+    metadata_filters: dict[str, Any] | None = None
+    config_hash: str
+    created_at: dt.datetime
+
+
 class ParsingProfileCreate(BaseModel):
     """Payload creating a parsing profile."""
 
@@ -107,6 +123,21 @@ class VectorStoreProfileCreate(BaseModel):
     index_params: dict[str, Any] = Field(default_factory=dict)
 
 
+class RetrievalProfileCreate(BaseModel):
+    """Payload creating a retrieval profile.
+
+    Only `dense` is executable today; the other strategies are refused with a `422`.
+    `metadata_filters` matches the user metadata of the documents: a document qualifies
+    when its metadata contains every key with the given value.
+    """
+
+    name: str = Field(min_length=1, max_length=200)
+    top_k: int = Field(ge=1, le=200)
+    strategy: RetrievalStrategy = RetrievalStrategy.DENSE
+    score_threshold: float | None = None
+    metadata_filters: dict[str, Any] | None = None
+
+
 class DeduplicatedRead(BaseModel):
     """Base for responses that must confess a get-or-create.
 
@@ -142,6 +173,12 @@ class VectorStoreProfileCreated(DeduplicatedRead):
     """A vector store profile with the outcome of the get-or-create that returned it."""
 
     profile: VectorStoreProfileRead
+
+
+class RetrievalProfileCreated(DeduplicatedRead):
+    """A retrieval profile with the outcome of the get-or-create that returned it."""
+
+    profile: RetrievalProfileRead
 
 
 # --------------------------------------------------------------------------------------

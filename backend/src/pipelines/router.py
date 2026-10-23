@@ -23,6 +23,9 @@ from src.pipelines.schemas import (
     ParsingProfileCreate,
     ParsingProfileCreated,
     ParsingProfileRead,
+    RetrievalProfileCreate,
+    RetrievalProfileCreated,
+    RetrievalProfileRead,
     VectorStoreProfileCreate,
     VectorStoreProfileCreated,
     VectorStoreProfileRead,
@@ -39,6 +42,7 @@ embedding_profiles_router = APIRouter(prefix="/embedding-profiles", tags=["pipel
 vector_store_profiles_router = APIRouter(
     prefix="/vector-store-profiles", tags=["pipelines"]
 )
+retrieval_profiles_router = APIRouter(prefix="/retrieval-profiles", tags=["pipelines"])
 configurations_router = APIRouter(prefix="/chunking-configurations", tags=["pipelines"])
 
 
@@ -238,6 +242,54 @@ async def get_vector_store_profile(
     return VectorStoreProfileRead.model_validate(profile)
 
 
+@retrieval_profiles_router.post(
+    "", response_model=RetrievalProfileCreated, status_code=status.HTTP_201_CREATED
+)
+async def create_retrieval_profile(
+    payload: RetrievalProfileCreate, session: SessionDep
+) -> RetrievalProfileCreated:
+    """Create a retrieval profile, or return the identical one that already exists."""
+    profile, created = await ProfileService(session).get_or_create_retrieval_profile(
+        name=payload.name,
+        top_k=payload.top_k,
+        strategy=payload.strategy,
+        score_threshold=payload.score_threshold,
+        metadata_filters=payload.metadata_filters,
+    )
+    return RetrievalProfileCreated(
+        profile=RetrievalProfileRead.model_validate(profile),
+        created=created,
+        detail=None if created else REUSED_DETAIL,
+    )
+
+
+@retrieval_profiles_router.get("", response_model=Page[RetrievalProfileRead])
+async def list_retrieval_profiles(
+    session: SessionDep,
+    limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+) -> Page[RetrievalProfileRead]:
+    """List the retrieval profiles."""
+    profiles, total = await ProfileService(session).list_retrieval_profiles(
+        limit=limit, offset=offset
+    )
+    return Page[RetrievalProfileRead].build(
+        [RetrievalProfileRead.model_validate(profile) for profile in profiles],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@retrieval_profiles_router.get("/{profile_id}", response_model=RetrievalProfileRead)
+async def get_retrieval_profile(
+    profile_id: uuid.UUID, session: SessionDep
+) -> RetrievalProfileRead:
+    """Return one retrieval profile."""
+    profile = await ProfileService(session).get_retrieval_profile(profile_id)
+    return RetrievalProfileRead.model_validate(profile)
+
+
 # --------------------------------------------------------------------------------------
 # Chunking configurations
 # --------------------------------------------------------------------------------------
@@ -337,4 +389,5 @@ router.include_router(parsing_profiles_router)
 router.include_router(chunking_profiles_router)
 router.include_router(embedding_profiles_router)
 router.include_router(vector_store_profiles_router)
+router.include_router(retrieval_profiles_router)
 router.include_router(configurations_router)

@@ -45,6 +45,21 @@ class UnsupportedChunkerScopeError(UnsupportedOperationError, PipelineError):
         self.scope = scope
 
 
+class UnsupportedRetrievalFeatureError(UnsupportedOperationError, PipelineError):
+    """Raised when a retrieval profile asks for something the engine does not apply yet."""
+
+    code = "unsupported_retrieval_feature"
+
+    def __init__(self, field: str, value: object) -> None:
+        super().__init__(
+            f"retrieval {field} not available yet: {value!r}; only dense retrieval "
+            "is supported",
+            details={"field": field, "value": str(value)},
+        )
+        self.field = field
+        self.value = value
+
+
 class ChunkingConfigurationNotFoundError(NotFoundError, PipelineError):
     """Raised when a referenced chunking configuration does not exist."""
 
