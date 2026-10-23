@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+from collections.abc import Sequence
 from typing import IO, Any, Protocol, TypedDict, runtime_checkable
 
 
@@ -62,4 +64,43 @@ class Chunker(Protocol):
         self, parse_output: ParseOutput, params: dict[str, Any]
     ) -> list[ChunkPayload]:
         """Split a parse output into chunks, honouring the profile parameters."""
+        ...
+
+
+@dataclasses.dataclass(frozen=True)
+class VectorHit:
+    """One vector returned by a vector store query, before it is enriched from the database.
+
+    `score` is already normalised so that higher means closer, whatever the distance of
+    the collection: callers compare and threshold scores without knowing whether the
+    index uses cosine, inner product or Euclidean distance.
+    """
+
+    id: str
+    score: float
+    document_id: str | None
+    text: str | None
+
+
+@runtime_checkable
+class VectorStoreReader(Protocol):
+    """The read side of a vector store: nearest neighbours of a query vector.
+
+    Separate from the write side because they run in different processes: the worker
+    writes collections while building an index, the API reads them to answer a query.
+    """
+
+    def query(
+        self,
+        collection: str,
+        vector: Sequence[float],
+        *,
+        top_k: int,
+        document_ids: Sequence[str] | None = None,
+    ) -> list[VectorHit]:
+        """Return the `top_k` closest vectors, best first.
+
+        `document_ids`, when given, restricts the search to vectors of those documents;
+        an empty sequence therefore matches nothing.
+        """
         ...

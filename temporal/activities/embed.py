@@ -10,12 +10,12 @@ from src.indexes.repository import IndexBuildRepository
 from src.infrastructure.storage import ObjectStorage, get_object_storage
 from src.pipelines.exceptions import ProfileNotFoundError
 from src.pipelines.models import EmbeddingProfile
+from src.retrieval.embedders import resolve_embedder
 from src.settings import get_settings
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
 from temporal.activities.reads import load_embedder_component
-from temporal.components.embedders.shared import resolve_embedder
 from temporal.config import activity_session
 
 

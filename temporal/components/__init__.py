@@ -10,9 +10,10 @@ from src.components.builtin import (
     Chunker,
     Parser,
 )
+from src.retrieval.embedders import BUILTIN_EMBEDDERS
+from src.retrieval.readers import BUILTIN_VECTOR_STORE_READERS
 
 from temporal.components.chunkers import markdown, recursive
-from temporal.components.embedders.shared import BUILTIN_EMBEDDERS
 from temporal.components.parsers import plumber, pypdf
 from temporal.components.vector_stores import chroma, qdrant
 
@@ -68,7 +69,8 @@ def assert_registry_complete() -> None:
 
     Called at worker startup. The API can only verify that a key was *declared*; whether it
     is *runnable* is knowable solely here, so this is where the mismatch has to surface —
-    at boot, not on the first activity hours into a run.
+    at boot, not on the first activity hours into a run. A vector store must also have a
+    reader: an index the API cannot query would be built for nothing.
 
     Raises:
         RuntimeError: If a descriptor has no matching implementation.
@@ -80,6 +82,7 @@ def assert_registry_complete() -> None:
             *((d, BUILTIN_CHUNKERS) for d in CHUNKER_DESCRIPTORS),
             *((d, BUILTIN_EMBEDDERS) for d in EMBEDDER_DESCRIPTORS),
             *((d, BUILTIN_VECTOR_STORES) for d in VECTOR_STORE_DESCRIPTORS),
+            *((d, BUILTIN_VECTOR_STORE_READERS) for d in VECTOR_STORE_DESCRIPTORS),
         )
         if descriptor.key not in registry
     ]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from collections.abc import Callable
 
@@ -23,7 +25,7 @@ def _bedrock(params: dict) -> Embeddings:
 
     # Explicit credentials are optional: when omitted, boto3 falls back to its
     # default chain (AWS_* env vars, the `AWS_PROFILE` of a mounted ~/.aws, then the
-    # worker's service role). The region likewise: without a param or AWS_REGION, the
+    # process's service role). The region likewise: without a param or AWS_REGION, the
     # profile's own region applies, so it is not forced here.
     credentials = {
         name: params[name]
@@ -42,7 +44,9 @@ def _bedrock(params: dict) -> Embeddings:
 
 
 # Factories and not instances: an embedder is bound to the params of one profile, so it
-# can only be built when the profile is known.
+# can only be built when the profile is known. One map for the worker, which embeds the
+# chunks, and the API, which embeds the queries: a query embedded by different code than
+# its index would be compared against vectors it is not commensurable with.
 BUILTIN_EMBEDDERS: dict[str, Callable[[dict], Embeddings]] = {
     "openai": _openai,
     "bedrock": _bedrock,

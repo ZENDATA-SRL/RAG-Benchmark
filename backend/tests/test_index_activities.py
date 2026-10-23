@@ -14,12 +14,12 @@ from src.corpora.service import CorpusSnapshotService
 from src.indexes.service import IndexBuildService
 from src.infrastructure.database.enums import ComponentType
 from src.pipelines.service import ProfileService
+from src.retrieval.embedders import BUILTIN_EMBEDDERS
 from temporalio.exceptions import ApplicationError
 from tests.pipeline_factory import Scenario, build_scenario
 
 from temporal.activities import embed, vector_store
 from temporal.components import BUILTIN_VECTOR_STORES
-from temporal.components.embedders.shared import BUILTIN_EMBEDDERS
 from temporal.components.vector_stores.chroma import ChromaVectorStore
 
 pytestmark = pytest.mark.integration

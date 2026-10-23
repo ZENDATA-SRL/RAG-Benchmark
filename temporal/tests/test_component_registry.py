@@ -10,6 +10,8 @@ from src.components.builtin import (
     Chunker,
     Parser,
 )
+from src.retrieval.embedders import BUILTIN_EMBEDDERS, resolve_embedder
+from src.retrieval.readers import BUILTIN_VECTOR_STORE_READERS
 
 from temporal.components import (
     BUILTIN_CHUNKERS,
@@ -19,7 +21,6 @@ from temporal.components import (
     resolve_chunker,
     resolve_parser,
 )
-from temporal.components.embedders.shared import BUILTIN_EMBEDDERS, resolve_embedder
 
 
 def test_every_declared_builtin_has_an_implementation() -> None:
@@ -43,6 +44,7 @@ def test_no_implementation_without_a_descriptor() -> None:
     assert set(BUILTIN_CHUNKERS) == declared_chunkers
     assert set(BUILTIN_EMBEDDERS) == declared_embedders
     assert set(BUILTIN_VECTOR_STORES) == declared_vector_stores
+    assert set(BUILTIN_VECTOR_STORE_READERS) == declared_vector_stores
 
 
 def test_implementations_satisfy_their_protocols() -> None:
@@ -83,6 +85,14 @@ def test_missing_embedder_fails_the_startup_check(monkeypatch) -> None:
 
 def test_missing_vector_store_fails_the_startup_check(monkeypatch) -> None:
     monkeypatch.delitem(BUILTIN_VECTOR_STORES, VECTOR_STORE_DESCRIPTORS[0].key)
+
+    with pytest.raises(RuntimeError, match=VECTOR_STORE_DESCRIPTORS[0].key):
+        assert_registry_complete()
+
+
+def test_missing_vector_store_reader_fails_the_startup_check(monkeypatch) -> None:
+    """A vector store the worker can write but the API cannot query must stop the boot."""
+    monkeypatch.delitem(BUILTIN_VECTOR_STORE_READERS, VECTOR_STORE_DESCRIPTORS[0].key)
 
     with pytest.raises(RuntimeError, match=VECTOR_STORE_DESCRIPTORS[0].key):
         assert_registry_complete()

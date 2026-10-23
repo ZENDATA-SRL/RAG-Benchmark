@@ -3,13 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from src.retrieval.distances import QDRANT_DISTANCES, profile_space
+
 if TYPE_CHECKING:
     from qdrant_client import QdrantClient
 
 KEY = "qdrant"
-
-# The profile's `space` values, shared with the other vector stores, mapped to Qdrant's.
-_DISTANCES = {"cosine": "Cosine", "l2": "Euclid", "ip": "Dot"}
 
 
 class QdrantVectorStore:
@@ -44,7 +43,7 @@ class QdrantVectorStore:
         if not ids:
             return
         if not self.client.collection_exists(name):
-            distance = _DISTANCES[index_params.get("space", "cosine")]
+            distance = QDRANT_DISTANCES[profile_space(index_params)]
             hnsw = {
                 argument: index_params[key]
                 for key, argument in (

@@ -10,6 +10,8 @@ from src.components.builtin.contracts import (
     ParseOutput,
     ParsePage,
     Parser,
+    VectorHit,
+    VectorStoreReader,
 )
 from src.components.builtin.embedder import bedrock_embedder, openai_embedder
 from src.components.builtin.parsers import pdfplumber, pypdf
@@ -142,4 +144,6 @@ __all__ = [
     "ParseOutput",
     "ParsePage",
     "Parser",
+    "VectorHit",
+    "VectorStoreReader",
 ]

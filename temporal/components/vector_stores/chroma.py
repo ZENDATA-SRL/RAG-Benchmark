@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from src.retrieval.distances import profile_space
+
 if TYPE_CHECKING:
     from chromadb.api import ClientAPI
 
@@ -32,12 +34,15 @@ class ChromaVectorStore:
         """Create the collection with the profile's HNSW configuration, or reuse it.
 
         The configuration is only applied at creation: re-running a build reuses the
-        collection as it is, which is safe because the upsert is keyed by chunk id.
+        collection as it is, which is safe because the upsert is keyed by chunk id. The
+        space is always set, so a profile without one gets the shared default and not
+        Chroma's own.
         """
         hnsw = {key: index_params[key] for key in _HNSW_KEYS if key in index_params}
+        hnsw["space"] = profile_space(index_params)
         self.client.get_or_create_collection(
             name=name,
-            configuration={"hnsw": hnsw} if hnsw else None,
+            configuration={"hnsw": hnsw},
             # Vectors are computed by the embedding profile, never by Chroma.
             embedding_function=None,
         )
