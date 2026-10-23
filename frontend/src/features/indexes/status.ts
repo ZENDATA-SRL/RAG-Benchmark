@@ -16,3 +16,8 @@ export function canStart(build: Pick<IndexBuildRead, "status">): boolean {
 export function hasRunningBuild(builds: Pick<IndexBuildRead, "status">[]): boolean {
   return builds.some((build) => build.status === "running");
 }
+
+/** Only a finished build is queried: a partial one would answer by when it was asked. */
+export function canQuery(build: Pick<IndexBuildRead, "status">): boolean {
+  return build.status === "ready";
+}

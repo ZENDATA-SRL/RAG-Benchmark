@@ -539,7 +539,7 @@
           "corpora"
         ],
         "summary": "Delete Corpus",
-        "description": "Delete a corpus, refusing if snapshots were already frozen from it (RF-C05).",
+        "description": "Delete a corpus, refusing if snapshots were already frozen from it.",
         "operationId": "delete_corpus_api_v1_corpora__corpus_id__delete",
         "parameters": [
           {
@@ -765,7 +765,7 @@
           "corpora"
         ],
         "summary": "Get Corpus Progress",
-        "description": "Return the acquisition progress of a corpus, per document status (RF-C04).",
+        "description": "Return the acquisition progress of a corpus, per document status.",
         "operationId": "get_corpus_progress_api_v1_corpora__corpus_id__progress_get",
         "parameters": [
           {
@@ -1306,7 +1306,7 @@
           "documents"
         ],
         "summary": "Set Document Metadata",
-        "description": "Replace the metadata of a document, which becomes a retrieval filter (RF-C02).",
+        "description": "Replace the metadata of a document, which becomes a retrieval filter.",
         "operationId": "set_document_metadata_api_v1_documents__document_id__metadata_patch",
         "parameters": [
           {
@@ -1360,7 +1360,7 @@
           "documents"
         ],
         "summary": "Download Document",
-        "description": "Stream the original bytes of a document, for the native preview of the UI (RT-U04).",
+        "description": "Stream the original bytes of a document, for the native preview of the UI.",
         "operationId": "download_document_api_v1_documents__document_id__content_get",
         "parameters": [
           {
@@ -1543,7 +1543,7 @@
           "pipelines"
         ],
         "summary": "Create Chunking Profile",
-        "description": "Create a chunking profile, or return the identical one that already exists (RF-P07).",
+        "description": "Create a chunking profile, or return the identical one that already exists.",
         "operationId": "create_chunking_profile_api_v1_chunking_profiles_post",
         "requestBody": {
           "required": true,
@@ -1960,6 +1960,147 @@
         }
       }
     },
+    "/api/v1/retrieval-profiles": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Create Retrieval Profile",
+        "description": "Create a retrieval profile, or return the identical one that already exists.",
+        "operationId": "create_retrieval_profile_api_v1_retrieval_profiles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievalProfileCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalProfileCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "List Retrieval Profiles",
+        "description": "List the retrieval profiles.",
+        "operationId": "list_retrieval_profiles_api_v1_retrieval_profiles_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RetrievalProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/retrieval-profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get Retrieval Profile",
+        "description": "Return one retrieval profile.",
+        "operationId": "get_retrieval_profile_api_v1_retrieval_profiles__profile_id__get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalProfileRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chunking-configurations": {
       "post": {
         "tags": [
@@ -2203,7 +2344,7 @@
           "inspection"
         ],
         "summary": "List Document Chunks",
-        "description": "List the chunks of a document under a configuration, in `ordinal` order (RF-P08).",
+        "description": "List the chunks of a document under a configuration, in `ordinal` order.",
         "operationId": "list_document_chunks_api_v1_documents__document_id__chunks_get",
         "parameters": [
           {
@@ -2653,7 +2794,7 @@
           "materializations"
         ],
         "summary": "Get Materialization",
-        "description": "Return the progress of a run; polled every couple of seconds by the UI (RT-U05).\n\nServed entirely from the denormalised row, so following a run never depends on Temporal\nbeing reachable.",
+        "description": "Return the progress of a run; polled every couple of seconds by the UI.\n\nServed entirely from the denormalised row, so following a run never depends on Temporal\nbeing reachable.",
         "operationId": "get_materialization_api_v1_materializations__run_id__get",
         "parameters": [
           {
@@ -2936,6 +3077,48 @@
           }
         }
       }
+    },
+    "/api/v1/retrieve": {
+      "post": {
+        "tags": [
+          "retrieval"
+        ],
+        "summary": "Retrieve",
+        "description": "Search a ready index build: the retrieval tool exposed to answer systems.",
+        "operationId": "retrieve_api_v1_retrieve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrieveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3095,7 +3278,7 @@
           "modality"
         ],
         "title": "ChunkRead",
-        "description": "A chunk as exposed by the API.\n\n`metadata` carries the page the chunk came from, which is what lets the UI show *where*\nin the document a chunk lives (RT-U04)."
+        "description": "A chunk as exposed by the API.\n\n`metadata` carries the page the chunk came from, which is what lets the UI show *where*\nin the document a chunk lives."
       },
       "ChunkResultRead": {
         "properties": {
@@ -3848,7 +4031,7 @@
           "created_at"
         ],
         "title": "ComponentWithVersionsRead",
-        "description": "A component together with its versions, so the UI builds its forms in one call (RT-U01)."
+        "description": "A component together with its versions, so the UI builds its forms in one call."
       },
       "CorpusCreate": {
         "properties": {
@@ -3907,7 +4090,7 @@
           "document_id"
         ],
         "title": "CorpusDocumentRemoved",
-        "description": "Result of detaching a document from a corpus.\n\nStates explicitly that the snapshots survive, because \"remove\" is the one word a user\ncould read as \"delete the file and everything measured on it\" (RF-C05)."
+        "description": "Result of detaching a document from a corpus.\n\nStates explicitly that the snapshots survive, because \"remove\" is the one word a user\ncould read as \"delete the file and everything measured on it\"."
       },
       "CorpusDocumentsAdd": {
         "properties": {
@@ -3973,7 +4156,7 @@
           "total"
         ],
         "title": "CorpusProgress",
-        "description": "Acquisition progress of a corpus, one count per document status (RF-C04)."
+        "description": "Acquisition progress of a corpus, one count per document status."
       },
       "CorpusRead": {
         "properties": {
@@ -4236,7 +4419,7 @@
         },
         "type": "object",
         "title": "DocumentMetadataUpdate",
-        "description": "Payload replacing the metadata of a document (RF-C02).\n\nThe shape is free because the keys become retrieval filters and are not known to the\nplatform; it is a filter surface and not a notes field."
+        "description": "Payload replacing the metadata of a document.\n\nThe shape is free because the keys become retrieval filters and are not known to the\nplatform; it is a filter surface and not a notes field."
       },
       "DocumentParseRead": {
         "properties": {
@@ -4344,7 +4527,7 @@
           "created_at"
         ],
         "title": "DocumentProvenanceRead",
-        "description": "Where one copy of a document came from (RT-U06)."
+        "description": "Where one copy of a document came from."
       },
       "DocumentRead": {
         "properties": {
@@ -4494,7 +4677,7 @@
           "created_at"
         ],
         "title": "DocumentWithProvenancesRead",
-        "description": "A document together with its origins, so the UI resolves the original (RT-U06)."
+        "description": "A document together with its origins, so the UI resolves the original."
       },
       "EmbeddingProfileCreate": {
         "properties": {
@@ -5091,7 +5274,7 @@
           "started"
         ],
         "title": "MaterializationAccepted",
-        "description": "A launched run, stating whether this request is what started it.\n\n`started` is false when the deterministic workflow id was already running: two identical\nlaunches produce one workflow and two `202`s with the same `id`, because a double click is\nnot a user error (RT-O01)."
+        "description": "A launched run, stating whether this request is what started it.\n\n`started` is false when the deterministic workflow id was already running: two identical\nlaunches produce one workflow and two `202`s with the same `id`, because a double click is\nnot a user error."
       },
       "MaterializationCreate": {
         "properties": {
@@ -5147,7 +5330,7 @@
           "chunking_configuration_id"
         ],
         "title": "MaterializationCreate",
-        "description": "Payload launching a materialisation.\n\nEither an explicit document list \u2014 the preview on a few files (RF-P08) \u2014 or a corpus,\nwhose documents are resolved server-side. The same endpoint and the same workflow serve\nboth, so a preview is exactly what the full run will do."
+        "description": "Payload launching a materialisation.\n\nEither an explicit document list \u2014 the preview on a few files \u2014 or a corpus,\nwhose documents are resolved server-side. The same endpoint and the same workflow serve\nboth, so a preview is exactly what the full run will do."
       },
       "MaterializationDetail": {
         "properties": {
@@ -5363,7 +5546,7 @@
           "created_at"
         ],
         "title": "MaterializationRead",
-        "description": "A materialisation run as exposed by the API.\n\nDenormalised on purpose (RT-O07): the UI polls this every couple of seconds and must not\nmake Temporal answer each refresh. The authoritative state stays in Temporal."
+        "description": "A materialisation run as exposed by the API.\n\nDenormalised on purpose: the UI polls this every couple of seconds and must not\nmake Temporal answer each refresh. The authoritative state stays in Temporal."
       },
       "Page_ChunkingConfigurationExpanded_": {
         "properties": {
@@ -5635,6 +5818,36 @@
         ],
         "title": "Page[ParsingProfileRead]"
       },
+      "Page_RetrievalProfileRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalProfileRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[RetrievalProfileRead]"
+      },
       "Page_VectorStoreProfileRead_": {
         "properties": {
           "items": {
@@ -5782,6 +5995,355 @@
         "title": "ParsingProfileRead",
         "description": "A parsing profile as exposed by the API."
       },
+      "RetrievalProfileCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Top K"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/RetrievalStrategy",
+            "default": "dense"
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "top_k"
+        ],
+        "title": "RetrievalProfileCreate",
+        "description": "Payload creating a retrieval profile.\n\nOnly `dense` is executable today; the other strategies are refused with a `422`."
+      },
+      "RetrievalProfileCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/RetrievalProfileRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "profile"
+        ],
+        "title": "RetrievalProfileCreated",
+        "description": "A retrieval profile with the outcome of the get-or-create that returned it."
+      },
+      "RetrievalProfileRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/RetrievalStrategy"
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "top_k",
+          "strategy",
+          "config_hash",
+          "created_at"
+        ],
+        "title": "RetrievalProfileRead",
+        "description": "A retrieval profile as exposed by the API: the fields the engine applies today."
+      },
+      "RetrievalStrategy": {
+        "type": "string",
+        "enum": [
+          "dense",
+          "sparse",
+          "hybrid",
+          "multi_vector"
+        ],
+        "title": "RetrievalStrategy",
+        "description": "How the vector store is searched; only `dense` is executable today."
+      },
+      "RetrievalTimingsRead": {
+        "properties": {
+          "embed_ms": {
+            "type": "number",
+            "title": "Embed Ms"
+          },
+          "search_ms": {
+            "type": "number",
+            "title": "Search Ms"
+          },
+          "enrich_ms": {
+            "type": "number",
+            "title": "Enrich Ms"
+          },
+          "total_ms": {
+            "type": "number",
+            "title": "Total Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "embed_ms",
+          "search_ms",
+          "enrich_ms",
+          "total_ms"
+        ],
+        "title": "RetrievalTimingsRead",
+        "description": "Milliseconds spent embedding the query, searching and reading the chunks back."
+      },
+      "RetrieveRequest": {
+        "properties": {
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "execution_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Id",
+            "description": "Experiment execution the call belongs to; absent for a test query."
+          }
+        },
+        "type": "object",
+        "required": [
+          "index_build_id",
+          "retrieval_profile_id",
+          "query"
+        ],
+        "title": "RetrieveRequest",
+        "description": "A query against one index build, under one retrieval profile."
+      },
+      "RetrieveResponse": {
+        "properties": {
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "corpus_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievedHitRead"
+            },
+            "type": "array",
+            "title": "Hits"
+          },
+          "timings": {
+            "$ref": "#/components/schemas/RetrievalTimingsRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index_build_id",
+          "retrieval_profile_id",
+          "corpus_id",
+          "chunking_configuration_id",
+          "hits",
+          "timings"
+        ],
+        "title": "RetrieveResponse",
+        "description": "Hits ranked from 1, best first; scores are higher-is-better on every store.\n\n`corpus_id` and `chunking_configuration_id` are returned so a client can open each hit\nin its document without further lookups."
+      },
+      "RetrievedHitRead": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "score",
+          "stage",
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text"
+        ],
+        "title": "RetrievedHitRead",
+        "description": "One retrieved chunk.\n\n`chunk_id` is null when the vector store returned a vector whose chunk no longer\nexists in the database; `text` then holds what the vector store kept."
+      },
       "RuntimeType": {
         "type": "string",
         "enum": [
@@ -5858,7 +6420,7 @@
           "import_run_id"
         ],
         "title": "UploadResponse",
-        "description": "Summary of an upload request, one entry per submitted file (RF-S07).\n\nReturned with `200` even when some files were rejected: the outcome is per file, and a\nsingle unsupported attachment must not discard the batch (RF-S11)."
+        "description": "Summary of an upload request, one entry per submitted file.\n\nReturned with `200` even when some files were rejected: the outcome is per file, and a\nsingle unsupported attachment must not discard the batch."
       },
       "ValidationError": {
         "properties": {

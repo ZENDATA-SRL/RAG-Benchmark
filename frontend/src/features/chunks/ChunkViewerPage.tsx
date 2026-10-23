@@ -15,7 +15,8 @@ export function ChunkViewerPage() {
   const [params, setParams] = useSearchParams();
   const configurationId = params.get("configuration") ?? "";
   const compareId = params.get("compare") ?? "";
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A link from a retrieval result opens the viewer on that chunk.
+  const [selectedId, setSelectedId] = useState<string | null>(params.get("chunk"));
 
   const configurations = useQuery({
     queryKey: queryKeys.configurations,
@@ -38,7 +39,10 @@ export function ChunkViewerPage() {
   });
 
   const navigable = useMemo(() => (chunks.data?.items ?? []).map(toNavigable), [chunks.data]);
-  const activeId = selectedId && navigable.some((chunk) => chunk.id === selectedId) ? selectedId : (navigable[0]?.id ?? null);
+  const activeId =
+    selectedId && navigable.some((chunk) => chunk.id === selectedId)
+      ? selectedId
+      : (navigable[0]?.id ?? null);
 
   return (
     <div>
@@ -100,7 +104,11 @@ export function ChunkViewerPage() {
         <EmptyState
           title="Chunks are not ready"
           body="Preview this document or materialise the configuration first. Parsing state lives on the configuration, not on the document."
-          action={<Link to={`/corpora/${corpusId}`} className="text-rust underline">Back to corpus</Link>}
+          action={
+            <Link to={`/corpora/${corpusId}`} className="text-rust underline">
+              Back to corpus
+            </Link>
+          }
         />
       ) : null}
 
@@ -116,7 +124,10 @@ export function ChunkViewerPage() {
           {compare.data ? (
             <div className="grid gap-3 lg:grid-cols-2">
               {(compare.data.sides ?? []).map((side) => (
-                <div key={side.chunking_configuration_id} className="h-80 overflow-hidden rounded-xl border border-line">
+                <div
+                  key={side.chunking_configuration_id}
+                  className="h-80 overflow-hidden rounded-xl border border-line"
+                >
                   <p className="border-b border-line px-3 py-2 text-xs text-ink-muted">
                     {items.find((item) => item.id === side.chunking_configuration_id)?.name ??
                       side.chunking_configuration_id}

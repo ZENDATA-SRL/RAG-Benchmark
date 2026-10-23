@@ -13,9 +13,10 @@ import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 import { toast } from "@/lib/toast";
 
+import { QueryPanel } from "../retrieval/QueryPanel";
 import { IndexBuildDialog } from "./IndexBuildDialog";
 import { ProfileDialog, type ProfileKind } from "./ProfileDialog";
-import { buildStatusTone, canStart, hasRunningBuild } from "./status";
+import { buildStatusTone, canQuery, canStart, hasRunningBuild } from "./status";
 
 const POLL_MS = 3000;
 
@@ -96,6 +97,7 @@ export function IndexesPage() {
   const [creating, setCreating] = useState(Boolean(prefillSnapshot));
   const [profileKind, setProfileKind] = useState<ProfileKind | null>(null);
   const [inspecting, setInspecting] = useState<IndexBuildRead | null>(null);
+  const [querying, setQuerying] = useState<IndexBuildRead | null>(null);
 
   const builds = useQuery({
     queryKey: queryKeys.indexBuilds,
@@ -179,7 +181,12 @@ export function IndexesPage() {
                     <Badge tone={buildStatusTone(build.status)}>{build.status}</Badge>
                   </td>
                   <td className="px-4 py-3 text-ink-muted">{formatDate(build.created_at)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {canQuery(build) ? (
+                      <Button variant="ghost" onClick={() => setQuerying(build)}>
+                        Try query
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       disabled={!canStart(build) || start.isPending}
@@ -239,6 +246,7 @@ export function IndexesPage() {
       {inspecting ? (
         <BuildDetailDialog build={inspecting} onClose={() => setInspecting(null)} />
       ) : null}
+      {querying ? <QueryPanel build={querying} onClose={() => setQuerying(null)} /> : null}
     </div>
   );
 }

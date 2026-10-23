@@ -32,6 +32,14 @@ export type VectorStoreProfileRead = components["schemas"]["VectorStoreProfileRe
 export type VectorStoreProfileCreate = components["schemas"]["VectorStoreProfileCreate"];
 export type VectorStoreProfileCreated = components["schemas"]["VectorStoreProfileCreated"];
 
+export type RetrievalProfileRead = components["schemas"]["RetrievalProfileRead"];
+export type RetrievalStrategy = components["schemas"]["RetrievalStrategy"];
+export type RetrievalProfileCreate = components["schemas"]["RetrievalProfileCreate"];
+export type RetrievalProfileCreated = components["schemas"]["RetrievalProfileCreated"];
+export type RetrieveRequest = components["schemas"]["RetrieveRequest"];
+export type RetrieveResponse = components["schemas"]["RetrieveResponse"];
+export type RetrievedHitRead = components["schemas"]["RetrievedHitRead"];
+
 export type IndexBuildRead = components["schemas"]["IndexBuildRead"];
 export type IndexBuildDetail = components["schemas"]["IndexBuildDetail"];
 export type IndexBuildCreate = components["schemas"]["IndexBuildCreate"];
@@ -58,11 +66,7 @@ export type Page<T> = {
   offset: number;
 };
 
-export type FileOutcome =
-  | "imported"
-  | "skipped_duplicate"
-  | "skipped_unsupported"
-  | "failed";
+export type FileOutcome = "imported" | "skipped_duplicate" | "skipped_unsupported" | "failed";
 
 export type DocumentStatus = "pending" | "fetching" | "stored" | "failed";
 export type ArtifactStatus = "pending" | "running" | "ready" | "failed";

@@ -30,6 +30,11 @@ import type {
   MaterializationDetail,
   MaterializationRead,
   Page,
+  RetrievalProfileCreate,
+  RetrievalProfileCreated,
+  RetrievalProfileRead,
+  RetrieveRequest,
+  RetrieveResponse,
   UploadResponse,
   VectorStoreProfileCreate,
   VectorStoreProfileCreated,
@@ -58,7 +63,11 @@ export const snapshotsApi = {
 export const documentsApi = {
   get: (id: string) => api.get<DocumentWithProvenancesRead>(`/api/v1/documents/${id}`),
   upload: (corpusId: string, files: File[], onProgress?: UploadProgressHandler) =>
-    uploadFiles(`/api/v1/corpora/${corpusId}/documents/upload`, files, onProgress) as Promise<UploadResponse>,
+    uploadFiles(
+      `/api/v1/corpora/${corpusId}/documents/upload`,
+      files,
+      onProgress,
+    ) as Promise<UploadResponse>,
 };
 
 export const componentsApi = {
@@ -69,7 +78,8 @@ export const componentsApi = {
 export const configurationsApi = {
   list: () =>
     api.get<Page<ChunkingConfigurationExpanded>>("/api/v1/chunking-configurations", { limit: 200 }),
-  get: (id: string) => api.get<ChunkingConfigurationExpanded>(`/api/v1/chunking-configurations/${id}`),
+  get: (id: string) =>
+    api.get<ChunkingConfigurationExpanded>(`/api/v1/chunking-configurations/${id}`),
   compose: (body: ChunkingConfigurationCompose) =>
     api.post<ChunkingConfigurationComposed>("/api/v1/chunking-configurations/compose", body),
   coverage: (configurationId: string, corpusId: string) =>
@@ -90,6 +100,16 @@ export const vectorStoreProfilesApi = {
     api.get<Page<VectorStoreProfileRead>>("/api/v1/vector-store-profiles", { limit: 200 }),
   create: (body: VectorStoreProfileCreate) =>
     api.post<VectorStoreProfileCreated>("/api/v1/vector-store-profiles", body),
+};
+
+export const retrievalProfilesApi = {
+  list: () => api.get<Page<RetrievalProfileRead>>("/api/v1/retrieval-profiles", { limit: 200 }),
+  create: (body: RetrievalProfileCreate) =>
+    api.post<RetrievalProfileCreated>("/api/v1/retrieval-profiles", body),
+};
+
+export const retrievalApi = {
+  retrieve: (body: RetrieveRequest) => api.post<RetrieveResponse>("/api/v1/retrieve", body),
 };
 
 export const indexBuildsApi = {

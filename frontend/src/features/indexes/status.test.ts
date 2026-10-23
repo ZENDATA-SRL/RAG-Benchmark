@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStatusTone, canStart, hasRunningBuild } from "./status";
+import { buildStatusTone, canQuery, canStart, hasRunningBuild } from "./status";
 
 describe("index build status", () => {
   it("maps each status to a tone", () => {
@@ -15,6 +15,13 @@ describe("index build status", () => {
     expect(canStart({ status: "failed" })).toBe(true);
     expect(canStart({ status: "ready" })).toBe(true);
     expect(canStart({ status: "running" })).toBe(false);
+  });
+
+  it("queries only a ready build", () => {
+    expect(canQuery({ status: "ready" })).toBe(true);
+    expect(canQuery({ status: "running" })).toBe(false);
+    expect(canQuery({ status: "pending" })).toBe(false);
+    expect(canQuery({ status: "failed" })).toBe(false);
   });
 
   it("polls only while a build is running", () => {

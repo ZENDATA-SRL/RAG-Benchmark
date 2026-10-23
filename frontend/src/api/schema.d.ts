@@ -149,7 +149,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Corpus
-         * @description Delete a corpus, refusing if snapshots were already frozen from it (RF-C05).
+         * @description Delete a corpus, refusing if snapshots were already frozen from it.
          */
         delete: operations["delete_corpus_api_v1_corpora__corpus_id__delete"];
         options?: never;
@@ -214,7 +214,7 @@ export interface paths {
         };
         /**
          * Get Corpus Progress
-         * @description Return the acquisition progress of a corpus, per document status (RF-C04).
+         * @description Return the acquisition progress of a corpus, per document status.
          */
         get: operations["get_corpus_progress_api_v1_corpora__corpus_id__progress_get"];
         put?: never;
@@ -384,7 +384,7 @@ export interface paths {
         head?: never;
         /**
          * Set Document Metadata
-         * @description Replace the metadata of a document, which becomes a retrieval filter (RF-C02).
+         * @description Replace the metadata of a document, which becomes a retrieval filter.
          */
         patch: operations["set_document_metadata_api_v1_documents__document_id__metadata_patch"];
         trace?: never;
@@ -398,7 +398,7 @@ export interface paths {
         };
         /**
          * Download Document
-         * @description Stream the original bytes of a document, for the native preview of the UI (RT-U04).
+         * @description Stream the original bytes of a document, for the native preview of the UI.
          */
         get: operations["download_document_api_v1_documents__document_id__content_get"];
         put?: never;
@@ -468,7 +468,7 @@ export interface paths {
         put?: never;
         /**
          * Create Chunking Profile
-         * @description Create a chunking profile, or return the identical one that already exists (RF-P07).
+         * @description Create a chunking profile, or return the identical one that already exists.
          */
         post: operations["create_chunking_profile_api_v1_chunking_profiles_post"];
         delete?: never;
@@ -585,6 +585,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retrieval-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Retrieval Profiles
+         * @description List the retrieval profiles.
+         */
+        get: operations["list_retrieval_profiles_api_v1_retrieval_profiles_get"];
+        put?: never;
+        /**
+         * Create Retrieval Profile
+         * @description Create a retrieval profile, or return the identical one that already exists.
+         */
+        post: operations["create_retrieval_profile_api_v1_retrieval_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retrieval-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Retrieval Profile
+         * @description Return one retrieval profile.
+         */
+        get: operations["get_retrieval_profile_api_v1_retrieval_profiles__profile_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chunking-configurations": {
         parameters: {
             query?: never;
@@ -678,7 +722,7 @@ export interface paths {
         };
         /**
          * List Document Chunks
-         * @description List the chunks of a document under a configuration, in `ordinal` order (RF-P08).
+         * @description List the chunks of a document under a configuration, in `ordinal` order.
          */
         get: operations["list_document_chunks_api_v1_documents__document_id__chunks_get"];
         put?: never;
@@ -802,7 +846,7 @@ export interface paths {
         };
         /**
          * Get Materialization
-         * @description Return the progress of a run; polled every couple of seconds by the UI (RT-U05).
+         * @description Return the progress of a run; polled every couple of seconds by the UI.
          *
          *     Served entirely from the denormalised row, so following a run never depends on Temporal
          *     being reachable.
@@ -900,6 +944,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retrieve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retrieve
+         * @description Search a ready index build: the retrieval tool exposed to answer systems.
+         */
+        post: operations["retrieve_api_v1_retrieve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -957,7 +1021,7 @@ export interface components {
          * @description A chunk as exposed by the API.
          *
          *     `metadata` carries the page the chunk came from, which is what lets the UI show *where*
-         *     in the document a chunk lives (RT-U04).
+         *     in the document a chunk lives.
          */
         ChunkRead: {
             /**
@@ -1347,7 +1411,7 @@ export interface components {
         };
         /**
          * ComponentWithVersionsRead
-         * @description A component together with its versions, so the UI builds its forms in one call (RT-U01).
+         * @description A component together with its versions, so the UI builds its forms in one call.
          */
         ComponentWithVersionsRead: {
             /**
@@ -1383,7 +1447,7 @@ export interface components {
          * @description Result of detaching a document from a corpus.
          *
          *     States explicitly that the snapshots survive, because "remove" is the one word a user
-         *     could read as "delete the file and everything measured on it" (RF-C05).
+         *     could read as "delete the file and everything measured on it".
          */
         CorpusDocumentRemoved: {
             /**
@@ -1430,7 +1494,7 @@ export interface components {
         };
         /**
          * CorpusProgress
-         * @description Acquisition progress of a corpus, one count per document status (RF-C04).
+         * @description Acquisition progress of a corpus, one count per document status.
          */
         CorpusProgress: {
             /**
@@ -1568,7 +1632,7 @@ export interface components {
         };
         /**
          * DocumentMetadataUpdate
-         * @description Payload replacing the metadata of a document (RF-C02).
+         * @description Payload replacing the metadata of a document.
          *
          *     The shape is free because the keys become retrieval filters and are not known to the
          *     platform; it is a filter surface and not a notes field.
@@ -1614,7 +1678,7 @@ export interface components {
         };
         /**
          * DocumentProvenanceRead
-         * @description Where one copy of a document came from (RT-U06).
+         * @description Where one copy of a document came from.
          */
         DocumentProvenanceRead: {
             /**
@@ -1684,7 +1748,7 @@ export interface components {
         DocumentStatus: "pending" | "fetching" | "stored" | "failed";
         /**
          * DocumentWithProvenancesRead
-         * @description A document together with its origins, so the UI resolves the original (RT-U06).
+         * @description A document together with its origins, so the UI resolves the original.
          */
         DocumentWithProvenancesRead: {
             /**
@@ -1980,7 +2044,7 @@ export interface components {
          *
          *     `started` is false when the deterministic workflow id was already running: two identical
          *     launches produce one workflow and two `202`s with the same `id`, because a double click is
-         *     not a user error (RT-O01).
+         *     not a user error.
          */
         MaterializationAccepted: {
             /**
@@ -2021,7 +2085,7 @@ export interface components {
          * MaterializationCreate
          * @description Payload launching a materialisation.
          *
-         *     Either an explicit document list — the preview on a few files (RF-P08) — or a corpus,
+         *     Either an explicit document list — the preview on a few files — or a corpus,
          *     whose documents are resolved server-side. The same endpoint and the same workflow serve
          *     both, so a preview is exactly what the full run will do.
          */
@@ -2105,7 +2169,7 @@ export interface components {
          * MaterializationRead
          * @description A materialisation run as exposed by the API.
          *
-         *     Denormalised on purpose (RT-O07): the UI polls this every couple of seconds and must not
+         *     Denormalised on purpose: the UI polls this every couple of seconds and must not
          *     make Temporal answer each refresh. The authoritative state stays in Temporal.
          */
         MaterializationRead: {
@@ -2238,6 +2302,17 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[RetrievalProfileRead] */
+        Page_RetrievalProfileRead_: {
+            /** Items */
+            items?: components["schemas"]["RetrievalProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[VectorStoreProfileRead] */
         Page_VectorStoreProfileRead_: {
             /** Items */
@@ -2317,6 +2392,157 @@ export interface components {
             created_at: string;
         };
         /**
+         * RetrievalProfileCreate
+         * @description Payload creating a retrieval profile.
+         *
+         *     Only `dense` is executable today; the other strategies are refused with a `422`.
+         */
+        RetrievalProfileCreate: {
+            /** Name */
+            name: string;
+            /** Top K */
+            top_k: number;
+            /** @default dense */
+            strategy: components["schemas"]["RetrievalStrategy"];
+            /** Score Threshold */
+            score_threshold?: number | null;
+        };
+        /**
+         * RetrievalProfileCreated
+         * @description A retrieval profile with the outcome of the get-or-create that returned it.
+         */
+        RetrievalProfileCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            profile: components["schemas"]["RetrievalProfileRead"];
+        };
+        /**
+         * RetrievalProfileRead
+         * @description A retrieval profile as exposed by the API: the fields the engine applies today.
+         */
+        RetrievalProfileRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Top K */
+            top_k: number;
+            strategy: components["schemas"]["RetrievalStrategy"];
+            /** Score Threshold */
+            score_threshold?: number | null;
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * RetrievalStrategy
+         * @description How the vector store is searched; only `dense` is executable today.
+         * @enum {string}
+         */
+        RetrievalStrategy: "dense" | "sparse" | "hybrid" | "multi_vector";
+        /**
+         * RetrievalTimingsRead
+         * @description Milliseconds spent embedding the query, searching and reading the chunks back.
+         */
+        RetrievalTimingsRead: {
+            /** Embed Ms */
+            embed_ms: number;
+            /** Search Ms */
+            search_ms: number;
+            /** Enrich Ms */
+            enrich_ms: number;
+            /** Total Ms */
+            total_ms: number;
+        };
+        /**
+         * RetrieveRequest
+         * @description A query against one index build, under one retrieval profile.
+         */
+        RetrieveRequest: {
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /** Query */
+            query: string;
+            /**
+             * Execution Id
+             * @description Experiment execution the call belongs to; absent for a test query.
+             */
+            execution_id?: string | null;
+        };
+        /**
+         * RetrieveResponse
+         * @description Hits ranked from 1, best first; scores are higher-is-better on every store.
+         *
+         *     `corpus_id` and `chunking_configuration_id` are returned so a client can open each hit
+         *     in its document without further lookups.
+         */
+        RetrieveResponse: {
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /** Corpus Id */
+            corpus_id: string | null;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Hits */
+            hits: components["schemas"]["RetrievedHitRead"][];
+            timings: components["schemas"]["RetrievalTimingsRead"];
+        };
+        /**
+         * RetrievedHitRead
+         * @description One retrieved chunk.
+         *
+         *     `chunk_id` is null when the vector store returned a vector whose chunk no longer
+         *     exists in the database; `text` then holds what the vector store kept.
+         */
+        RetrievedHitRead: {
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
+            /** Stage */
+            stage: string;
+            /** Chunk Id */
+            chunk_id: string | null;
+            /** Document Id */
+            document_id: string | null;
+            /** Filename */
+            filename: string | null;
+            /** Ordinal */
+            ordinal: number | null;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string | null;
+        };
+        /**
          * RuntimeType
          * @enum {string}
          */
@@ -2336,10 +2562,10 @@ export interface components {
         };
         /**
          * UploadResponse
-         * @description Summary of an upload request, one entry per submitted file (RF-S07).
+         * @description Summary of an upload request, one entry per submitted file.
          *
          *     Returned with `200` even when some files were rejected: the outcome is per file, and a
-         *     single unsupported attachment must not discard the batch (RF-S11).
+         *     single unsupported attachment must not discard the batch.
          */
         UploadResponse: {
             /**
@@ -3669,6 +3895,102 @@ export interface operations {
             };
         };
     };
+    list_retrieval_profiles_api_v1_retrieval_profiles_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_RetrievalProfileRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_retrieval_profile_api_v1_retrieval_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetrievalProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetrievalProfileCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_retrieval_profile_api_v1_retrieval_profiles__profile_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetrievalProfileRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_chunking_configurations_api_v1_chunking_configurations_get: {
         parameters: {
             query?: {
@@ -4243,6 +4565,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IndexBuildAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retrieve_api_v1_retrieve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetrieveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetrieveResponse"];
                 };
             };
             /** @description Validation Error */
