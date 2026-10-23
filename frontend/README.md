@@ -2,16 +2,17 @@
 
 Browser client for the benchmark flow: create a corpus, upload PDFs, compose a
 chunking configuration from the component registry, materialise, and inspect chunks
-on the native PDF; then freeze a snapshot of the corpus and build an index over it.
+on the native PDF; then freeze a snapshot of the corpus, build an index over it and try
+queries against it.
 
 ## Pages
 
 | Route | Page |
 |---|---|
 | `/corpora`, `/corpora/:corpusId` | Corpora list; corpus detail with upload, documents, snapshots, preview and materialisation |
-| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text |
+| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
 | `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
-| `/indexes` | Embedding and vector store profiles and index builds |
+| `/indexes` | Embedding and vector store profiles, index builds, and the query panel of a ready build |
 | `/components` | The component registry |
 
 ## Indexing
@@ -22,6 +23,16 @@ on the native PDF; then freeze a snapshot of the corpus and build an index over 
   the registry schema, like the configuration wizard), index builds with their status
   (polled while one is running), a *Start/Restart* action and a detail view with the chunk
   count and the vector store collection.
+
+## Trying queries
+
+On the indexes page a `ready` build has a *Try query* action (`features/retrieval/`). The
+panel picks or creates a retrieval profile — search strategy (every value of the enum;
+only dense is accepted by the API today), top-k and score threshold from a generated form — sends the query to `POST /api/v1/retrieve` and
+lists the hits with rank, score, file, page and the start of the text, plus where the time
+went. Each hit links to the chunk viewer of its document, under the build's chunking
+configuration and opened on that chunk; a hit whose chunk no longer exists is shown but not
+linked.
 
 `SchemaForm` drops the schemas' `$schema` (draft 2020-12, unknown to the ajv8 validator)
 and hides rjsf's "add property" control for schemas that allow extra keys.

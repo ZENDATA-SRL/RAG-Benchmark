@@ -1,8 +1,10 @@
 # Backend
 
 FastAPI service that owns the data model, serves the HTTP API and *starts* Temporal
-workflows. It never executes a parser, a chunker or an embedder: that is the worker's job
-(see [`../temporal/README.md`](../temporal/README.md)).
+workflows. It never executes a parser or a chunker, and never writes a vector store: that is
+the worker's job (see [`../temporal/README.md`](../temporal/README.md)). The one exception is
+retrieval: the API embeds the query and reads the vector store itself, because the retrieval
+tool is synchronous and called many times per question (see `retrieval/` below).
 
 Module conventions and the dependency direction (`router → service → repository → models`)
 are in the `backend-structure` skill ([`../.claude/skills/backend-structure/SKILL.md`](../.claude/skills/backend-structure/SKILL.md)).
@@ -31,7 +33,7 @@ was `created` or reused.
 | Module | Responsibility |
 |---|---|
 | `main.py` | App factory, request-id middleware, `DomainError` → HTTP handler, router registration; the lifespan seeds the builtin registry and the `upload` source |
-| `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, ChromaDB, Qdrant, upload limits, CORS) |
+| `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, ChromaDB and Qdrant addresses for the worker and for retrieval, upload limits, CORS) |
 | `dependencies.py` | FastAPI dependencies for object storage and the workflow client |
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
 | `infrastructure/database/` | Declarative `Base` + mixins (UUID pk, `created_at`, `updated_at`), PostgreSQL enums, async session |
@@ -45,12 +47,13 @@ was `created` or reused.
 | `artifacts/` | Per-document parsing and chunking results, chunks, coverage and inspection |
 | `materializations/` | User-triggered chunk materialisation runs and their progress |
 | `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
+| `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
 
-The four pipeline modules depend on each other in one direction only:
+The pipeline modules depend on each other in one direction only:
 
 ```
 pipelines ← artifacts ← materializations
-          ↖ indexes
+          ↖ indexes ← retrieval
 ```
 
 ### `components/`
@@ -75,9 +78,10 @@ checks a profile's params against the schema of its version.
   | embedder | `openai`, `bedrock` |
   | vector store | `chromadb`, `qdrant` |
 
-  `contracts.py` holds the `Parser`/`Chunker` protocols and the `ParseOutput`/`ChunkPayload`
-  shapes. The implementations are in `temporal/components/`, so the API image carries no
-  parsing or embedding library.
+  `contracts.py` holds the `Parser`/`Chunker`/`VectorStoreReader` protocols and the
+  `ParseOutput`/`ChunkPayload`/`VectorHit` shapes. Parsers, chunkers and vector store writers
+  are implemented in `temporal/components/`, so the API carries no parsing library; embedders
+  and vector store readers are in `retrieval/`, because the API runs them too.
 
 ### `documents/` and `sources/`
 
@@ -115,13 +119,18 @@ is what an index build searches over.
 Configuration only. `ProfileService` does get-or-create for parsing, chunking, embedding,
 vector-store and retrieval profiles: a profile is `component_version + params`, params are
 validated against the version's schema, and chunkers must declare
-`capabilities.scope = document`. `ChunkingConfigurationService` pairs a parsing profile with
+`capabilities.scope = document`. A retrieval profile has no component version; its API
+exposes `strategy` (a `retrieval_strategy` enum, of which only `dense` is accepted, the
+others answering `422`), `top_k` and `score_threshold`. The reranker,
+MMR and fusion columns stay in the model, empty, for when the engine applies them. Query
+transformations are not a retrieval setting: they belong to the answer system, and neither
+are filters on documents: the corpus snapshot fixes what is searched. `ChunkingConfigurationService` pairs a parsing profile with
 a chunking profile (a **chunking configuration**, the unit of comparability) and offers
 `compose`, which builds both profiles and the configuration from one form.
 
 | Route | Purpose |
 |---|---|
-| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`, `/vector-store-profiles`; `GET …/{id}` | Profiles |
+| `POST/GET /parsing-profiles`, `/chunking-profiles`, `/embedding-profiles`, `/vector-store-profiles`, `/retrieval-profiles`; `GET …/{id}` | Profiles |
 | `POST /chunking-configurations`, `GET …`, `GET …/{id}` | Configurations |
 | `POST /chunking-configurations/compose` | Create both profiles and the configuration in one call (single UI form) |
 
@@ -157,6 +166,27 @@ lists builds; `IndexCorpusService` launches `IndexCorpusWorkflow`.
 | `POST /index-builds`, `POST /index-builds/{id}/start` | Create and start indexing; `202` with `started=false` if the same work is already running |
 | `GET /index-builds[?corpus_snapshot_id=]`, `GET /index-builds/{id}` | List builds; read one with its status and `chunk_count` |
 
+### `retrieval/`
+
+`RetrievalService.search` answers a query against a `ready` index build (`409` otherwise)
+with dense search, the only strategy a profile can have: it embeds the query with the
+**build's** embedding profile, asks the vector store for the `top_k` neighbours among the
+build's chunks, applies `score_threshold`, and enriches each hit from the
+database with chunk, document, filename, ordinal, page and text. A vector whose chunk no
+longer exists comes back with a null `chunk_id` instead of failing the query; an embedder or
+vector store failure is a `502` naming the stage.
+
+Scores are normalised so that higher is better on every store and space: cosine and inner
+product are similarities, Euclidean distance `d` becomes `1 / (1 + d)`. The mapping lives in
+`distances.py` and is shared with the worker's writers, which also apply the same default
+space (`cosine`) when a profile declares none.
+
+| Route | Purpose |
+|---|---|
+| `POST /retrieve` | `{index_build_id, retrieval_profile_id, query, execution_id?}` → `{hits: [{rank, score, stage, chunk_id, document_id, filename, ordinal, page, text}], timings, corpus_id, chunking_configuration_id}` |
+
+`execution_id` is accepted for the experiments to come; today the call is only logged.
+
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
@@ -178,6 +208,8 @@ POST /index-builds                    snapshot + chunking configuration + embedd
                                       → IndexBuild(pending), reused if the chain_fingerprint exists
 POST /index-builds/{id}/start         → IndexCorpusWorkflow on the worker
 GET  /index-builds/{id}               status: pending → running → ready | failed
+POST /retrieval-profiles              strategy (dense only), top_k, score_threshold
+POST /retrieve                        query a ready build → ranked chunks
 ```
 
 The workflow materialises the chunks, embeds them in batches to object storage and upserts

@@ -6,17 +6,23 @@ and the **builtin component implementations**.
 
 ## Why the implementations are here and not in the backend
 
-The worker is the only process that ever invokes a parser or a chunker. Keeping the code here
-means the API image does not carry `pypdf` or `langchain-text-splitters`, and a change to an
-extraction heuristic redeploys the worker alone.
+The worker is the only process that ever invokes a parser or a chunker, or writes a vector
+store. Keeping that code here means the API image does not carry `pypdf` or
+`langchain-text-splitters`, and a change to an extraction heuristic redeploys the worker
+alone.
 
-What stays in the backend is the *declaration*:
+What stays in the backend is the *declaration*, plus the code the API runs as well:
 
-| In `backend/src/components/builtin/` | In `temporal/components/` |
-|---|---|
-| `Parser` / `Chunker` protocols | classes implementing them |
-| `ParseOutput`, `ChunkPayload` | — |
-| descriptors: key, version, `params_schema`, `capabilities` | `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS`, `BUILTIN_EMBEDDERS`, `BUILTIN_VECTOR_STORES` |
+| In `backend/src/components/builtin/` | In `backend/src/retrieval/` | In `temporal/components/` |
+|---|---|---|
+| `Parser` / `Chunker` / `VectorStoreReader` protocols | — | parser and chunker classes |
+| `ParseOutput`, `ChunkPayload`, `VectorHit` | — | — |
+| descriptors: key, version, `params_schema`, `capabilities` | `BUILTIN_EMBEDDERS`, `BUILTIN_VECTOR_STORE_READERS`, distance mapping | `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS`, `BUILTIN_VECTOR_STORES` (writers) |
+
+Embedders and readers live in the backend because retrieval runs in the API: a query is
+synchronous and called many times per question, so it does not go through a workflow. The
+worker imports the same embedders, so a query is embedded by exactly the code that embedded
+its index, and its writers use the same distance mapping as the readers.
 
 The API must serve `params_schema` to render the UI forms with no worker running, so
 the schemas cannot live only here. Dependencies therefore flow **`temporal → backend`**; the
@@ -29,8 +35,8 @@ Because the API declares components without importing their code, nothing at imp
 notices a descriptor whose implementation was never written. Two checks close that gap:
 
 - `assert_registry_complete()` runs at worker startup and fails loudly on a declared-but-
-  unimplemented component. Boot time is the right place: an activity would discover it hours
-  into a run.
+  unimplemented component, or a vector store with no reader (an index the API could not
+  query). Boot time is the right place: an activity would discover it hours into a run.
 - `tests/test_component_registry.py` asserts the correspondence in **both** directions and
   that each implementation satisfies its protocol.
 
@@ -50,7 +56,6 @@ temporal/
     __init__.py       BUILTIN_PARSERS / BUILTIN_CHUNKERS / BUILTIN_VECTOR_STORES, resolve_*, assert_registry_complete
     parsers/          pypdf, plumber (pdfplumber), normalization, PermanentParsingError
     chunkers/         recursive, markdown, header_footer (page furniture), page_mapping (offset -> page)
-    embedders/        shared.py: BUILTIN_EMBEDDERS, resolve_embedder(key, params) -> LangChain Embeddings
     vector_stores/    chroma.py, qdrant.py: ChromaVectorStore, QdrantVectorStore (collection per index build, upsert by chunk id)
   tests/
 ```
@@ -88,9 +93,12 @@ storage and only their URI is passed around, which is what the 128 KB payload gu
 |---|---|---|
 | parser | `pypdf`, `pdfplumber` | Text is normalised (ligatures, smart quotes) so lexical retrieval matches. No text to extract, corrupt or encrypted raises `PermanentParsingError` |
 | chunker | `recursive`, `markdown` | Document-scoped. Page headers/footers are stripped before splitting; each chunk records the page span it covers |
-| embedder | `openai`, `bedrock` | Built on LangChain `Embeddings`; model and credentials come from the profile params |
-| vector store | `chromadb` | HTTP client to the `chromadb` compose service; one collection per index build, configured from the profile's HNSW params |
+| embedder | `openai`, `bedrock` | Built on LangChain `Embeddings`, imported from `backend/src/retrieval/embedders.py`; model and credentials come from the profile params or the environment |
+| vector store | `chromadb` | HTTP client to the `chromadb` compose service; one collection per index build, configured from the profile's space and HNSW params |
 | vector store | `qdrant` | Client to the `qdrant` compose service; one collection per index build, created at the first batch with the profile's distance and HNSW params |
+
+A profile without `space` is indexed with `cosine` on both stores (the shared default of
+`backend/src/retrieval/distances.py`), not with each engine's own default.
 
 ## Known gaps
 

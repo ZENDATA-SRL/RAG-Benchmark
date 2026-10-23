@@ -16,9 +16,12 @@ versions. A profile in `pipelines/` always points at a `component_versions` row.
 ## builtin/
 
 Declarative only: no parsing or embedding library is imported here, so the API can seed and
-serve the registry on its own. The executable code lives in `temporal/components/`.
+serve the registry on its own. The executable code lives in `temporal/components/` (parsers,
+chunkers, vector store writers) and in `src/retrieval/` (embedders and vector store readers,
+run by both the API and the worker).
 
-- `contracts.py`: `Parser` / `Chunker` protocols, `ParseOutput`, `ParsePage`, `ChunkPayload`.
+- `contracts.py`: `Parser` / `Chunker` / `VectorStoreReader` protocols, `ParseOutput`,
+  `ParsePage`, `ChunkPayload`, `VectorHit`.
 - `__init__.py`: `BuiltinDescriptor` and the descriptor lists (`PARSER_`, `CHUNKER_`,
   `EMBEDDER_`, `VECTOR_STORE_DESCRIPTORS`); `BUILTIN_KEYS` is what `register_version`
   validates a builtin key against.
@@ -31,10 +34,15 @@ serve the registry on its own. The executable code lives in `temporal/components
 
 1. Create the declaration module with `KEY`, `VERSION`, `PARAMS_SCHEMA`.
 2. Add a descriptor to the right list in `builtin/__init__.py`.
-3. Implement it in `temporal/components/` and register it in `BUILTIN_PARSERS`,
-   `BUILTIN_CHUNKERS`, `BUILTIN_VECTOR_STORES` (`components/__init__.py`) or
-   `BUILTIN_EMBEDDERS` (`embedders/shared.py`). The worker refuses to start if a declared
-   key is missing from these maps.
+3. Implement it and register it in its map:
+   - parser, chunker, vector store writer: `temporal/components/`, in `BUILTIN_PARSERS`,
+     `BUILTIN_CHUNKERS` or `BUILTIN_VECTOR_STORES` (`components/__init__.py`);
+   - embedder: `src/retrieval/embedders.py`, in `BUILTIN_EMBEDDERS`;
+   - a vector store also needs a reader in `src/retrieval/readers/`, registered in
+     `BUILTIN_VECTOR_STORE_READERS`, which must use the distance mapping of
+     `src/retrieval/distances.py` like its writer.
+
+   The worker refuses to start if a declared key is missing from these maps.
 
 Changing `PARAMS_SCHEMA` for a released component means bumping `VERSION`: profiles are
 hashed on the version id, so editing in place would change what existing hashes mean.

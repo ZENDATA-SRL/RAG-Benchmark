@@ -42,12 +42,22 @@ checkout as above or as a container, which reads AWS credentials for Bedrock fro
 docker compose --profile worker up -d --build worker
 ```
 
+The API answers retrieval queries itself (`POST /api/v1/retrieve`), so besides the worker it
+also embeds text and reaches the vector stores: it needs the credentials of the embedders you
+use and the `CHROMA_*` / `QDRANT_*` addresses in `.env`. For OpenAI, export `OPENAI_API_KEY`
+in the shell that starts the API and the worker: the library reads the process environment,
+which `.env` does not populate. For Bedrock, the host's `~/.aws` profile (or the `AWS_*`
+variables) is picked up directly by the API run from the host.
+
 With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
 upload, profiles, configuration, preview, materialisation, polling, chunk and parse
-inspection — and exits non-zero at the first deviation:
+inspection — and exits non-zero at the first deviation. With `--embedder` it also freezes a
+snapshot, builds an index and queries it; that part calls the real embedding model, so its
+credentials must be available to both the worker and the API:
 
 ```bash
 uv run python scripts/mvp_smoke.py
+uv run python scripts/mvp_smoke.py --embedder openai --vector-store qdrant
 ```
 
 The interactive API documentation is on <http://localhost:8000/docs>.
@@ -82,6 +92,7 @@ The API answers on `http://localhost:8000`:
 |---|---|
 | `GET /health` | Liveness probe |
 | `GET /api/v1/components` | Registered components with their JSON Schema; feeds the dynamic forms of the UI |
+| `POST /api/v1/retrieve` | Query a ready index build under a retrieval profile; the retrieval tool |
 | `GET /docs` | OpenAPI documentation |
 
 Other consoles and services: MinIO on [`localhost:9001`](http://localhost:9001), Temporal on
@@ -93,7 +104,8 @@ Other consoles and services: MinIO on [`localhost:9001`](http://localhost:9001),
 `.env` is the **single source of truth**: `docker-compose.yml` provisions the containers
 from it and the application reads it through `Settings`, so the credentials cannot drift
 apart. Copy it from `.env.example`, which documents every variable (database, object
-storage, Temporal, ChromaDB, Qdrant, AWS profile for the worker, upload limits, CORS) and
+storage, Temporal, ChromaDB, Qdrant, AWS profile for the worker, embedder credentials,
+upload limits, CORS) and
 contains no real secret. The aim is that credentials never live in the database;
 the one known exception, embedder keys typed into profile params, is listed in the Temporal
 README.
@@ -129,15 +141,16 @@ backend/
     artifacts/        per-document parse and chunk results, coverage, inspection
     materializations/ chunk materialisation runs and their progress
     indexes/          index builds over a corpus snapshot
+    retrieval/        dense search over a ready index build, embedders, vector store readers
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/
 frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, components
-scripts/              mvp_smoke.py, the end-to-end check of the backend flow
+scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval)
 temporal/             worker, workflows, activities and builtin implementations
   activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes
   workflows/          ProcessDocument, MaterializeChunks, IndexCorpus
-  components/         parser, chunker, embedder and vector store code, invoked only by the worker
+  components/         parser, chunker and vector store write code, invoked only by the worker
   tests/
 docs/                 requirements and data model
 sprint/               sprint plan (in Italian)
@@ -150,16 +163,22 @@ Module conventions and dependency direction are in
 
 ### Where the builtin components live
 
-Split in two on purpose, and the direction matters:
+Split on purpose, and the direction matters:
 
-- **`backend/src/components/builtin/`** — the `Parser`/`Chunker` protocols, `ParseOutput`,
-  `ChunkPayload`, and one descriptor per component (key, version, `params_schema`,
-  `capabilities`). Declarative only. The API seeds the registry and renders the UI forms from
-  these without importing any parsing library.
-- **`temporal/components/`** — the implementations and the `BUILTIN_PARSERS` /
-  `BUILTIN_CHUNKERS` / `BUILTIN_VECTOR_STORES` maps (embedders are resolved in
-  `components/embedders/shared.py`) that resolve a key to running code. Only the worker executes them.
+- **`backend/src/components/builtin/`** — the `Parser`/`Chunker`/`VectorStoreReader`
+  protocols, `ParseOutput`, `ChunkPayload`, `VectorHit`, and one descriptor per component
+  (key, version, `params_schema`, `capabilities`). Declarative only. The API seeds the
+  registry and renders the UI forms from these without importing any parsing library.
+- **`backend/src/retrieval/`** — the code both processes run: the embedders
+  (`BUILTIN_EMBEDDERS`), the vector store readers (`BUILTIN_VECTOR_STORE_READERS`) and the
+  shared distance mapping. Retrieval is synchronous and called many times per question, so it
+  runs in the API rather than through a workflow; the worker imports the same embedders, so a
+  query is embedded by exactly the code that embedded its index.
+- **`temporal/components/`** — parsers, chunkers and the vector store writers, with the
+  `BUILTIN_PARSERS` / `BUILTIN_CHUNKERS` / `BUILTIN_VECTOR_STORES` maps that resolve a key to
+  running code. Only the worker executes them.
 
 Dependencies flow `temporal → backend`, never the reverse. The API can tell that a component
 key was *declared*; only the worker can tell it is *runnable*, so the worker calls
-`assert_registry_complete()` at startup and fails there if a descriptor has no implementation.
+`assert_registry_complete()` at startup and fails there if a descriptor has no
+implementation, or a vector store has no reader.
