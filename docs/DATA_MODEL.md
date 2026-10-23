@@ -44,6 +44,7 @@ CREATE TYPE confidence_band     AS ENUM ('high', 'medium', 'low');
 CREATE TYPE experiment_type     AS ENUM ('retrieval', 'qa');
 CREATE TYPE execution_status    AS ENUM ('pending', 'running', 'succeeded', 'failed', 'skipped');
 CREATE TYPE retrieval_stage     AS ENUM ('dense', 'sparse', 'fused', 'reranked', 'final');
+CREATE TYPE retrieval_strategy  AS ENUM ('dense', 'sparse', 'hybrid', 'multi_vector');
 CREATE TYPE retrieval_scope     AS ENUM ('retrieved', 'in_context', 'cited');
 CREATE TYPE metric_family       AS ENUM ('retrieval', 'answer', 'efficiency', 'robustness');
 CREATE TYPE metric_level        AS ENUM ('document', 'chunk');
@@ -270,16 +271,20 @@ Configurazione di retrieval completa (RF-P06). Referenziato dalle varianti, non 
 | `name` | TEXT | NOT NULL | |
 | `top_k` | INTEGER | NOT NULL | |
 | `pre_rerank_k` | INTEGER | | candidati pre-rerank |
-| `strategy` | TEXT | NOT NULL | dense / sparse / hybrid / multi_vector |
+| `strategy` | retrieval_strategy | NOT NULL | dense / sparse / hybrid / multi_vector; oggi è eseguibile solo `dense` |
 | `fusion_weights` | JSONB | | pesi di fusione |
 | `mmr` | JSONB | | parametri MMR |
 | `score_threshold` | DOUBLE PRECISION | | soglia di score |
-| `metadata_filters` | JSONB | | filtri sui metadati |
-| `query_transforms` | JSONB | | HyDE, multi-query, riscrittura |
 | `reranker_version_id` | UUID | FK → component_versions, NULL | |
 | `context_policy` | JSONB | | composizione del contesto |
-| `config_hash` | TEXT | NOT NULL UNIQUE | |
+| `config_hash` | TEXT | NOT NULL UNIQUE | hash delle colonne valorizzabili (`top_k`, `strategy`, `score_threshold`); si estende quando il motore ne applica altre |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+> **I filtri sui documenti non sono qui.** Un filtro sui metadati dei documenti restringe lo spazio di ricerca, che è fissato dallo snapshot di corpus per tutte le varianti di un esperimento. Nel profilo permetterebbe a due varianti dello stesso esperimento di cercare in documenti diversi, e potrebbe escludere documenti gold rendendo nullo il recall per costruzione. Per restringere i documenti si crea uno snapshot.
+
+> **Le trasformazioni della query non sono qui.** HyDE, multi-query e riscrittura decidono *cosa* chiedere al tool di retrieval, non *come* cercare nel vector store: sono una scelta del sistema di risposta e stanno nei `params` del suo profilo di risposta.
+
+> **Colonne non ancora eseguibili.** `pre_rerank_k`, `fusion_weights`, `mmr`, `reranker_version_id` e `context_policy` esistono nel modello ma restano vuote finché il motore di retrieval non le applica: l'API non le espone.
 
 ### `answer_profiles`
 Configurazione di un **sistema di risposta**: quale sistema (versione di componente di tipo `answer_system`) e con quali parametri (modello, system prompt, temperatura, numero massimo di tool call, ...). Referenziato dalle varianti, non è uno stadio materializzato.
@@ -289,7 +294,7 @@ Configurazione di un **sistema di risposta**: quale sistema (versione di compone
 | `id` | UUID | PK | |
 | `name` | TEXT | NOT NULL | escluso dall'hash |
 | `component_version_id` | UUID | FK → component_versions, NOT NULL | il componente deve avere tipo `answer_system` |
-| `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo `params_schema` della versione; il system prompt è incluso per valore |
+| `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo `params_schema` della versione; il system prompt è incluso per valore, come le eventuali trasformazioni della query |
 | `config_hash` | TEXT | NOT NULL UNIQUE | hash(component_version + params) |
 | `parent_profile_id` | UUID | FK → answer_profiles, NULL | profilo da cui è stato derivato, per mostrare cosa è cambiato |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
