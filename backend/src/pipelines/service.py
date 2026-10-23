@@ -256,7 +256,6 @@ class ProfileService:
         top_k: int,
         strategy: RetrievalStrategy = RetrievalStrategy.DENSE,
         score_threshold: float | None = None,
-        metadata_filters: dict[str, Any] | None = None,
     ) -> tuple[RetrievalProfile, bool]:
         """Return the retrieval profile for a retrieval configuration.
 
@@ -268,7 +267,6 @@ class ProfileService:
             top_k: Number of results returned.
             strategy: Only `dense` is executable today.
             score_threshold: Hits scoring below it are dropped.
-            metadata_filters: Pairs a document's metadata must contain to be searched.
 
         Returns:
             The profile and whether this call created it.
@@ -283,7 +281,6 @@ class ProfileService:
             "top_k": top_k,
             "strategy": strategy,
             "score_threshold": score_threshold,
-            "metadata_filters": metadata_filters,
         }
         digest = hash_json({**columns, "strategy": strategy.value})
         repository = ProfileRepository(self.session, RetrievalProfile)

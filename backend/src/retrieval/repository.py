@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.artifacts.models import Chunk, ChunkResult
 from src.components.models import Component, ComponentVersion
-from src.corpora.models import CorpusSnapshot, CorpusSnapshotDocument
+from src.corpora.models import CorpusSnapshot
 from src.documents.models import Document
 
 
@@ -32,26 +31,6 @@ class RetrievalRepository:
         """Corpus a snapshot was frozen from."""
         stmt = select(CorpusSnapshot.corpus_id).where(CorpusSnapshot.id == snapshot_id)
         return await self.session.scalar(stmt)
-
-    async def snapshot_documents_matching(
-        self, snapshot_id: uuid.UUID, metadata_filters: dict[str, Any]
-    ) -> list[uuid.UUID]:
-        """Documents of a snapshot whose user metadata contains every filter pair.
-
-        Resolved here and passed to the vector store as a list of document ids, so the
-        filters behave the same on every store and the metadata never has to be copied
-        into the vector payloads.
-        """
-        stmt = (
-            select(CorpusSnapshotDocument.document_id)
-            .join(Document, Document.id == CorpusSnapshotDocument.document_id)
-            .where(
-                CorpusSnapshotDocument.snapshot_id == snapshot_id,
-                Document.document_metadata.contains(metadata_filters),
-            )
-        )
-        result = await self.session.scalars(stmt)
-        return list(result.all())
 
     async def chunks_by_id(
         self, chunk_ids: Sequence[uuid.UUID]

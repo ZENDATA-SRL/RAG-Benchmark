@@ -112,7 +112,7 @@ def test_document_filter_restricts_the_search(chroma_client, store) -> None:
 
 @pytest.mark.parametrize("store", ["chromadb", "qdrant"])
 def test_an_empty_document_filter_matches_nothing(chroma_client, store) -> None:
-    """No document satisfies the metadata filters: the answer is empty, not everything."""
+    """An empty document restriction allows nothing: the answer is empty, not everything."""
     writer, reader = _stores(chroma_client)[store]
     name = f"idx_{uuid.uuid4().hex[:16]}"
     _write(writer, name, {"space": "cosine"})

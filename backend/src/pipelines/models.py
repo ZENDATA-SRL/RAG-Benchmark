@@ -116,7 +116,6 @@ class RetrievalProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     fusion_weights: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     mmr: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     score_threshold: Mapped[float | None] = mapped_column(Double)
-    metadata_filters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     reranker_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("component_versions.id", ondelete="RESTRICT"),

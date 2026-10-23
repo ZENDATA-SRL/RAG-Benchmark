@@ -254,7 +254,6 @@ async def create_retrieval_profile(
         top_k=payload.top_k,
         strategy=payload.strategy,
         score_threshold=payload.score_threshold,
-        metadata_filters=payload.metadata_filters,
     )
     return RetrievalProfileCreated(
         profile=RetrievalProfileRead.model_validate(profile),

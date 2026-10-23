@@ -27,21 +27,10 @@ async def test_omitted_and_explicitly_empty_columns_hash_the_same(client) -> Non
     first = await client.post(RETRIEVAL_PROFILES, json={"name": "a", "top_k": 7})
     second = await client.post(
         RETRIEVAL_PROFILES,
-        json={"name": "b", "top_k": 7, "strategy": "dense", "metadata_filters": None},
+        json={"name": "b", "top_k": 7, "strategy": "dense", "score_threshold": None},
     )
 
     assert first.json()["profile"]["id"] == second.json()["profile"]["id"]
-
-
-async def test_metadata_filters_are_part_of_the_identity(client) -> None:
-    first = await client.post(RETRIEVAL_PROFILES, json={"name": "a", "top_k": 5})
-    second = await client.post(
-        RETRIEVAL_PROFILES,
-        json={"name": "b", "top_k": 5, "metadata_filters": {"lang": "it"}},
-    )
-
-    assert second.json()["created"] is True
-    assert first.json()["profile"]["id"] != second.json()["profile"]["id"]
 
 
 @pytest.mark.parametrize("strategy", ["sparse", "hybrid", "multi_vector"])

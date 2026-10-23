@@ -77,7 +77,6 @@ class RetrievalProfileRead(BaseModel):
     top_k: int
     strategy: RetrievalStrategy
     score_threshold: float | None = None
-    metadata_filters: dict[str, Any] | None = None
     config_hash: str
     created_at: dt.datetime
 
@@ -127,15 +126,12 @@ class RetrievalProfileCreate(BaseModel):
     """Payload creating a retrieval profile.
 
     Only `dense` is executable today; the other strategies are refused with a `422`.
-    `metadata_filters` matches the user metadata of the documents: a document qualifies
-    when its metadata contains every key with the given value.
     """
 
     name: str = Field(min_length=1, max_length=200)
     top_k: int = Field(ge=1, le=200)
     strategy: RetrievalStrategy = RetrievalStrategy.DENSE
     score_threshold: float | None = None
-    metadata_filters: dict[str, Any] | None = None
 
 
 class DeduplicatedRead(BaseModel):

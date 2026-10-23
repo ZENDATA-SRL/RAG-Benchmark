@@ -191,29 +191,6 @@ async def test_the_same_query_returns_the_same_hits(
     assert ranking(first) == ranking(second)
 
 
-async def test_a_metadata_filter_excludes_the_other_documents(
-    client, session, fake_engine, chroma_client
-) -> None:
-    scenario = await build_scenario(session, ready=2, chunks_per_document=2)
-    scenario.ready[1].document_metadata = {"lang": "it"}
-    build = await _indexed_build(session, scenario, chroma_client)
-    target = await _target_chunk(session, scenario)
-    profile_id = await _retrieval_profile(client, metadata_filters={"lang": "it"})
-
-    response = await client.post(
-        RETRIEVE,
-        json={
-            "index_build_id": str(build.id),
-            "retrieval_profile_id": profile_id,
-            "query": target.text,
-        },
-    )
-
-    hits = response.json()["hits"]
-    assert hits
-    assert {hit["document_id"] for hit in hits} == {str(scenario.ready[1].id)}
-
-
 async def test_the_score_threshold_drops_weak_hits(
     client, session, fake_engine, chroma_client
 ) -> None:

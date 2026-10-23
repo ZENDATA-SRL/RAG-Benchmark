@@ -9,11 +9,9 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.components.builtin.contracts import VectorHit
-from src.indexes.models import IndexBuild
 from src.indexes.service import IndexBuildService
 from src.infrastructure.database.enums import ArtifactStatus
 from src.pipelines.exceptions import ProfileNotFoundError
-from src.pipelines.models import RetrievalProfile
 from src.pipelines.service import ProfileService
 from src.retrieval.embedders import resolve_embedder
 from src.retrieval.exceptions import IndexBuildNotReadyError, RetrievalBackendError
@@ -85,13 +83,12 @@ class RetrievalService:
         Dense search, the only strategy a profile can have today, compares the query vector
         with the chunk vectors: the query is therefore embedded, with the embedding profile
         of the build and never one chosen by the caller, since vectors from different
-        models are not comparable. Metadata filters are resolved to the matching documents
-        of the build's snapshot before the vector store is asked. Scores are normalised so
-        that higher is better on every store.
+        models are not comparable. Scores are normalised so that higher is better on every
+        store.
 
         Args:
             index_build_id: Index to search; it must be `ready`.
-            retrieval_profile_id: Top-k, score threshold and metadata filters to apply.
+            retrieval_profile_id: Top-k and score threshold to apply.
             query: Text of the query.
             execution_id: Experiment execution the call belongs to, when an answer system
                 makes it. Without one the call is a manual test query and is only logged.
@@ -124,7 +121,6 @@ class RetrievalService:
             ).component_version_id,
             "vector store",
         )
-        document_ids = await self._document_filter(build, profile)
 
         embed_started = time.perf_counter()
         vector = await _call(
@@ -138,7 +134,6 @@ class RetrievalService:
             build.external_index_ref,
             vector,
             profile.top_k,
-            document_ids,
         )
         enrich_started = time.perf_counter()
         if profile.score_threshold is not None:
@@ -178,17 +173,6 @@ class RetrievalService:
                 f"{kind} component version", component_version_id
             )
         return key
-
-    async def _document_filter(
-        self, build: IndexBuild, profile: RetrievalProfile
-    ) -> list[str] | None:
-        """Document ids the search is restricted to, or `None` for the whole snapshot."""
-        if not profile.metadata_filters:
-            return None
-        matching = await self.repository.snapshot_documents_matching(
-            build.corpus_snapshot_id, profile.metadata_filters
-        )
-        return [str(document_id) for document_id in matching]
 
     async def _enrich(self, raw_hits: list[VectorHit]) -> list[RetrievedHit]:
         """Attach chunk, document and page from the database to each vector hit.
@@ -247,11 +231,8 @@ def _search(
     collection: str,
     vector: list[float],
     top_k: int,
-    document_ids: list[str] | None,
 ) -> list[VectorHit]:
-    return resolve_reader(key).query(
-        collection, vector, top_k=top_k, document_ids=document_ids
-    )
+    return resolve_reader(key).query(collection, vector, top_k=top_k)
 
 
 async def _call(stage: str, function, *args):
