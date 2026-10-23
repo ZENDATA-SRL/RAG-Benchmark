@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
+from src.infrastructure.database.enums import RETRIEVAL_STRATEGY, RetrievalStrategy
 
 # --------------------------------------------------------------------------------------
 # Profiles
@@ -96,10 +97,12 @@ class VectorStoreProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class RetrievalProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Full retrieval configuration.
+    """Full retrieval configuration: how the vector store of an index is searched.
 
     Referenced by variants and never materialised as a stage: changing `top_k` or the
-    reranker invalidates no parsing, chunking or index artefact.
+    reranker invalidates no parsing, chunking or index artefact. Rewriting the query
+    (HyDE, multi-query) is not part of it: that is a choice of the answer system, which
+    decides what to send to the retrieval tool.
     """
 
     __tablename__ = "retrieval_profiles"
@@ -107,12 +110,13 @@ class RetrievalProfile(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     top_k: Mapped[int] = mapped_column(Integer, nullable=False)
     pre_rerank_k: Mapped[int | None] = mapped_column(Integer)
-    strategy: Mapped[str] = mapped_column(Text, nullable=False)
+    strategy: Mapped[RetrievalStrategy] = mapped_column(
+        RETRIEVAL_STRATEGY, nullable=False
+    )
     fusion_weights: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     mmr: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     score_threshold: Mapped[float | None] = mapped_column(Double)
     metadata_filters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    query_transforms: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     reranker_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("component_versions.id", ondelete="RESTRICT"),

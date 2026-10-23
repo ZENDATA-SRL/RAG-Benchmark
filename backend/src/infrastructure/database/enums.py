@@ -75,6 +75,15 @@ class RuntimeType(str, enum.Enum):
     HTTP = "http"
 
 
+class RetrievalStrategy(str, enum.Enum):
+    """How the vector store is searched; only `dense` is executable today."""
+
+    DENSE = "dense"
+    SPARSE = "sparse"
+    HYBRID = "hybrid"
+    MULTI_VECTOR = "multi_vector"
+
+
 def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
     """Build a native PostgreSQL ENUM that stores the enum *values*.
 
@@ -101,3 +110,4 @@ DOCUMENT_STATUS = pg_enum(DocumentStatus, "document_status")
 ARTIFACT_STATUS = pg_enum(ArtifactStatus, "artifact_status")
 COMPONENT_TYPE = pg_enum(ComponentType, "component_type")
 RUNTIME_TYPE = pg_enum(RuntimeType, "runtime_type")
+RETRIEVAL_STRATEGY = pg_enum(RetrievalStrategy, "retrieval_strategy")
