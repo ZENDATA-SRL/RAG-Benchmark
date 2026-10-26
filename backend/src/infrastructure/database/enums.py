@@ -84,6 +84,63 @@ class RetrievalStrategy(str, enum.Enum):
     MULTI_VECTOR = "multi_vector"
 
 
+class ExperimentType(str, enum.Enum):
+    RETRIEVAL = "retrieval"
+    QA = "qa"
+
+
+class ExecutionStatus(str, enum.Enum):
+    """Lifecycle of a run and of each of its executions."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+# A run or execution that reached one of these will not change unless it is relaunched.
+TERMINAL_EXECUTION_STATUSES = (
+    ExecutionStatus.SUCCEEDED,
+    ExecutionStatus.FAILED,
+    ExecutionStatus.SKIPPED,
+)
+
+
+class RetrievalStage(str, enum.Enum):
+    DENSE = "dense"
+    SPARSE = "sparse"
+    FUSED = "fused"
+    RERANKED = "reranked"
+    FINAL = "final"
+
+
+class RetrievalScope(str, enum.Enum):
+    """Which chunks a metric is computed on: what was retrieved, put in context or cited."""
+
+    RETRIEVED = "retrieved"
+    IN_CONTEXT = "in_context"
+    CITED = "cited"
+
+
+class MetricFamily(str, enum.Enum):
+    RETRIEVAL = "retrieval"
+    ANSWER = "answer"
+    EFFICIENCY = "efficiency"
+    ROBUSTNESS = "robustness"
+
+
+class MetricLevel(str, enum.Enum):
+    DOCUMENT = "document"
+    CHUNK = "chunk"
+
+
+class EvaluatorKind(str, enum.Enum):
+    DETERMINISTIC = "deterministic"
+    LLM_JUDGE = "llm_judge"
+    HUMAN = "human"
+
+
 def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
     """Build a native PostgreSQL ENUM that stores the enum *values*.
 
@@ -111,3 +168,10 @@ ARTIFACT_STATUS = pg_enum(ArtifactStatus, "artifact_status")
 COMPONENT_TYPE = pg_enum(ComponentType, "component_type")
 RUNTIME_TYPE = pg_enum(RuntimeType, "runtime_type")
 RETRIEVAL_STRATEGY = pg_enum(RetrievalStrategy, "retrieval_strategy")
+EXPERIMENT_TYPE = pg_enum(ExperimentType, "experiment_type")
+EXECUTION_STATUS = pg_enum(ExecutionStatus, "execution_status")
+RETRIEVAL_STAGE = pg_enum(RetrievalStage, "retrieval_stage")
+RETRIEVAL_SCOPE = pg_enum(RetrievalScope, "retrieval_scope")
+METRIC_FAMILY = pg_enum(MetricFamily, "metric_family")
+METRIC_LEVEL = pg_enum(MetricLevel, "metric_level")
+EVALUATOR_KIND = pg_enum(EvaluatorKind, "evaluator_kind")

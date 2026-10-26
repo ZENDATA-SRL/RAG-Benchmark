@@ -11,8 +11,10 @@ from src.core.hashing import composition_hash
 # domain module because several modules start workflows and the worker serves them all.
 MATERIALIZE_CHUNKS_WORKFLOW = "MaterializeChunksWorkflow"
 INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
+RUN_EXPERIMENT_WORKFLOW = "RunExperimentWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"
 EMBEDDING_TASK_QUEUE = "embedding"
+EXPERIMENTS_TASK_QUEUE = "experiments"
 
 
 def materialize_workflow_id(
@@ -55,3 +57,19 @@ def process_document_workflow_id(
     cache and complete without work.
     """
     return f"process-doc-{document_id}-{chunking_configuration_id}"
+
+
+def run_experiment_workflow_id(run_id: uuid.UUID | str) -> str:
+    """Deterministic id of a `RunExperimentWorkflow`.
+
+    One id per run, reused when the run is relaunched after an interruption: Temporal
+    refuses a second launch while the first is open, and accepts it once it has closed.
+    """
+    return f"run-experiment-{run_id}"
+
+
+def run_variant_workflow_id(
+    run_id: uuid.UUID | str, variant_id: uuid.UUID | str
+) -> str:
+    """Deterministic id of the `RunVariantWorkflow` child of one variant of a run."""
+    return f"run-variant-{run_id}-{variant_id}"

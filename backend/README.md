@@ -32,7 +32,7 @@ was `created` or reused.
 
 | Module | Responsibility |
 |---|---|
-| `main.py` | App factory, request-id middleware, `DomainError` → HTTP handler, router registration; the lifespan seeds the builtin registry and the `upload` source |
+| `main.py` | App factory, request-id middleware, `DomainError` → HTTP handler, router registration; the lifespan seeds the builtin registry, the `upload` source and the metric catalog |
 | `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, ChromaDB and Qdrant addresses for the worker and for retrieval, upload limits, CORS) |
 | `dependencies.py` | FastAPI dependencies for object storage and the workflow client |
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
@@ -48,13 +48,17 @@ was `created` or reused.
 | `materializations/` | User-triggered chunk materialisation runs and their progress |
 | `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
 | `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
+| `qa_sets/` | Question sets with their gold documents and expected answers, CSV/JSONL import and immutable snapshots |
+| `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document-level metrics and results |
 
 The pipeline modules depend on each other in one direction only:
 
 ```
 pipelines ← artifacts ← materializations
-          ↖ indexes ← retrieval
+          ↖ indexes ← retrieval ← experiments → qa_sets
 ```
+
+`retrieval` also reads `experiments.repository` to record the calls of an execution.
 
 ### `components/`
 
@@ -185,15 +189,39 @@ space (`cosine`) when a profile declares none.
 |---|---|
 | `POST /retrieve` | `{index_build_id, retrieval_profile_id, query, execution_id?}` → `{hits: [{rank, score, stage, chunk_id, document_id, filename, ordinal, page, text}], timings, corpus_id, chunking_configuration_id}` |
 
-`execution_id` is accepted for the experiments to come; today the call is only logged.
+With an `execution_id` the call and its hits are recorded against that experiment execution
+(`404` if it does not exist); without one the call is only logged.
+
+### `qa_sets/`
+
+Question sets, their gold documents, expected answers and snapshots. `POST /qa-sets/{id}/import`
+reads a CSV or JSONL (`question`, `answer`, `gold_files`, `tags`, `answerable`), resolves the
+files by name or hash
+among the documents of the set's origin corpus and reports every row (imported, already
+present, unresolved, ambiguous, invalid) without dropping any. `POST /qa-sets/{id}/snapshots`
+freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`](src/qa_sets/README.md).
+
+### `experiments/`
+
+| Route | Purpose |
+|---|---|
+| `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list, read, check coverage |
+| `POST /experiments/{id}/runs`, `GET …/runs/{run_id}`, `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | Launch a run on Temporal, poll it, cancel it, relaunch it redoing only what did not succeed |
+| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Document-level metrics per variant with effective and excluded counts, and the per-question drill-down |
+
+Metrics, guards and the run lifecycle are described in [`src/experiments/README.md`](src/experiments/README.md).
 
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
 `retrieval_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
-`chunks`, `index_builds`, `materialization_runs`. Profiles and configurations are in
+`chunks`, `index_builds`, `materialization_runs`, `qa_sets`, `questions`, `expected_answers`, `gold_documents`,
+`qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
+`retrieval_calls`, `retrieval_hits`, `metric_definitions`, `evaluators`, `evaluations`,
+`metric_aggregates`. Profiles and configurations are in
 `pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
-`materializations/models.py`, index builds in `indexes/models.py`.
+`materializations/models.py`, index builds in `indexes/models.py`, the question sets in
+`qa_sets/models.py` and the experiment tables in `experiments/models.py`.
 Parse output lives on object storage and is referenced by `parsing_results.output_uri`;
 chunks are rows. The full schema and its rationale are in
 [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md).
@@ -216,3 +244,16 @@ The workflow materialises the chunks, embeds them in batches to object storage a
 each batch into a vector store collection (ChromaDB or Qdrant, as the vector store profile
 says) named after the build's `external_index_ref`. What it does step by step is described in
 the Temporal README.
+
+## Experiment flow
+
+```
+POST /qa-sets                         a question set (optionally with its origin corpus)
+POST /qa-sets/{id}/import             CSV/JSONL: question, answer, gold files, tags → summary of every row
+POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (same questions, same snapshot)
+POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile)
+POST /experiments/{id}/runs           → RunExperimentWorkflow on the worker
+GET  /experiments/{id}/runs/{run}     progress: pending → running → succeeded | failed
+GET  /experiments/{id}/runs/{run}/results      recall, precision, hit rate, MRR per variant, with n
+GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved, hit by hit
+```

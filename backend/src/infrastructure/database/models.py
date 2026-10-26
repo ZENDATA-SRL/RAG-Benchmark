@@ -9,6 +9,18 @@ from src.corpora.models import (
     CorpusSnapshotDocument,
 )
 from src.documents.models import Document
+from src.experiments.models import (
+    Evaluation,
+    Evaluator,
+    Execution,
+    Experiment,
+    MetricAggregate,
+    MetricDefinition,
+    RetrievalCall,
+    RetrievalHit,
+    Run,
+    Variant,
+)
 from src.indexes.models import IndexBuild
 from src.infrastructure.database.base import Base
 from src.materializations.models import MaterializationRun
@@ -19,6 +31,14 @@ from src.pipelines.models import (
     ParsingProfile,
     RetrievalProfile,
     VectorStoreProfile,
+)
+from src.qa_sets.models import (
+    ExpectedAnswer,
+    GoldDocument,
+    QASet,
+    QASetSnapshot,
+    QASnapshotQuestion,
+    Question,
 )
 from src.sources.models import (
     DocumentProvenance,
@@ -43,14 +63,30 @@ __all__ = [
     "Document",
     "DocumentProvenance",
     "EmbeddingProfile",
+    "Evaluation",
+    "Evaluator",
+    "Execution",
+    "ExpectedAnswer",
+    "Experiment",
+    "GoldDocument",
     "ImportFileResult",
     "ImportRun",
     "ImportSelection",
     "IndexBuild",
     "MaterializationRun",
+    "MetricAggregate",
+    "MetricDefinition",
     "ParsingProfile",
     "ParsingResult",
+    "QASet",
+    "QASetSnapshot",
+    "QASnapshotQuestion",
+    "Question",
+    "RetrievalCall",
+    "RetrievalHit",
     "RetrievalProfile",
+    "Run",
     "SourceConnection",
+    "Variant",
     "VectorStoreProfile",
 ]
