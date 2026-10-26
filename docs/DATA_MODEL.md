@@ -515,8 +515,11 @@ Testo, allegati, tag, flag. **Immutabile e condivisa** fra tutte le configurazio
 | `attachments` | JSONB | NOT NULL DEFAULT '[]' | riferimenti object storage |
 | `tags` | TEXT[] | NOT NULL DEFAULT '{}' | tag liberi (§2.2, RF-D02) |
 | `answerable` | BOOLEAN | NOT NULL DEFAULT true | flag di risposta possibile |
+| `replaced_by_question_id` | UUID | FK → questions ON DELETE SET NULL, NULL, indicizzato | domanda che la sostituisce nel QA set; non nullo = domanda ritirata |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | INDEX GIN (tags) | slicing per tag (RF-V09) |
+
+> **Modifica e sostituzione.** Una domanda che nessuno snapshot contiene si modifica e si cancella liberamente: è ancora una bozza. Una domanda congelata in uno snapshot non si tocca, perché gli snapshot referenziano le domande e un esperimento passato cambierebbe significato; si **sostituisce** con una nuova domanda, e `replaced_by_question_id` della vecchia punta alla nuova. La domanda sostituita esce dal QA set corrente (elenco, freeze successivo, deduplica dell'import) ma resta referenziata dagli snapshot che la contengono. I legami di evidenza non si copiano sulla nuova domanda: il testo è cambiato e la conferma va rifatta. Cancellare la domanda nuova azzera il puntatore e riporta la vecchia nel set. I documenti gold, invece, si modificano anche su una domanda congelata: sono un'annotazione della domanda, e confermare l'evidenza li estende comunque.
 
 ### `qa_snapshot_questions`
 Composizione immutabile: quali domande fanno parte di uno snapshot (le domande sono referenziate, non copiate — RF-T01).

@@ -33,6 +33,8 @@ from src.pipelines.models import (
     VectorStoreProfile,
 )
 from src.qa_sets.models import (
+    EvidenceLink,
+    EvidenceLinkChunk,
     ExpectedAnswer,
     GoldDocument,
     QASet,
@@ -65,6 +67,8 @@ __all__ = [
     "EmbeddingProfile",
     "Evaluation",
     "Evaluator",
+    "EvidenceLink",
+    "EvidenceLinkChunk",
     "Execution",
     "ExpectedAnswer",
     "Experiment",

@@ -141,6 +141,25 @@ class EvaluatorKind(str, enum.Enum):
     HUMAN = "human"
 
 
+class EvidenceLinkStatus(str, enum.Enum):
+    """Review state of the chunks that hold the answer, under one chunking configuration.
+
+    No row at all means "not reviewed yet"; `not_found` is a checked outcome: the evidence
+    does not exist in the chunks of that configuration.
+    """
+
+    TO_REVIEW = "to_review"
+    CONFIRMED = "confirmed"
+    NOT_FOUND = "not_found"
+
+
+class RelevanceGrade(str, enum.Enum):
+    """Whether a gold chunk answers the question on its own or only supports the answer."""
+
+    SUFFICIENT = "sufficient"
+    SUPPORTING = "supporting"
+
+
 def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
     """Build a native PostgreSQL ENUM that stores the enum *values*.
 
@@ -175,3 +194,5 @@ RETRIEVAL_SCOPE = pg_enum(RetrievalScope, "retrieval_scope")
 METRIC_FAMILY = pg_enum(MetricFamily, "metric_family")
 METRIC_LEVEL = pg_enum(MetricLevel, "metric_level")
 EVALUATOR_KIND = pg_enum(EvaluatorKind, "evaluator_kind")
+EVIDENCE_LINK_STATUS = pg_enum(EvidenceLinkStatus, "evidence_link_status")
+RELEVANCE_GRADE = pg_enum(RelevanceGrade, "relevance_grade")
