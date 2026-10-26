@@ -199,3 +199,40 @@ async def client(
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client
 
+
+@pytest.fixture
+def chroma_client():
+    """An in-process Chroma, emptied for each test."""
+    import chromadb
+    from chromadb.config import Settings as ChromaSettings
+
+    client = chromadb.EphemeralClient(settings=ChromaSettings(allow_reset=True))
+    client.reset()
+    return client
+
+
+@pytest.fixture
+def fake_engine(monkeypatch, chroma_client):
+    """Fake only the embedder and point the reader at an in-process Chroma.
+
+    The fake embedding is deterministic in the text, so a query equal to a chunk's text
+    lands exactly on that chunk's vector.
+    """
+    from langchain_core.embeddings import DeterministicFakeEmbedding
+    from src.components.builtin.embedder import openai_embedder
+    from src.components.builtin.vector_stores import chroma
+    from src.retrieval.embedders import BUILTIN_EMBEDDERS
+    from src.retrieval.readers import BUILTIN_VECTOR_STORE_READERS
+    from src.retrieval.readers.chroma import ChromaVectorStoreReader
+    from tests.retrieval_factory import DIMENSIONS
+
+    monkeypatch.setitem(
+        BUILTIN_EMBEDDERS,
+        openai_embedder.KEY,
+        lambda params: DeterministicFakeEmbedding(size=DIMENSIONS),
+    )
+    monkeypatch.setitem(
+        BUILTIN_VECTOR_STORE_READERS,
+        chroma.KEY,
+        lambda: ChromaVectorStoreReader(chroma_client),
+    )
