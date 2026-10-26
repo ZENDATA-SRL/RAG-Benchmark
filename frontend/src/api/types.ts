@@ -65,6 +65,15 @@ export type QASetDetail = components["schemas"]["QASetDetail"];
 export type QASetSnapshotRead = components["schemas"]["QASetSnapshotRead"];
 export type QASetSnapshotCreated = components["schemas"]["QASetSnapshotCreated"];
 export type QuestionRead = components["schemas"]["QuestionRead"];
+export type QuestionCreate = components["schemas"]["QuestionCreate"];
+export type QuestionUpdate = components["schemas"]["QuestionUpdate"];
+export type ExpectedAnswerWrite = components["schemas"]["ExpectedAnswerWrite"];
+export type EvidenceRead = components["schemas"]["EvidenceRead"];
+export type EvidenceWrite = components["schemas"]["EvidenceWrite"];
+export type EvidenceChunkRead = components["schemas"]["EvidenceChunkRead"];
+export type EvidenceCoverageRead = components["schemas"]["EvidenceCoverageRead"];
+export type EvidenceStatus = NonNullable<QuestionRead["evidence_status"]>;
+export type RelevanceGrade = EvidenceChunkRead["relevance"];
 export type ImportSummaryRead = components["schemas"]["ImportSummaryRead"];
 
 export type ExperimentRead = components["schemas"]["ExperimentRead"];

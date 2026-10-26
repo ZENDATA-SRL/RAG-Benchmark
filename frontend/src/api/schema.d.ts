@@ -997,7 +997,7 @@ export interface paths {
         };
         /**
          * Get Qa Set
-         * @description Return a QA set with a page of its questions and their gold documents.
+         * @description Return a QA set with a page of its current questions and their gold documents.
          */
         get: operations["get_qa_set_api_v1_qa_sets__qa_set_id__get"];
         put?: never;
@@ -1046,6 +1046,158 @@ export interface paths {
          * @description Freeze the current questions, or return the snapshot with the same composition.
          */
         post: operations["freeze_qa_set_api_v1_qa_sets__qa_set_id__snapshots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Question
+         * @description Write a question with its expected answers and, optionally, gold documents.
+         */
+        post: operations["create_question_api_v1_qa_sets__qa_set_id__questions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}/evidence-coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence Coverage
+         * @description Count the questions of a set by the status of their evidence.
+         */
+        get: operations["get_evidence_coverage_api_v1_qa_sets__qa_set_id__evidence_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Qa Set
+         * @description Download the questions in the format the import reads back.
+         */
+        get: operations["export_qa_set_api_v1_qa_sets__qa_set_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Question
+         * @description Return a question, with its evidence status under a configuration if asked.
+         */
+        get: operations["get_question_api_v1_questions__question_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Question
+         * @description Delete a question that no snapshot holds.
+         */
+        delete: operations["delete_question_api_v1_questions__question_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Question
+         * @description Edit a question that no snapshot holds yet.
+         */
+        patch: operations["update_question_api_v1_questions__question_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/questions/{question_id}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace Question
+         * @description Replace a question with a new one; snapshots keep the old one.
+         */
+        post: operations["replace_question_api_v1_questions__question_id__replace_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questions/{question_id}/gold-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Gold Documents
+         * @description Set the gold documents of a question to exactly this list.
+         */
+        put: operations["set_gold_documents_api_v1_questions__question_id__gold_documents_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questions/{question_id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence
+         * @description Return the evidence chunks of a question under a chunking configuration.
+         */
+        get: operations["get_evidence_api_v1_questions__question_id__evidence_get"];
+        /**
+         * Put Evidence
+         * @description Save a draft, confirm the evidence chunks, or record that none was found.
+         */
+        put: operations["put_evidence_api_v1_questions__question_id__evidence_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2208,6 +2360,139 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * EvidenceChunkRead
+         * @description An evidence chunk with where it comes from, for the review panel.
+         */
+        EvidenceChunkRead: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Text */
+            text: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            relevance: components["schemas"]["RelevanceGrade"];
+            /** Graded Relevance */
+            graded_relevance?: number | null;
+        };
+        /**
+         * EvidenceChunkWrite
+         * @description A chunk chosen as evidence, sufficient on its own or supporting the answer.
+         */
+        EvidenceChunkWrite: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            relevance: components["schemas"]["RelevanceGrade"];
+            /**
+             * Graded Relevance
+             * @description Optional graded relevance, 0 to 3.
+             */
+            graded_relevance?: number | null;
+        };
+        /**
+         * EvidenceCoverageRead
+         * @description How far the evidence of a set is reviewed under one configuration.
+         */
+        EvidenceCoverageRead: {
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Answerable */
+            answerable: number;
+            /** Not Answerable */
+            not_answerable: number;
+            /** Confirmed */
+            confirmed: number;
+            /** Not Found */
+            not_found: number;
+            /** To Review */
+            to_review: number;
+            /** Not Reviewed */
+            not_reviewed: number;
+        };
+        /**
+         * EvidenceLinkStatus
+         * @description Review state of the chunks that hold the answer, under one chunking configuration.
+         *
+         *     No row at all means "not reviewed yet"; `not_found` is a checked outcome: the evidence
+         *     does not exist in the chunks of that configuration.
+         * @enum {string}
+         */
+        EvidenceLinkStatus: "to_review" | "confirmed" | "not_found";
+        /**
+         * EvidenceRead
+         * @description The evidence of a question under one chunking configuration.
+         *
+         *     `added_gold_document_ids` lists the documents a confirmation added to the gold.
+         */
+        EvidenceRead: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_reviewed" | "to_review" | "confirmed" | "not_found";
+            /** Confirmed By */
+            confirmed_by?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Chunks */
+            chunks: components["schemas"]["EvidenceChunkRead"][];
+            /** Added Gold Document Ids */
+            added_gold_document_ids?: string[];
+        };
+        /**
+         * EvidenceWrite
+         * @description The whole evidence of a question under one chunking configuration.
+         *
+         *     `to_review` saves a draft; `confirmed` needs chunks; `not_found` takes none. Both
+         *     decisions need `annotator`.
+         */
+        EvidenceWrite: {
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            status: components["schemas"]["EvidenceLinkStatus"];
+            /** Chunks */
+            chunks?: components["schemas"]["EvidenceChunkWrite"][];
+            /** Annotator */
+            annotator?: string | null;
+        };
         /** ExecutionDetailRead */
         ExecutionDetailRead: {
             /**
@@ -2243,6 +2528,19 @@ export interface components {
             /** Text */
             text: string;
             /** Is Primary */
+            is_primary: boolean;
+        };
+        /**
+         * ExpectedAnswerWrite
+         * @description An acceptable answer; with none marked primary, the first one is.
+         */
+        ExpectedAnswerWrite: {
+            /** Text */
+            text: string;
+            /**
+             * Is Primary
+             * @default false
+             */
             is_primary: boolean;
         };
         /**
@@ -2390,6 +2688,12 @@ export interface components {
          */
         ExperimentType: "retrieval" | "qa";
         /**
+         * ExportFormat
+         * @description File formats of an export: the same two the import reads.
+         * @enum {string}
+         */
+        ExportFormat: "csv" | "jsonl";
+        /**
          * FileOutcome
          * @enum {string}
          */
@@ -2406,6 +2710,14 @@ export interface components {
             document_id: string;
             /** Filename */
             filename: string;
+        };
+        /**
+         * GoldDocumentsWrite
+         * @description The complete list of gold documents of a question.
+         */
+        GoldDocumentsWrite: {
+            /** Document Ids */
+            document_ids: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3256,6 +3568,25 @@ export interface components {
             frozen_at: string;
         };
         /**
+         * QuestionCreate
+         * @description A question written in the UI; gold documents can also come later, from evidence.
+         */
+        QuestionCreate: {
+            /** Text */
+            text: string;
+            /** Tags */
+            tags?: string[];
+            /**
+             * Answerable
+             * @default true
+             */
+            answerable: boolean;
+            /** Expected Answers */
+            expected_answers?: components["schemas"]["ExpectedAnswerWrite"][];
+            /** Gold Document Ids */
+            gold_document_ids?: string[];
+        };
+        /**
          * QuestionDrilldownRead
          * @description What each variant returned for one question, side by side.
          */
@@ -3284,6 +3615,9 @@ export interface components {
         /**
          * QuestionRead
          * @description A question with its gold documents and expected answers.
+         *
+         *     `frozen` is true when a snapshot holds the question: it can then only be replaced.
+         *     `evidence_status` is set when the listing was asked for a chunking configuration.
          */
         QuestionRead: {
             /**
@@ -3291,6 +3625,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
             /** Text */
             text: string;
             /** Tags */
@@ -3301,6 +3640,31 @@ export interface components {
             gold_documents: components["schemas"]["GoldDocumentRead"][];
             /** Expected Answers */
             expected_answers: components["schemas"]["ExpectedAnswerRead"][];
+            /**
+             * Frozen
+             * @default false
+             */
+            frozen: boolean;
+            /** Replaced By Question Id */
+            replaced_by_question_id?: string | null;
+            /** Evidence Status */
+            evidence_status?: ("not_reviewed" | "to_review" | "confirmed" | "not_found") | null;
+        };
+        /**
+         * QuestionUpdate
+         * @description Changes to a question not frozen yet; an omitted field is left as it is.
+         *
+         *     `expected_answers`, when given, replaces the whole list.
+         */
+        QuestionUpdate: {
+            /** Text */
+            text?: string | null;
+            /** Tags */
+            tags?: string[] | null;
+            /** Answerable */
+            answerable?: boolean | null;
+            /** Expected Answers */
+            expected_answers?: components["schemas"]["ExpectedAnswerWrite"][] | null;
         };
         /**
          * QuestionVariantOutcomeRead
@@ -3318,6 +3682,12 @@ export interface components {
             /** Excluded Reason */
             excluded_reason?: string | null;
         };
+        /**
+         * RelevanceGrade
+         * @description Whether a gold chunk answers the question on its own or only supports the answer.
+         * @enum {string}
+         */
+        RelevanceGrade: "sufficient" | "supporting";
         /**
          * RetrievalProfileCreate
          * @description Payload creating a retrieval profile.
@@ -5925,6 +6295,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                /** @description Report each question's evidence status under this configuration. */
+                chunking_configuration_id?: string | null;
             };
             header?: never;
             path: {
@@ -6045,6 +6417,343 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QASetSnapshotCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_question_api_v1_qa_sets__qa_set_id__questions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_coverage_api_v1_qa_sets__qa_set_id__evidence_coverage_get: {
+        parameters: {
+            query: {
+                chunking_configuration_id: string;
+            };
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceCoverageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_qa_set_api_v1_qa_sets__qa_set_id__export_get: {
+        parameters: {
+            query?: {
+                format?: components["schemas"]["ExportFormat"];
+                snapshot_id?: string | null;
+            };
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_question_api_v1_questions__question_id__get: {
+        parameters: {
+            query?: {
+                chunking_configuration_id?: string | null;
+            };
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_question_api_v1_questions__question_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_question_api_v1_questions__question_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_question_api_v1_questions__question_id__replace_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_gold_documents_api_v1_questions__question_id__gold_documents_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldDocumentsWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_api_v1_questions__question_id__evidence_get: {
+        parameters: {
+            query: {
+                chunking_configuration_id: string;
+            };
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_evidence_api_v1_questions__question_id__evidence_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvidenceWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRead"];
                 };
             };
             /** @description Validation Error */

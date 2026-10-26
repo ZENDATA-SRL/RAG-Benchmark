@@ -3223,7 +3223,7 @@
           "qa-sets"
         ],
         "summary": "Get Qa Set",
-        "description": "Return a QA set with a page of its questions and their gold documents.",
+        "description": "Return a QA set with a page of its current questions and their gold documents.",
         "operationId": "get_qa_set_api_v1_qa_sets__qa_set_id__get",
         "parameters": [
           {
@@ -3258,6 +3258,25 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Report each question's evidence status under this configuration.",
+              "title": "Chunking Configuration Id"
+            },
+            "description": "Report each question's evidence status under this configuration."
           }
         ],
         "responses": {
@@ -3440,6 +3459,544 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Page_QASetSnapshotRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}/questions": {
+      "post": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Create Question",
+        "description": "Write a question with its expected answers and, optionally, gold documents.",
+        "operationId": "create_question_api_v1_qa_sets__qa_set_id__questions_post",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}/evidence-coverage": {
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Get Evidence Coverage",
+        "description": "Count the questions of a set by the status of their evidence.",
+        "operationId": "get_evidence_coverage_api_v1_qa_sets__qa_set_id__evidence_coverage_get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chunking Configuration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceCoverageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}/export": {
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Export Qa Set",
+        "description": "Download the questions in the format the import reads back.",
+        "operationId": "export_qa_set_api_v1_qa_sets__qa_set_id__export_get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ExportFormat",
+              "default": "jsonl"
+            }
+          },
+          {
+            "name": "snapshot_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Snapshot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/questions/{question_id}": {
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Get Question",
+        "description": "Return a question, with its evidence status under a configuration if asked.",
+        "operationId": "get_question_api_v1_questions__question_id__get",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          },
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chunking Configuration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Update Question",
+        "description": "Edit a question that no snapshot holds yet.",
+        "operationId": "update_question_api_v1_questions__question_id__patch",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Delete Question",
+        "description": "Delete a question that no snapshot holds.",
+        "operationId": "delete_question_api_v1_questions__question_id__delete",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/questions/{question_id}/replace": {
+      "post": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Replace Question",
+        "description": "Replace a question with a new one; snapshots keep the old one.",
+        "operationId": "replace_question_api_v1_questions__question_id__replace_post",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/questions/{question_id}/gold-documents": {
+      "put": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Set Gold Documents",
+        "description": "Set the gold documents of a question to exactly this list.",
+        "operationId": "set_gold_documents_api_v1_questions__question_id__gold_documents_put",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoldDocumentsWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/questions/{question_id}/evidence": {
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Get Evidence",
+        "description": "Return the evidence chunks of a question under a chunking configuration.",
+        "operationId": "get_evidence_api_v1_questions__question_id__evidence_get",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          },
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chunking Configuration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Put Evidence",
+        "description": "Save a draft, confirm the evidence chunks, or record that none was found.",
+        "operationId": "put_evidence_api_v1_questions__question_id__evidence_put",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceRead"
                 }
               }
             }
@@ -5945,6 +6502,266 @@
         "title": "EmbeddingProfileRead",
         "description": "An embedding profile as exposed by the API."
       },
+      "EvidenceChunkRead": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          },
+          "graded_relevance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded Relevance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "text",
+          "metadata",
+          "relevance"
+        ],
+        "title": "EvidenceChunkRead",
+        "description": "An evidence chunk with where it comes from, for the review panel."
+      },
+      "EvidenceChunkWrite": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          },
+          "graded_relevance": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded Relevance",
+            "description": "Optional graded relevance, 0 to 3."
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "relevance"
+        ],
+        "title": "EvidenceChunkWrite",
+        "description": "A chunk chosen as evidence, sufficient on its own or supporting the answer."
+      },
+      "EvidenceCoverageRead": {
+        "properties": {
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "answerable": {
+            "type": "integer",
+            "title": "Answerable"
+          },
+          "not_answerable": {
+            "type": "integer",
+            "title": "Not Answerable"
+          },
+          "confirmed": {
+            "type": "integer",
+            "title": "Confirmed"
+          },
+          "not_found": {
+            "type": "integer",
+            "title": "Not Found"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review"
+          },
+          "not_reviewed": {
+            "type": "integer",
+            "title": "Not Reviewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_set_id",
+          "chunking_configuration_id",
+          "answerable",
+          "not_answerable",
+          "confirmed",
+          "not_found",
+          "to_review",
+          "not_reviewed"
+        ],
+        "title": "EvidenceCoverageRead",
+        "description": "How far the evidence of a set is reviewed under one configuration."
+      },
+      "EvidenceLinkStatus": {
+        "type": "string",
+        "enum": [
+          "to_review",
+          "confirmed",
+          "not_found"
+        ],
+        "title": "EvidenceLinkStatus",
+        "description": "Review state of the chunks that hold the answer, under one chunking configuration.\n\nNo row at all means \"not reviewed yet\"; `not_found` is a checked outcome: the evidence\ndoes not exist in the chunks of that configuration."
+      },
+      "EvidenceRead": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_reviewed",
+              "to_review",
+              "confirmed",
+              "not_found"
+            ],
+            "title": "Status"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceChunkRead"
+            },
+            "type": "array",
+            "title": "Chunks"
+          },
+          "added_gold_document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Added Gold Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "chunking_configuration_id",
+          "status",
+          "chunks"
+        ],
+        "title": "EvidenceRead",
+        "description": "The evidence of a question under one chunking configuration.\n\n`added_gold_document_ids` lists the documents a confirmation added to the gold."
+      },
+      "EvidenceWrite": {
+        "properties": {
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EvidenceLinkStatus"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceChunkWrite"
+            },
+            "type": "array",
+            "title": "Chunks"
+          },
+          "annotator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunking_configuration_id",
+          "status"
+        ],
+        "title": "EvidenceWrite",
+        "description": "The whole evidence of a question under one chunking configuration.\n\n`to_review` saves a draft; `confirmed` needs chunks; `not_found` takes none. Both\ndecisions need `annotator`."
+      },
       "ExecutionDetailRead": {
         "properties": {
           "execution_id": {
@@ -6040,6 +6857,27 @@
         ],
         "title": "ExpectedAnswerRead",
         "description": "An acceptable answer to a question; the primary one comes first."
+      },
+      "ExpectedAnswerWrite": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "title": "Is Primary",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ExpectedAnswerWrite",
+        "description": "An acceptable answer; with none marked primary, the first one is."
       },
       "ExperimentCreate": {
         "properties": {
@@ -6400,6 +7238,15 @@
         ],
         "title": "ExperimentType"
       },
+      "ExportFormat": {
+        "type": "string",
+        "enum": [
+          "csv",
+          "jsonl"
+        ],
+        "title": "ExportFormat",
+        "description": "File formats of an export: the same two the import reads."
+      },
       "FileOutcome": {
         "type": "string",
         "enum": [
@@ -6429,6 +7276,24 @@
         ],
         "title": "GoldDocumentRead",
         "description": "A document that contains the answer to a question."
+      },
+      "GoldDocumentsWrite": {
+        "properties": {
+          "document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_ids"
+        ],
+        "title": "GoldDocumentsWrite",
+        "description": "The complete list of gold documents of a question."
       },
       "HTTPValidationError": {
         "properties": {
@@ -8342,6 +9207,49 @@
         "title": "QASetSnapshotRead",
         "description": "An immutable freeze of a QA set."
       },
+      "QuestionCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "answerable": {
+            "type": "boolean",
+            "title": "Answerable",
+            "default": true
+          },
+          "expected_answers": {
+            "items": {
+              "$ref": "#/components/schemas/ExpectedAnswerWrite"
+            },
+            "type": "array",
+            "title": "Expected Answers"
+          },
+          "gold_document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Gold Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "QuestionCreate",
+        "description": "A question written in the UI; gold documents can also come later, from evidence."
+      },
       "QuestionDrilldownRead": {
         "properties": {
           "run_id": {
@@ -8404,6 +9312,11 @@
             "format": "uuid",
             "title": "Id"
           },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
           "text": {
             "type": "string",
             "title": "Text"
@@ -8432,11 +9345,46 @@
             },
             "type": "array",
             "title": "Expected Answers"
+          },
+          "frozen": {
+            "type": "boolean",
+            "title": "Frozen",
+            "default": false
+          },
+          "replaced_by_question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced By Question Id"
+          },
+          "evidence_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "not_reviewed",
+                  "to_review",
+                  "confirmed",
+                  "not_found"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Status"
           }
         },
         "type": "object",
         "required": [
           "id",
+          "qa_set_id",
           "text",
           "tags",
           "answerable",
@@ -8444,7 +9392,66 @@
           "expected_answers"
         ],
         "title": "QuestionRead",
-        "description": "A question with its gold documents and expected answers."
+        "description": "A question with its gold documents and expected answers.\n\n`frozen` is true when a snapshot holds the question: it can then only be replaced.\n`evidence_status` is set when the listing was asked for a chunking configuration."
+      },
+      "QuestionUpdate": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "answerable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answerable"
+          },
+          "expected_answers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ExpectedAnswerWrite"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Answers"
+          }
+        },
+        "type": "object",
+        "title": "QuestionUpdate",
+        "description": "Changes to a question not frozen yet; an omitted field is left as it is.\n\n`expected_answers`, when given, replaces the whole list."
       },
       "QuestionVariantOutcomeRead": {
         "properties": {
@@ -8486,6 +9493,15 @@
         ],
         "title": "QuestionVariantOutcomeRead",
         "description": "How one variant did on a question, on its first repetition."
+      },
+      "RelevanceGrade": {
+        "type": "string",
+        "enum": [
+          "sufficient",
+          "supporting"
+        ],
+        "title": "RelevanceGrade",
+        "description": "Whether a gold chunk answers the question on its own or only supports the answer."
       },
       "RetrievalProfileCreate": {
         "properties": {

@@ -35,6 +35,12 @@ import type {
   QASetRead,
   QASetSnapshotCreated,
   QASetSnapshotRead,
+  QuestionCreate,
+  QuestionRead,
+  QuestionUpdate,
+  EvidenceCoverageRead,
+  EvidenceRead,
+  EvidenceWrite,
   ImportSummaryRead,
   ExperimentCreate,
   ExperimentDetail,
@@ -152,11 +158,23 @@ export const materializationsApi = {
 };
 
 export const inspectionApi = {
-  chunks: (documentId: string, configurationId: string) =>
+  chunks: (documentId: string, configurationId: string, offset = 0) =>
     api.get<DocumentChunksRead>(`/api/v1/documents/${documentId}/chunks`, {
       chunking_configuration_id: configurationId,
       limit: 200,
+      offset,
     }),
+  /** Every chunk of a document, page after page: annotation must see the whole document. */
+  allChunks: async (documentId: string, configurationId: string) => {
+    const first = await inspectionApi.chunks(documentId, configurationId);
+    const items = [...(first.items ?? [])];
+    while (items.length < first.total) {
+      const next = await inspectionApi.chunks(documentId, configurationId, items.length);
+      if (!next.items?.length) break;
+      items.push(...next.items);
+    }
+    return { ...first, items };
+  },
   parse: (documentId: string, parsingProfileId: string, offset = 0) =>
     api.get<DocumentParseRead>(`/api/v1/documents/${documentId}/parse`, {
       parsing_profile_id: parsingProfileId,
@@ -172,7 +190,22 @@ export const inspectionApi = {
 
 export const qaSetsApi = {
   list: () => api.get<Page<QASetRead>>("/api/v1/qa-sets", { limit: 200 }),
-  get: (id: string) => api.get<QASetDetail>(`/api/v1/qa-sets/${id}`, { limit: 200 }),
+  get: (id: string, configurationId?: string) =>
+    api.get<QASetDetail>(`/api/v1/qa-sets/${id}`, {
+      limit: 200,
+      chunking_configuration_id: configurationId,
+    }),
+  createQuestion: (id: string, body: QuestionCreate) =>
+    api.post<QuestionRead>(`/api/v1/qa-sets/${id}/questions`, body),
+  evidenceCoverage: (id: string, configurationId: string) =>
+    api.get<EvidenceCoverageRead>(`/api/v1/qa-sets/${id}/evidence-coverage`, {
+      chunking_configuration_id: configurationId,
+    }),
+  exportUrl: (id: string, format: "csv" | "jsonl", snapshotId?: string) =>
+    apiUrl(
+      `/api/v1/qa-sets/${id}/export?format=${format}` +
+        (snapshotId ? `&snapshot_id=${snapshotId}` : ""),
+    ),
   create: (body: QASetCreate) => api.post<QASetRead>("/api/v1/qa-sets", body),
   importFile: (id: string, file: File) => {
     const form = new FormData();
@@ -188,6 +221,28 @@ export const qaSetsApi = {
     }),
   snapshots: (id: string) =>
     api.get<Page<QASetSnapshotRead>>(`/api/v1/qa-sets/${id}/snapshots`, { limit: 200 }),
+};
+
+export const questionsApi = {
+  get: (id: string, configurationId?: string) =>
+    api.get<QuestionRead>(`/api/v1/questions/${id}`, {
+      chunking_configuration_id: configurationId,
+    }),
+  update: (id: string, body: QuestionUpdate) =>
+    api.patch<QuestionRead>(`/api/v1/questions/${id}`, body),
+  remove: (id: string) => api.delete<null>(`/api/v1/questions/${id}`),
+  replace: (id: string, body: QuestionCreate) =>
+    api.post<QuestionRead>(`/api/v1/questions/${id}/replace`, body),
+  setGoldDocuments: (id: string, documentIds: string[]) =>
+    api.put<QuestionRead>(`/api/v1/questions/${id}/gold-documents`, {
+      document_ids: documentIds,
+    }),
+  evidence: (id: string, configurationId: string) =>
+    api.get<EvidenceRead>(`/api/v1/questions/${id}/evidence`, {
+      chunking_configuration_id: configurationId,
+    }),
+  saveEvidence: (id: string, body: EvidenceWrite) =>
+    api.put<EvidenceRead>(`/api/v1/questions/${id}/evidence`, body),
 };
 
 export const experimentsApi = {

@@ -54,7 +54,16 @@ export const queryKeys = {
     ["materializations", filters] as const,
   materialization: (id: string) => ["materializations", id] as const,
   qaSets: ["qa-sets"] as const,
-  qaSet: (id: string) => ["qa-sets", id] as const,
+  /** Prefix of every query about one set, whatever configuration it was read under. */
+  qaSetScope: (id: string) => ["qa-sets", id] as const,
+  qaSet: (id: string, configurationId = "") => ["qa-sets", id, configurationId] as const,
+  evidenceCoverage: (id: string, configurationId: string) =>
+    ["qa-sets", id, "evidence-coverage", configurationId] as const,
+  question: (id: string, configurationId = "") => ["questions", id, configurationId] as const,
+  evidence: (questionId: string, configurationId: string) =>
+    ["questions", questionId, "evidence", configurationId] as const,
+  allChunks: (documentId: string, configurationId: string) =>
+    ["chunks", documentId, configurationId, "all"] as const,
   qaSetSnapshots: (id: string) => ["qa-sets", id, "snapshots"] as const,
   experiments: ["experiments"] as const,
   experiment: (id: string) => ["experiments", id] as const,
