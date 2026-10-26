@@ -6,11 +6,19 @@ from temporal.workflows.materialize_chunks import (
     MaterializeInput,
 )
 from temporal.workflows.process_document import ProcessDocumentWorkflow
+from temporal.workflows.run_experiment import (
+    RunExperimentInput,
+    RunExperimentWorkflow,
+    RunVariantInput,
+    RunVariantWorkflow,
+)
 
 ALL_WORKFLOWS = [
     ProcessDocumentWorkflow,
     MaterializeChunksWorkflow,
     IndexCorpusWorkflow,
+    RunExperimentWorkflow,
+    RunVariantWorkflow,
 ]
 
 __all__ = [
@@ -20,4 +28,8 @@ __all__ = [
     "MaterializeChunksWorkflow",
     "MaterializeInput",
     "ProcessDocumentWorkflow",
+    "RunExperimentInput",
+    "RunExperimentWorkflow",
+    "RunVariantInput",
+    "RunVariantWorkflow",
 ]

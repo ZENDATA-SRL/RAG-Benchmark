@@ -4,6 +4,8 @@ from src.infrastructure.temporal.workflow_ids import (
     index_corpus_workflow_id,
     materialize_workflow_id,
     process_document_workflow_id,
+    run_experiment_workflow_id,
+    run_variant_workflow_id,
 )
 
 # The convention lives in the backend because the API is what *starts* the workflows and
@@ -13,4 +15,6 @@ __all__ = [
     "index_corpus_workflow_id",
     "materialize_workflow_id",
     "process_document_workflow_id",
+    "run_experiment_workflow_id",
+    "run_variant_workflow_id",
 ]

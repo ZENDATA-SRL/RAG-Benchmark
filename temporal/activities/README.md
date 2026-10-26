@@ -25,6 +25,7 @@ Rules every activity follows:
 | `indexing.py` | `resolve_index_build` (ids, composition hash and document count, never the document list), `open_index_build`, `count_index_chunks`, `complete_index_build` | chunking |
 | `embed.py` | `embed_batch(build, profile, offset, limit)`: reads the page of chunks, embeds it, writes `embeddings/{index_build_id}/{batch_offset}.json`. Vectors whose size differs from the profile's `dimensions` raise a non-retryable error | embedding |
 | `vector_store.py` | `prepare_index_collection`, `upsert_embedding_batch(build, offset)`: reads the batch file and upserts it, keyed by chunk id | embedding |
+| `experiments.py` | `open_experiment_run`, `list_unfinished_executions(run, variant, after_id, limit)`, `retrieve_question(execution)` (an execution that already succeeded is returned untouched; a `RetrievalBackendError` is raised to be retried, any other domain error marks the execution `failed` and returns), `mark_execution_failed`, `record_run_progress`, `finish_experiment_run`, `fail_experiment_run` | experiments |
 
 `__init__.py` exposes `ALL_ACTIVITIES`, which the worker registers. A new activity must be
 added there or the worker will not serve it.

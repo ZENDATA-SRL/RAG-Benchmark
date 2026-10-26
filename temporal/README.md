@@ -47,7 +47,7 @@ temporal/
   client.py         connect to the Temporal frontend with the shared data converter
   codec.py          SizeGuardCodec: rejects payloads over 128 KB, re-exported from the backend
   config.py         worker engine + `activity_session()` (one transaction per activity), data converter
-  task_queues.py    ingestion / parsing / chunking / embedding queues
+  task_queues.py    ingestion / parsing / chunking / embedding / experiments queues
   worker.py         one Worker per queue, registers all workflows and activities, asserts the registry
   workflow_ids.py   deterministic workflow ids, re-exported from the backend
   activities/       see below
@@ -70,6 +70,8 @@ launching the same work twice is rejected or reported instead of duplicated.
 |---|---|---|
 | `ProcessDocumentWorkflow` | `resolve_configuration` → `parse_document` → `chunk_document` for one document | A permanent parse failure returns `{status: "failed"}` instead of raising, so the parent can aggregate. Parsing heartbeats every few seconds (2 min heartbeat timeout, 30 min budget) |
 | `MaterializeChunksWorkflow` | Opens a `materialization_runs` row, finds the documents that still need chunking, runs one `ProcessDocumentWorkflow` child each (default concurrency 5), records progress, summarises | Takes a list of document ids or a corpus snapshot, paged 500 ids at a time. `continue_as_new` every 500 documents. Re-running a finished set finds everything cached and does no parsing |
+| `RunExperimentWorkflow` | Opens the run, runs one `RunVariantWorkflow` child per variant one after the other, then scores what did not succeed, aggregates the metrics and closes the run | A failure of the run itself is recorded on it (`fail_experiment_run`) before the workflow fails, so it does not stay `running` |
+| `RunVariantWorkflow` | Pages through the executions of one variant that did not succeed (a cursor on the id), runs `retrieve_question` for each with bounded concurrency, records progress after every page of 100 | An activity that keeps failing (4 attempts with backoff) marks only its execution `failed` and the run goes on. `continue_as_new` every 5 pages. A relaunched run redoes only the executions that did not succeed |
 | `IndexCorpusWorkflow` | Resolves the index build, runs `MaterializeChunksWorkflow` as a child over the snapshot, creates the vector store collection, then for each batch of 100 chunks embeds to object storage and upserts into the collection, and marks the build `ready` | Fails the build with `chunk_materialization_failed` if any document failed, and marks it `failed` if an activity fails for good. `continue_as_new` every 100 batches, carrying offset and counters only |
 
 ## Activities
@@ -83,6 +85,7 @@ launching the same work twice is rejected or reported instead of duplicated.
 | `indexing.py` | `resolve_index_build`, `open_index_build`, `count_index_chunks`, `complete_index_build` | chunking |
 | `embed.py` | `embed_batch`: read one page of the build's chunks, embed them, check the profile's `dimensions`, write `embeddings/{index_build_id}/{batch_offset}.json` (vector, text, document, ordinal) to object storage | embedding |
 | `vector_store.py` | `prepare_index_collection` (create the collection with the profile's index params), `upsert_embedding_batch` (read the batch file, upsert into the collection) | embedding |
+| `experiments.py` | `open_experiment_run`, `list_unfinished_executions` (one page after a cursor), `retrieve_question` (search in-process through `RetrievalService`, record the hits, score the execution), `mark_execution_failed`, `record_run_progress`, `finish_experiment_run`, `fail_experiment_run` | experiments |
 
 Large artefacts never travel through Temporal: parse output and embeddings go to object
 storage and only their URI is passed around, which is what the 128 KB payload guard enforces.
