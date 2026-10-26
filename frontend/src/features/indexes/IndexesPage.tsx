@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 import { toast } from "@/lib/toast";
@@ -151,7 +152,7 @@ export function IndexesPage() {
       ) : null}
 
       {items.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+        <TableFrame>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line bg-paper text-xs text-ink-muted">
               <tr>
@@ -199,7 +200,7 @@ export function IndexesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       ) : null}
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">

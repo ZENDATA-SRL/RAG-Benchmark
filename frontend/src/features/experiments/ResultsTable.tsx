@@ -1,5 +1,6 @@
 import type { RunResultsRead } from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
+import { TableFrame } from "@/components/ui/TableFrame";
 
 import { findMetric, formatMetric, metricKeys } from "./metrics";
 
@@ -29,7 +30,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
           detail={`${qa.label}${qa.question_count != null ? ` · ${qa.question_count} questions` : ""}`}
         />
       </div>
-      <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
+      <TableFrame>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs text-ink-muted">
             <tr>
@@ -60,7 +61,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
             ))}
           </tbody>
         </table>
-      </div>
+      </TableFrame>
       <p className="mt-2 text-xs text-ink-muted">
         Each value is the mean, with (questions counted / questions asked). Excluded questions are
         left out of the mean but never hidden.

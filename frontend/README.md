@@ -10,13 +10,16 @@ queries against it.
 | Route | Page |
 |---|---|
 | `/corpora`, `/corpora/:corpusId` | Corpora list; corpus detail with upload, documents, snapshots, preview and materialisation |
-| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
+| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text, sized to the window so the PDF and the chunk list scroll in their own panes; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
 | `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
 | `/indexes` | Embedding and vector store profiles, index builds, and the query panel of a ready build |
-| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets; questions with their gold documents, CSV/JSONL import with its summary, freeze |
-| `/experiments`, `/experiments/:experimentId` | Experiments and the wizard that creates one; variants, runs and the *Launch run* action |
+| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, CSV/JSONL import with its summary, freeze |
+| `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with the snapshots each one uses, and the wizard that creates one; an experiment's corpus and QA set, variants, runs and the *Launch run* action |
 | `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results per variant, questions and their drill-down |
-| `/components` | The component registry |
+| `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
+
+Every table sits in a frame bounded to the window (`TableFrame`): long lists scroll inside it
+with the column names kept visible, instead of stretching the page.
 
 ## Indexing
 

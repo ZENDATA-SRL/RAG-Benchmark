@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { experimentsApi } from "@/api/resources";
 import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/queryClient";
+import { TableFrame } from "@/components/ui/TableFrame";
 
 import { CUTOFFS, DEFAULT_CUTOFF } from "./metrics";
 import { describeOutcome } from "./outcome";
@@ -137,7 +138,7 @@ export function RunPage() {
         {questionItems.length === 0 ? (
           <p className="text-sm text-ink-muted">No question evaluated yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
+          <TableFrame>
             <table className="w-full text-left text-sm" data-testid="run-questions">
               <thead className="border-b border-line bg-paper text-xs text-ink-muted">
                 <tr>
@@ -170,7 +171,7 @@ export function RunPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </section>
 

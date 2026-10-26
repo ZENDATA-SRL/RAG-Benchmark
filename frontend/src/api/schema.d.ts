@@ -2315,6 +2315,18 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Corpus Id */
+            corpus_id?: string | null;
+            /** Corpus Name */
+            corpus_name?: string | null;
+            /** Corpus Snapshot Label */
+            corpus_snapshot_label?: string | null;
+            /** Qa Set Id */
+            qa_set_id?: string | null;
+            /** Qa Set Name */
+            qa_set_name?: string | null;
+            /** Qa Set Snapshot Label */
+            qa_set_snapshot_label?: string | null;
             /** Variants */
             variants: components["schemas"]["VariantRead"][];
             /** Runs */
@@ -2359,6 +2371,18 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Corpus Id */
+            corpus_id?: string | null;
+            /** Corpus Name */
+            corpus_name?: string | null;
+            /** Corpus Snapshot Label */
+            corpus_snapshot_label?: string | null;
+            /** Qa Set Id */
+            qa_set_id?: string | null;
+            /** Qa Set Name */
+            qa_set_name?: string | null;
+            /** Qa Set Snapshot Label */
+            qa_set_snapshot_label?: string | null;
         };
         /**
          * ExperimentType

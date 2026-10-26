@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { formatBytes, formatDate, rememberCorpus } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 import { toast } from "@/lib/toast";
@@ -96,7 +97,9 @@ export function CorpusDetailPage() {
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{corpus.data?.name ?? "Corpus"}</h1>
-            <p className="mt-1 text-sm text-ink-muted">{corpus.data?.description || "No description"}</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {corpus.data?.description || "No description"}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setEditing(true)}>
@@ -128,9 +131,12 @@ export function CorpusDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 max-w-xl">{progress.data ? <AcquisitionBar progress={progress.data} /> : null}</div>
+        <div className="mt-4 max-w-xl">
+          {progress.data ? <AcquisitionBar progress={progress.data} /> : null}
+        </div>
         <p className="mt-1 text-xs text-ink-muted">
-          Status here is acquisition (downloaded and stored), not parsing. Parsing lives on a configuration.
+          Status here is acquisition (downloaded and stored), not parsing. Parsing lives on a
+          configuration.
         </p>
 
         {runId ? (
@@ -151,7 +157,13 @@ export function CorpusDetailPage() {
             />
           ) : null}
           {items.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+            <p className="mb-2 text-xs text-ink-muted">
+              {items.length} {items.length === 1 ? "document" : "documents"}
+              {selected.size > 0 ? ` · ${selected.size} selected` : ""}
+            </p>
+          ) : null}
+          {items.length > 0 ? (
+            <TableFrame>
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-line bg-paper text-xs text-ink-muted">
                   <tr>
@@ -160,7 +172,9 @@ export function CorpusDetailPage() {
                         type="checkbox"
                         checked={allSelected}
                         onChange={() => {
-                          setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)));
+                          setSelected(
+                            allSelected ? new Set() : new Set(items.map((item) => item.id)),
+                          );
                         }}
                         aria-label="Select all documents"
                       />
@@ -206,11 +220,15 @@ export function CorpusDetailPage() {
                           {document.filename}
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-ink-muted">{formatBytes(document.size_bytes)}</td>
+                      <td className="px-3 py-2 text-ink-muted">
+                        {formatBytes(document.size_bytes)}
+                      </td>
                       <td className="px-3 py-2">
                         <Badge tone={acquisitionTone(document.status)}>{document.status}</Badge>
                       </td>
-                      <td className="px-3 py-2 text-ink-muted">{formatDate(document.created_at)}</td>
+                      <td className="px-3 py-2 text-ink-muted">
+                        {formatDate(document.created_at)}
+                      </td>
                       <td className="px-3 py-2 text-right">
                         <Button variant="ghost" onClick={() => setPreviewing(document)}>
                           Preview
@@ -218,9 +236,7 @@ export function CorpusDetailPage() {
                         <Button
                           variant="ghost"
                           onClick={() =>
-                            navigate(
-                              `/corpora/${corpusId}/documents/${document.id}/chunks`,
-                            )
+                            navigate(`/corpora/${corpusId}/documents/${document.id}/chunks`)
                           }
                         >
                           Inspect
@@ -233,7 +249,7 @@ export function CorpusDetailPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableFrame>
           ) : null}
         </div>
       </div>
@@ -289,7 +305,11 @@ export function CorpusDetailPage() {
       ) : null}
 
       {freezing ? (
-        <SnapshotDialog corpusId={corpusId} selectedIds={[...selected]} onClose={() => setFreezing(false)} />
+        <SnapshotDialog
+          corpusId={corpusId}
+          selectedIds={[...selected]}
+          onClose={() => setFreezing(false)}
+        />
       ) : null}
 
       {previewing ? (

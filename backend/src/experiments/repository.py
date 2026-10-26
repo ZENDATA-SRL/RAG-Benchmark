@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.artifacts.models import Chunk, ChunkResult
-from src.corpora.models import CorpusSnapshotDocument
+from src.corpora.models import Corpus, CorpusSnapshot, CorpusSnapshotDocument
 from src.documents.models import Document
 from src.experiments.models import (
     Evaluation,
@@ -23,7 +23,13 @@ from src.experiments.models import (
     Variant,
 )
 from src.infrastructure.database.enums import ExecutionStatus, RetrievalStage
-from src.qa_sets.models import GoldDocument, QASnapshotQuestion, Question
+from src.qa_sets.models import (
+    GoldDocument,
+    QASet,
+    QASetSnapshot,
+    QASnapshotQuestion,
+    Question,
+)
 
 # Rows per INSERT: asyncpg caps a statement at 32767 bind parameters, and an execution row
 # binds four, an aggregate thirteen.
@@ -38,6 +44,18 @@ class UncoveredQuestion:
     question_id: uuid.UUID
     text: str
     missing_documents: list[tuple[uuid.UUID, str]]
+
+
+@dataclasses.dataclass(frozen=True)
+class SnapshotOrigin:
+    """The corpus and the QA set an experiment's two snapshots were frozen from."""
+
+    corpus_id: uuid.UUID
+    corpus_name: str
+    corpus_snapshot_label: str
+    qa_set_id: uuid.UUID
+    qa_set_name: str
+    qa_set_snapshot_label: str
 
 
 class ExperimentRepository:
@@ -93,6 +111,33 @@ class ExperimentRepository:
             .group_by(Variant.experiment_id)
         )
         return {key: count for key, count in (await self.session.execute(stmt)).all()}
+
+    async def snapshot_origins(
+        self, experiment_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, SnapshotOrigin]:
+        """The corpus and QA set behind each experiment, keyed by experiment id."""
+        if not experiment_ids:
+            return {}
+        stmt = (
+            select(
+                Experiment.id,
+                Corpus.id,
+                Corpus.name,
+                CorpusSnapshot.label,
+                QASet.id,
+                QASet.name,
+                QASetSnapshot.label,
+            )
+            .join(CorpusSnapshot, CorpusSnapshot.id == Experiment.corpus_snapshot_id)
+            .join(Corpus, Corpus.id == CorpusSnapshot.corpus_id)
+            .join(QASetSnapshot, QASetSnapshot.id == Experiment.qa_set_snapshot_id)
+            .join(QASet, QASet.id == QASetSnapshot.qa_set_id)
+            .where(Experiment.id.in_(experiment_ids))
+        )
+        return {
+            row[0]: SnapshotOrigin(*row[1:])
+            for row in (await self.session.execute(stmt)).all()
+        }
 
     async def uncovered_questions(
         self, qa_set_snapshot_id: uuid.UUID, corpus_snapshot_id: uuid.UUID

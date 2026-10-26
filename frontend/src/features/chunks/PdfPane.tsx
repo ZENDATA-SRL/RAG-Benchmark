@@ -37,7 +37,7 @@ export function PdfPane({
   );
 
   return (
-    <div className="flex h-full flex-col bg-ink/5">
+    <div className="flex h-full min-h-0 flex-col bg-ink/5">
       <div className="flex items-center justify-between border-b border-line px-3 py-2 text-xs">
         <Button variant="ghost" disabled={current <= 1} onClick={() => onPageChange(current - 1)}>
           Previous
@@ -45,11 +45,15 @@ export function PdfPane({
         <span>
           Page {current} / {pageCount}
         </span>
-        <Button variant="ghost" disabled={current >= pageCount} onClick={() => onPageChange(current + 1)}>
+        <Button
+          variant="ghost"
+          disabled={current >= pageCount}
+          onClick={() => onPageChange(current + 1)}
+        >
           Next
         </Button>
       </div>
-      <div className="flex flex-1 justify-center overflow-auto p-4">
+      <div className="flex min-h-0 flex-1 justify-center overflow-auto p-4">
         {pdf.isError ? (
           <p className="text-sm text-danger">{errorToastText(pdf.error)}</p>
         ) : file ? (

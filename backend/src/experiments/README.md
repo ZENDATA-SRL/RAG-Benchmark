@@ -90,7 +90,7 @@ again, idempotently, before evaluating, so a worker never depends on the API hav
 
 | Route | Purpose |
 |---|---|
-| `POST /experiments`, `GET /experiments`, `GET /experiments/{id}` | Create (with the guards above); list; detail with variants, runs and coverage |
+| `POST /experiments`, `GET /experiments`, `GET /experiments/{id}` | Create (with the guards above); list; detail with variants, runs and coverage. Both list and detail name the corpus and the QA set behind the two snapshots (`corpus_id`, `corpus_name`, `corpus_snapshot_label`, `qa_set_id`, `qa_set_name`, `qa_set_snapshot_label`) |
 | `GET /experiments/coverage?corpus_snapshot_id=&qa_set_snapshot_id=` | The questions with gold documents outside a corpus snapshot |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}` | Launch (`202`, `started=false` if already running); read a run with progress and configuration, served from the row |
 | `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | See above |

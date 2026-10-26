@@ -5,6 +5,7 @@ import { experimentsApi } from "@/api/resources";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
@@ -42,6 +43,37 @@ export function ExperimentDetailPage() {
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold">{detail.name}</h1>
+              {detail.corpus_id || detail.qa_set_id ? (
+                <p className="mt-1 text-sm" data-testid="experiment-origin">
+                  {detail.corpus_id ? (
+                    <>
+                      <span className="text-ink-muted">Corpus </span>
+                      <Link
+                        to={`/corpora/${detail.corpus_id}`}
+                        className="font-medium text-rust hover:underline"
+                      >
+                        {detail.corpus_name}
+                      </Link>
+                      <span className="text-ink-muted"> ({detail.corpus_snapshot_label})</span>
+                    </>
+                  ) : null}
+                  {detail.corpus_id && detail.qa_set_id ? (
+                    <span className="text-ink-muted"> · </span>
+                  ) : null}
+                  {detail.qa_set_id ? (
+                    <>
+                      <span className="text-ink-muted">QA set </span>
+                      <Link
+                        to={`/qa-sets/${detail.qa_set_id}`}
+                        className="font-medium text-rust hover:underline"
+                      >
+                        {detail.qa_set_name}
+                      </Link>
+                      <span className="text-ink-muted"> ({detail.qa_set_snapshot_label})</span>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
               <p className="mt-1 text-sm text-ink-muted">
                 {detail.repetitions} {detail.repetitions === 1 ? "repetition" : "repetitions"} ·{" "}
                 {detail.coverage.question_count} questions
@@ -57,7 +89,7 @@ export function ExperimentDetailPage() {
 
           <section className="mb-8">
             <h2 className="mb-2 text-sm font-semibold">Variants</h2>
-            <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+            <TableFrame>
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-line bg-paper text-xs text-ink-muted">
                   <tr>
@@ -81,7 +113,7 @@ export function ExperimentDetailPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableFrame>
           </section>
 
           <section>

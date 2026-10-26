@@ -2,12 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { qaSetsApi } from "@/api/resources";
+import { corporaApi, qaSetsApi } from "@/api/resources";
 import type { QASetSnapshotCreated } from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
@@ -60,6 +61,12 @@ export function QaSetDetailPage() {
 
   const detail = qaSet.data;
   const questions = detail?.questions.items ?? [];
+  const originCorpusId = detail?.origin_corpus_id ?? "";
+  const originCorpus = useQuery({
+    queryKey: queryKeys.corpus(originCorpusId),
+    queryFn: () => corporaApi.get(originCorpusId),
+    enabled: Boolean(originCorpusId),
+  });
 
   return (
     <div>
@@ -72,6 +79,17 @@ export function QaSetDetailPage() {
         <div>
           <h1 className="text-2xl font-semibold">{detail?.name ?? "QA set"}</h1>
           <p className="mt-1 text-sm text-ink-muted">{detail?.description || "No description"}</p>
+          {originCorpusId ? (
+            <p className="mt-2 text-sm" data-testid="origin-corpus">
+              <span className="text-ink-muted">Corpus: </span>
+              <Link
+                to={`/corpora/${originCorpusId}`}
+                className="font-medium text-rust hover:underline"
+              >
+                {originCorpus.data?.name ?? "…"}
+              </Link>
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setImporting(true)}>
@@ -97,8 +115,15 @@ export function QaSetDetailPage() {
         />
       ) : null}
 
+      {detail && questions.length > 0 ? (
+        <p className="mb-2 text-xs text-ink-muted">
+          {detail.questions.total > questions.length
+            ? `Showing ${questions.length} of ${detail.questions.total} questions`
+            : `${questions.length} ${questions.length === 1 ? "question" : "questions"}`}
+        </p>
+      ) : null}
       {questions.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+        <TableFrame>
           <table className="w-full text-left text-sm" data-testid="questions-table">
             <thead className="border-b border-line bg-paper text-xs text-ink-muted">
               <tr>
@@ -131,12 +156,7 @@ export function QaSetDetailPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      ) : null}
-      {detail && detail.questions.total > questions.length ? (
-        <p className="mt-2 text-xs text-ink-muted">
-          Showing {questions.length} of {detail.questions.total} questions.
-        </p>
+        </TableFrame>
       ) : null}
 
       <section className="mt-8">

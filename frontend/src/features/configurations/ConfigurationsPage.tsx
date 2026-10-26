@@ -6,6 +6,7 @@ import type { ChunkingConfigurationExpanded } from "@/api/types";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { lastCorpusId } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
@@ -92,7 +93,7 @@ export function ConfigurationsPage() {
       ) : null}
 
       {items.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+        <TableFrame>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line bg-paper text-xs text-ink-muted">
               <tr>
@@ -117,7 +118,7 @@ export function ConfigurationsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       ) : null}
     </div>
   );

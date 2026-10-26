@@ -39,7 +39,9 @@ export function ChunkViewer({
   const [followSelection, setFollowSelection] = useState(true);
   const [viewerPage, setViewerPage] = useState(1);
   const selected = chunks.find((chunk) => chunk.id === selectedId);
-  const span = selected ? pageSpanOf(selected) : pageSpanOf(chunks[0] ?? { id: "", ordinal: 0, text: "", metadata: {} });
+  const span = selected
+    ? pageSpanOf(selected)
+    : pageSpanOf(chunks[0] ?? { id: "", ordinal: 0, text: "", metadata: {} });
   const page = followSelection ? (span?.first ?? 1) : viewerPage;
 
   const selectChunk = (id: string) => {
@@ -48,7 +50,9 @@ export function ChunkViewer({
   };
 
   return (
-    <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 gap-0 overflow-hidden rounded-xl border border-line bg-paper-raised lg:grid-cols-2">
+    // Fixed to the viewport so the PDF and the chunk list scroll inside their own panes
+    // instead of stretching the page to the height of every chunk.
+    <div className="grid h-[calc(100vh-11rem)] min-h-[30rem] grid-cols-1 grid-rows-2 gap-0 overflow-hidden rounded-xl border border-line bg-paper-raised lg:grid-cols-2 lg:grid-rows-1">
       <PdfPane
         documentId={documentId}
         page={page}
@@ -62,7 +66,7 @@ export function ChunkViewer({
           if (id) onSelect(id);
         }}
       />
-      <div className="flex min-h-[28rem] flex-col border-l border-line">
+      <div className="flex min-h-0 flex-col border-t border-line lg:border-t-0 lg:border-l">
         <div className="flex items-center justify-between border-b border-line px-3 py-2">
           <div className="flex gap-2 text-sm">
             <TabButton active={tab === "chunks"} onClick={() => setTab("chunks")}>

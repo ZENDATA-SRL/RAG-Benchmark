@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Query, Response, status
 
@@ -33,6 +35,10 @@ from src.experiments.service import (
     VariantInput,
     VariantView,
 )
+
+if TYPE_CHECKING:
+    from src.experiments.models import Experiment
+    from src.experiments.service import SnapshotOrigin
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
@@ -69,11 +75,20 @@ def _variant_read(view: VariantView) -> VariantRead:
     )
 
 
+def _experiment_read(
+    experiment: Experiment, variant_count: int, origin: SnapshotOrigin | None
+) -> ExperimentRead:
+    item = ExperimentRead.model_validate(experiment)
+    item.variant_count = variant_count
+    if origin is not None:
+        item = item.model_copy(update=dataclasses.asdict(origin))
+    return item
+
+
 def _detail(view: ExperimentView) -> ExperimentDetail:
-    base = ExperimentRead.model_validate(view.experiment)
+    base = _experiment_read(view.experiment, len(view.variants), view.origin)
     return ExperimentDetail(
-        **base.model_dump(exclude={"variant_count"}),
-        variant_count=len(view.variants),
+        **base.model_dump(),
         variants=[_variant_read(variant) for variant in view.variants],
         runs=[RunRead.model_validate(run) for run in view.runs],
         coverage=_coverage_read(view.coverage),
@@ -123,14 +138,15 @@ async def list_experiments(
     offset: int = Query(default=0, ge=0),
 ) -> Page[ExperimentRead]:
     """List the experiments, newest first."""
-    experiments, counts, total = await ExperimentService(session).list(
+    experiments, counts, origins, total = await ExperimentService(session).list(
         limit=limit, offset=offset
     )
-    items = []
-    for experiment in experiments:
-        item = ExperimentRead.model_validate(experiment)
-        item.variant_count = counts.get(experiment.id, 0)
-        items.append(item)
+    items = [
+        _experiment_read(
+            experiment, counts.get(experiment.id, 0), origins.get(experiment.id)
+        )
+        for experiment in experiments
+    ]
     return Page[ExperimentRead].build(items, total=total, limit=limit, offset=offset)
 
 

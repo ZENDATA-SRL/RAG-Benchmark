@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { snapshotsApi } from "@/api/resources";
+import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
@@ -20,7 +21,7 @@ export function SnapshotsPanel({ corpusId }: { corpusId: string }) {
   return (
     <section className="mt-6">
       <h2 className="mb-2 text-sm font-semibold">Snapshots</h2>
-      <div className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+      <TableFrame>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs text-ink-muted">
             <tr>
@@ -52,7 +53,7 @@ export function SnapshotsPanel({ corpusId }: { corpusId: string }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableFrame>
     </section>
   );
 }

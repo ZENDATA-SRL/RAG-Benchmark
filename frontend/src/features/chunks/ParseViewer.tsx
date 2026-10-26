@@ -26,8 +26,8 @@ export function ParseViewer({
   if (query.isError) {
     return (
       <p className="p-4 text-sm text-ink-muted">
-        Parse is not ready for this profile. If chunks look wrong, this tab is how you tell whether the parser lost
-        the page.
+        Parse is not ready for this profile. If chunks look wrong, this tab is how you tell whether
+        the parser lost the page.
       </p>
     );
   }
@@ -43,7 +43,7 @@ export function ParseViewer({
           Refresh
         </Button>
       </div>
-      <pre className="flex-1 overflow-auto p-4 text-sm whitespace-pre-wrap">
+      <pre className="min-h-0 flex-1 overflow-auto p-4 text-sm whitespace-pre-wrap">
         {current?.text || "No text on this page."}
       </pre>
     </div>

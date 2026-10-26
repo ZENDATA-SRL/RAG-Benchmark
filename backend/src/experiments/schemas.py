@@ -70,6 +70,14 @@ class ExperimentRead(BaseModel):
     uncovered_policy: str | None = None
     variant_count: int = 0
     created_at: dt.datetime
+    # Where the two snapshots come from, so experiments can be told apart and grouped by
+    # the corpus and the QA set they compare on.
+    corpus_id: uuid.UUID | None = None
+    corpus_name: str | None = None
+    corpus_snapshot_label: str | None = None
+    qa_set_id: uuid.UUID | None = None
+    qa_set_name: str | None = None
+    qa_set_snapshot_label: str | None = None
 
 
 class UncoveredDocumentRead(BaseModel):

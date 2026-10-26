@@ -205,7 +205,7 @@ freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`
 
 | Route | Purpose |
 |---|---|
-| `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list, read, check coverage |
+| `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list and read (each naming its corpus and QA set), check coverage |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}`, `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | Launch a run on Temporal, poll it, cancel it, relaunch it redoing only what did not succeed |
 | `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Document-level metrics per variant with effective and excluded counts, and the per-question drill-down |
 

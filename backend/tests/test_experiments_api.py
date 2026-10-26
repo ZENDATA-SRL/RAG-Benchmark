@@ -237,6 +237,21 @@ async def test_the_detail_shows_variants_and_coverage(client, world) -> None:
     assert listing["items"][0]["variant_count"] == 2
 
 
+async def test_an_experiment_names_its_corpus_and_qa_set(client, world) -> None:
+    created = await _create(client, world)
+
+    detail = (await client.get(f"{EXPERIMENTS}/{created['id']}")).json()
+    listed = (await client.get(EXPERIMENTS)).json()["items"][0]
+
+    for item in (detail, listed):
+        assert item["corpus_id"] == str(world.scenario.corpus_id)
+        assert item["corpus_name"]
+        assert item["corpus_snapshot_label"]
+        assert item["qa_set_name"] == "qa"
+        assert item["qa_set_id"]
+        assert item["qa_set_snapshot_label"]
+
+
 # -- run launch ---------------------------------------------------------------------------
 
 

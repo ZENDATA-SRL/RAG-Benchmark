@@ -26,6 +26,7 @@ from src.experiments.repository import (
     ExecutionRepository,
     ExperimentRepository,
     RunRepository,
+    SnapshotOrigin,
     UncoveredQuestion,
 )
 from src.indexes.models import IndexBuild
@@ -90,6 +91,7 @@ class ExperimentView:
     variants: list[VariantView]
     runs: Sequence[Run]
     coverage: CoverageReport
+    origin: SnapshotOrigin | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -257,6 +259,9 @@ class ExperimentService:
             coverage=await self.coverage(
                 experiment.corpus_snapshot_id, experiment.qa_set_snapshot_id
             ),
+            origin=(await self.experiments.snapshot_origins([experiment_id])).get(
+                experiment_id
+            ),
         )
 
     async def variant_views(self, experiment_id: uuid.UUID) -> list[VariantView]:
@@ -275,13 +280,25 @@ class ExperimentService:
 
     async def list(
         self, *, limit: int = 50, offset: int = 0
-    ) -> tuple[Sequence[Experiment], dict[uuid.UUID, int], int]:
-        """One page of experiments, newest first, their variant counts and the total."""
+    ) -> tuple[
+        Sequence[Experiment],
+        dict[uuid.UUID, int],
+        dict[uuid.UUID, SnapshotOrigin],
+        int,
+    ]:
+        """One page of experiments, newest first, with the total.
+
+        Each experiment comes with its variant count and the corpus and QA set its
+        snapshots were frozen from, so a listing can group experiments by what they compare.
+        """
         experiments = await self.experiments.list(limit=limit, offset=offset)
-        counts = await self.experiments.variant_counts(
-            [item.id for item in experiments]
+        ids = [item.id for item in experiments]
+        return (
+            experiments,
+            await self.experiments.variant_counts(ids),
+            await self.experiments.snapshot_origins(ids),
+            await self.experiments.count(),
         )
-        return experiments, counts, await self.experiments.count()
 
 
 class RunService:
