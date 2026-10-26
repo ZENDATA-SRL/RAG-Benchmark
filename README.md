@@ -33,8 +33,8 @@ The UI is served on <http://localhost:5173> by the `frontend` Compose service. T
 a local checkout instead, stop that service and use
 `cd frontend && npm install && npm run dev`.
 
-`postgres` and `worker` are opt-in Compose profiles. The worker (it parses, chunks, embeds
-and indexes; without it materialisations and index builds stay pending) can run from the
+`postgres` and `worker` are opt-in Compose profiles. The worker (it parses, chunks, embeds,
+indexes and runs the experiments; without it materialisations, index builds and runs stay pending) can run from the
 checkout as above or as a container, which reads AWS credentials for Bedrock from `~/.aws`
 (see the Temporal README):
 
@@ -142,14 +142,16 @@ backend/
     materializations/ chunk materialisation runs and their progress
     indexes/          index builds over a corpus snapshot
     retrieval/        dense search over a ready index build, embedders, vector store readers
+    qa_sets/          question sets, gold documents, expected answers, import and snapshots
+    experiments/      retrieval experiments: variants, runs, document-level metrics, results
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/
-frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, components
-scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval)
+frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, question sets, experiments, components
+scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval and of a retrieval experiment)
 temporal/             worker, workflows, activities and builtin implementations
-  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes
-  workflows/          ProcessDocument, MaterializeChunks, IndexCorpus
+  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs
+  workflows/          ProcessDocument, MaterializeChunks, IndexCorpus, RunExperiment, RunVariant
   components/         parser, chunker and vector store write code, invoked only by the worker
   tests/
 docs/                 requirements and data model

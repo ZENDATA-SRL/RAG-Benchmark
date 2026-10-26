@@ -4,8 +4,9 @@ Runs the whole chunking flow against a live stack: create a corpus, upload three
 create the parsing and chunking profiles, compose the configuration, preview on one
 document, materialise the rest, follow the progress by polling, then read back the parse
 and the chunks. With `--embedder`, it goes on to freeze a snapshot, build an index on it
-and query that index with a known sentence. Every step asserts what the API promised, and
-the first deviation exits non-zero with the reason.
+and query that index with a known sentence, then import a question set with gold files,
+run a retrieval experiment with two variants and read the document-level metrics. Every step
+asserts what the API promised, and the first deviation exits non-zero with the reason.
 
 Needs the compose services, the API and the Temporal worker running:
 
@@ -22,6 +23,8 @@ credentials of that embedder in the environment of both the worker and the API.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import sys
 import time
 from pathlib import Path
@@ -71,11 +74,22 @@ OVERLAP = 40
 POLL_INTERVAL_SECONDS = 2.0
 POLL_TIMEOUT_SECONDS = 180.0
 INDEX_TIMEOUT_SECONDS = 600.0
+RUN_TIMEOUT_SECONDS = 300.0
 
 # A sentence known to open the second page of policy.pdf: querying it must bring that
 # document back first.
 RETRIEVAL_QUERY = "Travel above five hundred euro requires prior approval."
 RETRIEVAL_DOCUMENT = "policy.pdf"
+
+# Questions of the experiment: the sentence that opens a page of each document, so a sound
+# retriever puts that document first. The last row names a file the corpus does not have and
+# must be reported, not imported.
+EXPERIMENT_QUESTIONS: list[tuple[str, str]] = [
+    ("Travel above five hundred euro requires prior approval.", "policy.pdf"),
+    ("Chapter two. Chunking decides what the retriever can find.", "handbook.pdf"),
+    ("How do I reset my password? Use the self-service portal.", "faq.pdf"),
+]
+UNRESOLVED_QUESTION = ("Who wrote the missing annex?", "ghost.pdf")
 
 _step = 0
 
@@ -599,8 +613,12 @@ def check_retrieval(
     configuration_id: str,
     embedder: str,
     vector_store: str,
-) -> dict[str, Any]:
-    """Build an index over the corpus and query it with a sentence of a known document."""
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Build an index over the corpus and query it with a sentence of a known document.
+
+    Returns the result of the query and the ids the experiment reuses: the corpus snapshot,
+    the index build and the retrieval profile.
+    """
     step("Freeze a snapshot of the corpus")
     snapshot = request(
         client,
@@ -717,7 +735,173 @@ def check_retrieval(
         [hit["chunk_id"] for hit in again["hits"]] == [hit["chunk_id"] for hit in hits],
         "the same query returns the same chunks",
     )
-    return result
+    return result, {
+        "corpus_snapshot_id": snapshot["id"],
+        "index_build_id": build["id"],
+        "retrieval_profile_id": profile["id"],
+    }
+
+
+def _questions_csv(rows: list[tuple[str, str]]) -> bytes:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["question", "gold_files", "tags", "answerable"])
+    for question, gold_file in rows:
+        writer.writerow([question, gold_file, "smoke", "true"])
+    return buffer.getvalue().encode()
+
+
+def check_experiment(
+    client: httpx.Client, *, corpus_id: str, context: dict[str, str]
+) -> dict[str, Any]:
+    """Import a question set, run a two-variant retrieval experiment and read its metrics."""
+    step("Create a question set and import questions with their gold files")
+    qa_set = request(
+        client,
+        "POST",
+        "/qa-sets",
+        json={"name": "smoke questions", "origin_corpus_id": corpus_id},
+        expect=201,
+    )
+    content = _questions_csv([*EXPERIMENT_QUESTIONS, UNRESOLVED_QUESTION])
+    summary = request(
+        client,
+        "POST",
+        f"/qa-sets/{qa_set['id']}/import",
+        files={"file": ("questions.csv", content, "text/csv")},
+    )
+    check(
+        len(summary["imported"]) == len(EXPERIMENT_QUESTIONS),
+        f"{len(summary['imported'])} questions imported",
+    )
+    check(
+        [row["question"] for row in summary["unresolved"]] == [UNRESOLVED_QUESTION[0]],
+        "the question naming a missing file is reported, not imported",
+    )
+    again = request(
+        client,
+        "POST",
+        f"/qa-sets/{qa_set['id']}/import",
+        files={"file": ("questions.csv", content, "text/csv")},
+    )
+    check(
+        again["imported"] == [] and len(again["existing"]) == len(EXPERIMENT_QUESTIONS),
+        "importing the same file again adds no question",
+    )
+
+    step("Freeze the question set")
+    frozen = request(
+        client, "POST", f"/qa-sets/{qa_set['id']}/snapshots", json={}, expect=201
+    )
+    qa_snapshot = frozen["snapshot"]
+    check(
+        qa_snapshot["question_count"] == len(EXPERIMENT_QUESTIONS),
+        f"snapshot of {qa_snapshot['question_count']} questions",
+    )
+    twice = request(
+        client, "POST", f"/qa-sets/{qa_set['id']}/snapshots", json={}, expect=201
+    )
+    check(
+        twice["snapshot"]["id"] == qa_snapshot["id"] and not twice["created"],
+        "freezing the same questions again returns the same snapshot",
+    )
+
+    step("Create the experiment: two variants on the same index, top-3 against top-5")
+    wide = request(
+        client,
+        "POST",
+        "/retrieval-profiles",
+        json={"name": "smoke top5", "top_k": 5},
+        expect=201,
+    )["profile"]
+    experiment = request(
+        client,
+        "POST",
+        "/experiments",
+        json={
+            "name": "smoke retrieval",
+            "type": "retrieval",
+            "corpus_snapshot_id": context["corpus_snapshot_id"],
+            "qa_set_snapshot_id": qa_snapshot["id"],
+            "variants": [
+                {
+                    "name": "top-3",
+                    "index_build_id": context["index_build_id"],
+                    "retrieval_profile_id": context["retrieval_profile_id"],
+                    "is_baseline": True,
+                },
+                {
+                    "name": "top-5",
+                    "index_build_id": context["index_build_id"],
+                    "retrieval_profile_id": wide["id"],
+                },
+            ],
+        },
+        expect=201,
+    )
+    check(
+        experiment["coverage"]["uncovered_count"] == 0,
+        "every gold file is in the snapshot",
+    )
+
+    step("Run the experiment")
+    base = f"/experiments/{experiment['id']}"
+    run = request(client, "POST", f"{base}/runs", json={}, expect=202)
+    deadline = time.monotonic() + RUN_TIMEOUT_SECONDS
+    while True:
+        detail = request(client, "GET", f"{base}/runs/{run['id']}")
+        if detail["status"] in ("succeeded", "failed"):
+            break
+        if time.monotonic() > deadline:
+            raise SmokeFailure(
+                f"run {run['id']} still {detail['status']} after "
+                f"{RUN_TIMEOUT_SECONDS:.0f}s; is the Temporal worker running?"
+            )
+        time.sleep(POLL_INTERVAL_SECONDS)
+    check(detail["status"] == "succeeded", f"run succeeded: {detail['progress']}")
+    check(
+        detail["progress"]["succeeded"] == 2 * len(EXPERIMENT_QUESTIONS),
+        "every question was executed on every variant",
+    )
+
+    step("Read the document-level metrics")
+    results = request(client, "GET", f"{base}/runs/{run['id']}/results")
+    check(
+        results["corpus_snapshot"]["id"] == context["corpus_snapshot_id"],
+        "the result declares the corpus snapshot it was measured on",
+    )
+    for variant in results["variants"]:
+        metrics = {metric["key"]: metric for metric in variant["metrics"]}
+        recall = metrics["recall@5"]
+        check(
+            recall["n_effective"] + recall["n_excluded"] == len(EXPERIMENT_QUESTIONS),
+            f"{variant['name']}: {recall['n_effective']} effective + "
+            f"{recall['n_excluded']} excluded questions",
+        )
+        check(
+            metrics["mrr"]["mean"] == 1.0,
+            f"{variant['name']}: the gold document is always first (mrr 1.0)",
+        )
+
+    step("Open a question and download the results")
+    questions = request(client, "GET", f"{base}/runs/{run['id']}/questions")
+    question_id = questions["items"][0]["question_id"]
+    drilldown = request(
+        client, "GET", f"{base}/runs/{run['id']}/questions/{question_id}"
+    )
+    check(
+        all(
+            variant["executions"][0]["hits"][0]["relevant_document"]
+            for variant in drilldown["variants"]
+        ),
+        "each variant's first hit is flagged as relevant",
+    )
+    export = client.get(f"{base}/runs/{run['id']}/results.csv")
+    check(
+        export.status_code == 200 and export.text.startswith("variant,"),
+        "the results download as CSV",
+    )
+    return results
 
 
 def run(base_url: str, *, embedder: str | None, vector_store: str) -> None:
@@ -763,17 +947,17 @@ def run(base_url: str, *, embedder: str | None, vector_store: str) -> None:
         runs = check_history(
             client, configuration_id=configuration_id, run_id=corpus_run["id"]
         )
-        retrieval = (
-            check_retrieval(
+        retrieval = None
+        experiment = None
+        if embedder:
+            retrieval, context = check_retrieval(
                 client,
                 corpus_id=corpus_id,
                 configuration_id=configuration_id,
                 embedder=embedder,
                 vector_store=vector_store,
             )
-            if embedder
-            else None
-        )
+            experiment = check_experiment(client, corpus_id=corpus_id, context=context)
 
         print("\n\033[1;32mMVP smoke passed\033[0m")
         print(f"    corpus            {corpus_id}")
@@ -789,12 +973,22 @@ def run(base_url: str, *, embedder: str | None, vector_store: str) -> None:
         )
         if retrieval is None:
             print(
-                "\n    Retrieval skipped: pass --embedder to build and query an index."
+                "\n    Retrieval and experiment skipped: pass --embedder to build and "
+                "query an index."
             )
         else:
             first = retrieval["hits"][0]
             print(f"\n    Top hit for {RETRIEVAL_QUERY!r}:")
             print(f"      {first['score']:.3f} {first['filename']} p{first['page']}")
+        if experiment is not None:
+            print("\n    Experiment metrics (recall@5, n effective of n total):")
+            for variant in experiment["variants"]:
+                recall = {m["key"]: m for m in variant["metrics"]}["recall@5"]
+                total = recall["n_effective"] + recall["n_excluded"]
+                print(
+                    f"      {variant['name']:<8} {recall['mean']:.2f} "
+                    f"({recall['n_effective']} of {total})"
+                )
 
 
 def main() -> int:
