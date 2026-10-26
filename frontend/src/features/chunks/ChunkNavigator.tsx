@@ -45,7 +45,10 @@ export function ChunkNavigator({
         0,
         chunks.findIndex((chunk) => chunk.id === selectedId),
       );
-      const next = event.key === "ArrowDown" ? Math.min(chunks.length - 1, current + 1) : Math.max(0, current - 1);
+      const next =
+        event.key === "ArrowDown"
+          ? Math.min(chunks.length - 1, current + 1)
+          : Math.max(0, current - 1);
       onSelect(chunks[next].id);
     };
     window.addEventListener("keydown", onKey);
@@ -57,7 +60,12 @@ export function ChunkNavigator({
   }
 
   return (
-    <div ref={parentRef} className="h-full overflow-y-auto" data-testid="chunk-navigator" tabIndex={0}>
+    <div
+      ref={parentRef}
+      className="h-full overflow-y-auto"
+      data-testid="chunk-navigator"
+      tabIndex={0}
+    >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
           const chunk = chunks[item.index];
@@ -104,12 +112,13 @@ function ChunkRow({
 }) {
   const span = pageSpanOf(chunk);
   const text = showNormalized && chunk.text_normalized ? chunk.text_normalized : chunk.text;
+  // A container and not a button: the actions (annotation marks) are buttons themselves,
+  // and a button cannot hold another. Clicking anywhere on the row still selects it.
   return (
-    <button
-      type="button"
+    <div
       data-chunk-id={chunk.id}
       onClick={() => onSelect(chunk.id)}
-      className={`w-full rounded-lg border px-3 py-2 text-left ${
+      className={`w-full cursor-pointer rounded-lg border px-3 py-2 text-left ${
         selected ? "border-rust bg-rust/5" : "border-line bg-paper-raised"
       }`}
     >
@@ -120,7 +129,13 @@ function ChunkRow({
         </span>
         {actions}
       </div>
-      <p className="text-sm whitespace-pre-wrap">{text}</p>
-    </button>
+      <button
+        type="button"
+        aria-pressed={selected}
+        className="block w-full text-left text-sm whitespace-pre-wrap"
+      >
+        {text}
+      </button>
+    </div>
   );
 }

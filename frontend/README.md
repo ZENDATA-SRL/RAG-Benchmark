@@ -13,7 +13,8 @@ queries against it.
 | `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text, sized to the window so the PDF and the chunk list scroll in their own panes; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
 | `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
 | `/indexes` | Embedding and vector store profiles, index builds, and the query panel of a ready build |
-| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, CSV/JSONL import with its summary, freeze |
+| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts |
+| `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting |
 | `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with the snapshots each one uses, and the wizard that creates one; an experiment's corpus and QA set, variants, runs and the *Launch run* action |
 | `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results per variant, questions and their drill-down |
 | `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
@@ -47,7 +48,17 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
 
 - **QA sets** (`features/qa-sets/`): create a set, import questions from CSV (columns
   `question`, optional `answer`, `gold_files` separated by `|`, `tags` separated by `|`,
-  `answerable`) or JSONL. The questions table shows the expected answer next to each question.
+  `answerable`) or JSONL, or write them one by one (`QuestionEditor`). A question a snapshot
+  holds is marked *frozen*: it cannot be edited or deleted, and saving it *replaces* it with a
+  new question. *Export* downloads the set, or a snapshot, as CSV or JSONL in the import
+  format. The questions table shows the expected answer next to each question.
+- **Annotation** (`AnnotationPage`, `EvidencePanel`, `evidence.ts`): pick a chunking
+  configuration on the set page, then *Annotate* a question. Chunks are marked with the
+  *sufficient* / *supporting* toggles on each row, or with the keys `s`, `p`, `x` on the
+  selected chunk; the panel lists the picked chunks across documents, and its buttons explain
+  why they are disabled (no chunk to confirm, chunks on a not-found, no annotator name). The
+  annotator's name is remembered in the browser. The chunk rows come from the same
+  `ChunkNavigator` the chunk viewer uses, through its `renderChunkActions` prop.
   The import summary counts imported, already present, unresolved, ambiguous and invalid rows
   and lists every row that was left out with its reason. *Freeze* creates the snapshot an
   experiment uses; if the questions did not change, the existing snapshot is shown with the
@@ -88,7 +99,9 @@ The Vite dev server proxies `/api` and `/health` to `API_PROXY_TARGET`. The only
 browser-facing variable is `VITE_API_BASE_URL` (empty = same origin).
 
 Playwright (`npm run test:e2e`) walks the empty-state path and opens the QA set and experiment pages, and skips if the API
-is not on `:8000`. Install the browser once with `npx playwright install chromium`.
+is not on `:8000`. `annotation-flow.spec.ts` writes a question, confirms one evidence chunk
+and checks the counts; it needs a corpus with a materialised document and leaves an empty
+"e2e annotation" QA set behind, because sets cannot be deleted. Install the browser once with `npx playwright install chromium`.
 
 ## Docker
 

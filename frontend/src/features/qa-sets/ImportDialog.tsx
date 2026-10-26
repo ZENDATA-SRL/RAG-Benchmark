@@ -15,7 +15,7 @@ export function ImportDialog({ qaSetId, onClose }: { qaSetId: string; onClose: (
   const upload = useMutation({
     mutationFn: (selected: File) => qaSetsApi.importFile(qaSetId, selected),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.qaSet(qaSetId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.qaSetScope(qaSetId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.qaSets });
     },
   });

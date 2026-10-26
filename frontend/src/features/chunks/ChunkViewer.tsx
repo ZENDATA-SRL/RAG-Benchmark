@@ -26,6 +26,7 @@ export function ChunkViewer({
   onSelect,
   parsingProfileId,
   compare,
+  renderChunkActions,
 }: {
   documentId: string;
   chunks: NavigableChunk[];
@@ -33,6 +34,7 @@ export function ChunkViewer({
   onSelect: (id: string) => void;
   parsingProfileId?: string;
   compare?: React.ReactNode;
+  renderChunkActions?: (chunk: NavigableChunk) => React.ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>("chunks");
   const [normalized, setNormalized] = useState(false);
@@ -94,6 +96,7 @@ export function ChunkViewer({
               selectedId={selectedId}
               onSelect={selectChunk}
               showNormalized={normalized}
+              renderChunkActions={renderChunkActions}
             />
           ) : (
             <ParseViewer
