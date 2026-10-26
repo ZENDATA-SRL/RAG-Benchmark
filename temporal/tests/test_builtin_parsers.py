@@ -77,3 +77,7 @@ def test_normalisation_canonicalises_quotes_and_ligatures() -> None:
     assert normalize_text("\u201cquoted\u201d") == '"quoted"'
     assert normalize_text("o\ufb00ice") == "office"
     assert normalize_text("\ufb01ne") == "fine"
+
+
+def test_normalisation_drops_nul_characters() -> None:
+    assert normalize_text("De\x00nition") == "Denition"

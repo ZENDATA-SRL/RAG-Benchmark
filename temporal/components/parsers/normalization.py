@@ -43,6 +43,10 @@ _TRANSLATION = {
 # hyphenated compounds at a line end are left alone as much as a heuristic can.
 _HYPHEN_BREAK = re.compile(r"(?<=[A-Za-zÀ-ÿ])-\n(?=[A-Za-zÀ-ÿ])")
 _SOFT_HYPHEN = "\u00ad"
+# Fonts without a unicode map make the extractor emit NUL for some glyphs (typically the
+# "fi" ligature). The character carries no recoverable meaning and PostgreSQL text columns
+# reject it outright, so it is dropped rather than guessed at.
+_NUL = "\x00"
 _SPACES = re.compile(r"[^\S\n]+")
 _BLANK_LINES = re.compile(r"\n{3,}")
 
@@ -50,14 +54,14 @@ _BLANK_LINES = re.compile(r"\n{3,}")
 def normalize_text(text: str) -> str:
     """Normalise extracted page text to the one canonical form used downstream.
 
-    De-hyphenates words broken across a line, collapses runs of spaces and tabs, drops the
-    soft hyphen, maps typographic punctuation and ligatures to their canonical ascii form,
-    and applies NFKC. Newlines are preserved because the chunker splits on them, but a run
+    De-hyphenates words broken across a line, collapses runs of spaces and tabs, drops NUL
+    characters and the soft hyphen, maps typographic punctuation and ligatures to their
+    canonical ascii form, and applies NFKC. Newlines are preserved because the chunker splits on them, but a run
     of blank lines is capped so the page structure stays comparable across parses.
     """
     text = unicodedata.normalize("NFKC", text)
     text = text.translate(_TRANSLATION)
-    text = text.replace(_SOFT_HYPHEN, "")
+    text = text.replace(_NUL, "").replace(_SOFT_HYPHEN, "")
     text = _HYPHEN_BREAK.sub("", text)
     text = _SPACES.sub(" ", text)
     text = _BLANK_LINES.sub("\n\n", text)

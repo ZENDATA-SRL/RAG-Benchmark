@@ -6,7 +6,7 @@ be imported by the backend (dependencies flow `temporal → backend`).
 
 | Package | Contents |
 |---|---|
-| `parsers/` | `pypdf.py` (`PyPdfParser`), `plumber.py` (`PdfPlumberParser`), `normalization.py` (ligatures, smart quotes, NFKC so lexical matching is stable), `exceptions.py` (`PermanentParsingError`: corrupt, encrypted or text-less files, never retried) |
+| `parsers/` | `pypdf.py` (`PyPdfParser`), `plumber.py` (`PdfPlumberParser`), `normalization.py` (ligatures, smart quotes, NFKC so lexical matching is stable; drops NUL characters, which PostgreSQL rejects), `exceptions.py` (`PermanentParsingError`: corrupt, encrypted or text-less files, never retried) |
 | `chunkers/` | `recursive.py` (`RecursiveChunker`), `markdown.py` (`MarkdownChunker`), `header_footer.py` (`strip_headers_footers`, document-local page-furniture removal, on by default), `page_mapping.py` (`PagedText`: character offsets back to pages, so each chunk records its page span) |
 | `vector_stores/` | Write side only. `chroma.py`: `ChromaVectorStore` (`ensure_collection(name, index_params)` with the profile's space and HNSW keys, `upsert(name, ids, embeddings, documents, metadatas)`) and `build_chroma_store()`, an HTTP client on `CHROMA_HOST`/`CHROMA_PORT`; `qdrant.py`: `QdrantVectorStore` (the collection is created at the first `upsert`, because the vector size is only known then) and `build_qdrant_store()`, a client on `QDRANT_HOST`/`QDRANT_PORT` |
 
