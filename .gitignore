@@ -235,3 +235,6 @@ uv*
 
 # Sprint folder
 sprint/*
+
+# Benchmarking
+benchmark/*

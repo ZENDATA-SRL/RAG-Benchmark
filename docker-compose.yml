@@ -109,7 +109,6 @@ services:
   # local checkout for fast iteration:
   #   docker compose --profile worker up -d --build worker
   worker:
-    profiles: ["worker"]
     build:
       context: .
       dockerfile: Dockerfile.worker
