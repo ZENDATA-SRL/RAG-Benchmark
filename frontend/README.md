@@ -16,7 +16,7 @@ queries against it.
 | `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts |
 | `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting |
 | `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with the snapshots each one uses, and the wizard that creates one; an experiment's corpus and QA set, variants, runs and the *Launch run* action |
-| `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results per variant, questions and their drill-down |
+| `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down |
 | `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
 
 Every table sits in a frame bounded to the window (`TableFrame`): long lists scroll inside it
@@ -71,12 +71,20 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   excluded from the metrics. `variants_outside_snapshot` and `gold_coverage_choice_required`
   are shown inline.
 - **Run page**: progress is polled while the run is active (cancel while running, resume
-  when something is left); results have one row per variant with the baseline highlighted,
-  the cutoff (1/3/5/10) and an optional tag slice. Every value is shown as
-  `mean (effective/asked)`, so excluded questions are never hidden, together with the corpus and
-  QA set snapshot the numbers were computed on. A CSV download and the questions table are
-  below; clicking a question opens the hits of every variant side by side, with a badge on
-  hits from a gold document.
+  when something is left). Results are grouped by the chunking configuration the variants
+  search: each group states its parser and chunker, how far its evidence was reviewed and the
+  recall ceiling, and its rows have one row per variant with the baseline highlighted, the
+  document-level and the chunk-level columns, the cutoff (1/3/5/10) and an optional tag slice.
+  Every value is shown as `mean (effective/asked)`, with the excluded questions per reason on
+  hover, so excluded questions are never hidden, together with the corpus and QA set snapshot
+  the numbers were computed on. Selecting variants and *Compare selected* shows only those;
+  when they come from different groups the chunk-level columns are dropped and the reason is
+  shown. *Re-evaluate* scores the run again on the evidence as it is now, and the date and
+  fingerprint of the evidence used are shown above the table. A CSV download and the questions
+  table (document and chunk outcome per variant) are below; clicking a question opens the hits
+  of every variant side by side, with badges on hits from a gold document and on evidence
+  chunks, the evidence status of each variant's configuration, and the evidence chunks it did
+  not retrieve, each linking to the annotation page.
 
 ## Stack
 

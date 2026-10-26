@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
-import type { HitDetailRead } from "@/api/types";
+import type { EvidenceStatus, HitDetailRead, VariantDrilldownRead } from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { EvidenceStatusBadge } from "@/features/qa-sets/EvidencePanel";
 import { queryKeys } from "@/lib/queryClient";
 
-import { excerpt } from "./outcome";
+import { annotationUrl, excerpt } from "./outcome";
 
 function Hit({ hit }: { hit: HitDetailRead }) {
   return (
@@ -17,7 +19,10 @@ function Hit({ hit }: { hit: HitDetailRead }) {
         <span className="font-mono text-ink-muted">
           {hit.score === null ? "—" : hit.score.toFixed(3)}
         </span>
-        {hit.relevant_document ? <Badge tone="good">gold</Badge> : null}
+        {hit.relevant_document ? <Badge tone="good">gold document</Badge> : null}
+        {hit.relevant_chunk ? (
+          <Badge tone="good">{`evidence${hit.relevance ? ` · ${hit.relevance}` : ""}`}</Badge>
+        ) : null}
       </div>
       <p className="mt-1 font-medium break-all">
         {hit.filename ?? "unknown file"}
@@ -25,6 +30,58 @@ function Hit({ hit }: { hit: HitDetailRead }) {
       </p>
       <p className="mt-1 text-ink-muted">{excerpt(hit.text)}</p>
     </li>
+  );
+}
+
+/** The evidence of the question under the variant's configuration, and what it missed. */
+function VariantEvidence({
+  variant,
+  qaSetId,
+  questionId,
+}: {
+  variant: VariantDrilldownRead;
+  qaSetId: string;
+  questionId: string;
+}) {
+  const missed = variant.gold_chunks.filter((chunk) => !chunk.retrieved);
+  return (
+    <div className="mb-2 space-y-1 text-xs" data-testid="variant-evidence">
+      <div className="flex items-center gap-2">
+        <span className="text-ink-muted">Evidence</span>
+        <EvidenceStatusBadge status={variant.evidence_status as EvidenceStatus} />
+        {variant.evidence_status !== "confirmed" ? (
+          <Link
+            to={annotationUrl(qaSetId, questionId, variant.chunking_configuration_id)}
+            className="text-rust hover:underline"
+          >
+            Annotate
+          </Link>
+        ) : null}
+      </div>
+      {missed.length > 0 ? (
+        <div data-testid="missed-chunks">
+          <p className="text-ink-muted">Not retrieved</p>
+          <ul className="space-y-1">
+            {missed.map((chunk) => (
+              <li key={chunk.chunk_id}>
+                <Link
+                  to={annotationUrl(
+                    qaSetId,
+                    questionId,
+                    variant.chunking_configuration_id,
+                    chunk.document_id,
+                  )}
+                  className="font-mono text-rust hover:underline"
+                >
+                  {chunk.filename} #{chunk.ordinal}
+                </Link>{" "}
+                <span className="text-ink-muted">{chunk.relevance}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -79,6 +136,13 @@ export function QuestionDrilldown({
                     {variant.name}{" "}
                     {variant.is_baseline ? <Badge tone="info">baseline</Badge> : null}
                   </h3>
+                  {detail.answerable ? (
+                    <VariantEvidence
+                      variant={variant}
+                      qaSetId={detail.qa_set_id}
+                      questionId={detail.question_id}
+                    />
+                  ) : null}
                   {variant.executions.map((execution) => (
                     <div key={execution.execution_id} className="mb-3">
                       {variant.executions.length > 1 ? (
@@ -88,7 +152,12 @@ export function QuestionDrilldown({
                       ) : null}
                       {execution.excluded_reason ? (
                         <p className="text-xs text-ink-muted">
-                          Excluded: {execution.excluded_reason}
+                          Documents excluded: {execution.excluded_reason}
+                        </p>
+                      ) : null}
+                      {execution.chunk_excluded_reason ? (
+                        <p className="text-xs text-ink-muted">
+                          Chunks excluded: {execution.chunk_excluded_reason}
                         </p>
                       ) : null}
                       {execution.error ? (

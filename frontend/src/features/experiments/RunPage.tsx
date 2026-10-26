@@ -3,12 +3,14 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
+import { Button } from "@/components/ui/Button";
+import { formatDate } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/queryClient";
 import { TableFrame } from "@/components/ui/TableFrame";
 
-import { CUTOFFS, DEFAULT_CUTOFF } from "./metrics";
-import { describeOutcome } from "./outcome";
+import { allVariants, CUTOFFS, DEFAULT_CUTOFF } from "./metrics";
+import { describeChunkOutcome, describeOutcome } from "./outcome";
 import { QuestionDrilldown } from "./QuestionDrilldown";
 import { ResultsTable } from "./ResultsTable";
 import { RunProgressPanel } from "./RunProgressPanel";
@@ -57,10 +59,22 @@ export function RunPage() {
     },
   });
 
-  const variantNames = new Map((results.data?.variants ?? []).map((v) => [v.variant_id, v.name]));
+  // Scores the stored hits again on the evidence as it is now; no retrieval is repeated.
+  const evaluate = useMutation({
+    mutationFn: () => experimentsApi.evaluateRun(experimentId, runId),
+    onSuccess: async () => {
+      // The run key prefixes its results, questions and drill-downs: all of them change.
+      await refresh();
+      toast.success("Run re-evaluated on the current evidence.");
+    },
+  });
+
+  const variants = allVariants(results.data?.groups ?? []);
+  const variantNames = new Map(variants.map((v) => [v.variant_id, v.name]));
   const questionItems = questions.data?.items ?? [];
   const tags = [...new Set(questionItems.flatMap((question) => question.tags))].sort();
-  const variantIds = results.data?.variants.map((variant) => variant.variant_id) ?? [];
+  const variantIds = variants.map((variant) => variant.variant_id);
+  const chunkGold = results.data?.chunk_gold;
 
   return (
     <div>
@@ -124,8 +138,21 @@ export function RunPage() {
             >
               Download CSV
             </a>
+            <Button
+              variant="secondary"
+              disabled={active || evaluate.isPending}
+              onClick={() => evaluate.mutate()}
+              title="Score the stored hits again on the evidence as it is now"
+            >
+              Re-evaluate
+            </Button>
           </div>
         </div>
+        <p className="mb-2 text-xs text-ink-muted" data-testid="chunk-gold">
+          {chunkGold
+            ? `Chunk metrics on the evidence of ${formatDate(chunkGold.evaluated_at)} · fingerprint ${chunkGold.hash.slice(0, 8)}`
+            : "Chunk metrics not computed for this run yet: re-evaluate it."}
+        </p>
         {results.data ? (
           <ResultsTable results={results.data} cutoff={cutoff} />
         ) : (
@@ -162,11 +189,17 @@ export function RunPage() {
                         {question.text}
                       </button>
                     </td>
-                    {variantIds.map((id) => (
-                      <td key={id} className="px-4 py-3 font-mono text-xs whitespace-nowrap">
-                        {describeOutcome(question.outcomes.find((item) => item.variant_id === id))}
-                      </td>
-                    ))}
+                    {variantIds.map((id) => {
+                      const outcome = question.outcomes.find((item) => item.variant_id === id);
+                      return (
+                        <td key={id} className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                          <span className="block">doc: {describeOutcome(outcome)}</span>
+                          <span className="block text-ink-muted">
+                            chunk: {describeChunkOutcome(outcome)}
+                          </span>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
