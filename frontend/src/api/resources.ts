@@ -1,4 +1,4 @@
-import { api, uploadFiles, type UploadProgressHandler } from "./client";
+import { api, apiFetch, apiUrl, uploadFiles, type UploadProgressHandler } from "./client";
 import type {
   ChunkComparisonRead,
   ChunkingConfigurationComposed,
@@ -30,6 +30,22 @@ import type {
   MaterializationDetail,
   MaterializationRead,
   Page,
+  QASetCreate,
+  QASetDetail,
+  QASetRead,
+  QASetSnapshotCreated,
+  QASetSnapshotRead,
+  ImportSummaryRead,
+  ExperimentCreate,
+  ExperimentDetail,
+  ExperimentRead,
+  CoverageRead,
+  RunAccepted,
+  RunRead,
+  RunDetail,
+  RunResultsRead,
+  RunQuestionRead,
+  QuestionDrilldownRead,
   RetrievalProfileCreate,
   RetrievalProfileCreated,
   RetrievalProfileRead,
@@ -152,4 +168,53 @@ export const inspectionApi = {
       configurations: configurationIds.join(","),
       limit: 200,
     }),
+};
+
+export const qaSetsApi = {
+  list: () => api.get<Page<QASetRead>>("/api/v1/qa-sets", { limit: 200 }),
+  get: (id: string) => api.get<QASetDetail>(`/api/v1/qa-sets/${id}`, { limit: 200 }),
+  create: (body: QASetCreate) => api.post<QASetRead>("/api/v1/qa-sets", body),
+  importFile: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetch<ImportSummaryRead>(`/api/v1/qa-sets/${id}/import`, {
+      method: "POST",
+      body: form,
+    });
+  },
+  freeze: (id: string, label?: string) =>
+    api.post<QASetSnapshotCreated>(`/api/v1/qa-sets/${id}/snapshots`, {
+      label: label || undefined,
+    }),
+  snapshots: (id: string) =>
+    api.get<Page<QASetSnapshotRead>>(`/api/v1/qa-sets/${id}/snapshots`, { limit: 200 }),
+};
+
+export const experimentsApi = {
+  list: () => api.get<Page<ExperimentRead>>("/api/v1/experiments", { limit: 200 }),
+  get: (id: string) => api.get<ExperimentDetail>(`/api/v1/experiments/${id}`),
+  create: (body: ExperimentCreate) => api.post<ExperimentDetail>("/api/v1/experiments", body),
+  coverage: (corpusSnapshotId: string, qaSetSnapshotId: string) =>
+    api.get<CoverageRead>("/api/v1/experiments/coverage", {
+      corpus_snapshot_id: corpusSnapshotId,
+      qa_set_snapshot_id: qaSetSnapshotId,
+    }),
+  startRun: (id: string) => api.post<RunAccepted>(`/api/v1/experiments/${id}/runs`, {}),
+  run: (id: string, runId: string) => api.get<RunDetail>(`/api/v1/experiments/${id}/runs/${runId}`),
+  cancelRun: (id: string, runId: string) =>
+    api.post<RunRead>(`/api/v1/experiments/${id}/runs/${runId}/cancel`),
+  resumeRun: (id: string, runId: string) =>
+    api.post<RunAccepted>(`/api/v1/experiments/${id}/runs/${runId}/resume`, {}),
+  results: (id: string, runId: string, tag?: string) =>
+    api.get<RunResultsRead>(`/api/v1/experiments/${id}/runs/${runId}/results`, { tag }),
+  resultsCsvUrl: (id: string, runId: string) =>
+    apiUrl(`/api/v1/experiments/${id}/runs/${runId}/results.csv`),
+  questions: (id: string, runId: string) =>
+    api.get<Page<RunQuestionRead>>(`/api/v1/experiments/${id}/runs/${runId}/questions`, {
+      limit: 200,
+    }),
+  question: (id: string, runId: string, questionId: string) =>
+    api.get<QuestionDrilldownRead>(
+      `/api/v1/experiments/${id}/runs/${runId}/questions/${questionId}`,
+    ),
 };

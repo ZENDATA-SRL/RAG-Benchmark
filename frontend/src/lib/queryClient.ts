@@ -53,6 +53,21 @@ export const queryKeys = {
   materializations: (filters: Record<string, string | undefined>) =>
     ["materializations", filters] as const,
   materialization: (id: string) => ["materializations", id] as const,
+  qaSets: ["qa-sets"] as const,
+  qaSet: (id: string) => ["qa-sets", id] as const,
+  qaSetSnapshots: (id: string) => ["qa-sets", id, "snapshots"] as const,
+  experiments: ["experiments"] as const,
+  experiment: (id: string) => ["experiments", id] as const,
+  coverageCheck: (corpusSnapshotId: string, qaSetSnapshotId: string) =>
+    ["experiments", "coverage", corpusSnapshotId, qaSetSnapshotId] as const,
+  run: (experimentId: string, runId: string) =>
+    ["experiments", experimentId, "runs", runId] as const,
+  runResults: (experimentId: string, runId: string, tag: string) =>
+    ["experiments", experimentId, "runs", runId, "results", tag] as const,
+  runQuestions: (experimentId: string, runId: string) =>
+    ["experiments", experimentId, "runs", runId, "questions"] as const,
+  runQuestion: (experimentId: string, runId: string, questionId: string) =>
+    ["experiments", experimentId, "runs", runId, "questions", questionId] as const,
   chunks: (documentId: string, configurationId: string) =>
     ["chunks", documentId, configurationId] as const,
   parse: (documentId: string, profileId: string) => ["parse", documentId, profileId] as const,

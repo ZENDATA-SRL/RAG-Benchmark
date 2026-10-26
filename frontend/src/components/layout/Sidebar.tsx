@@ -4,6 +4,8 @@ const links = [
   { to: "/corpora", label: "Corpora", hint: "Documents" },
   { to: "/configurations", label: "Configurations", hint: "Parse + chunk" },
   { to: "/indexes", label: "Indexes", hint: "Embed + store" },
+  { to: "/qa-sets", label: "QA sets", hint: "Questions + gold" },
+  { to: "/experiments", label: "Experiments", hint: "Compare retrieval" },
   { to: "/components", label: "Components", hint: "Registry" },
 ];
 

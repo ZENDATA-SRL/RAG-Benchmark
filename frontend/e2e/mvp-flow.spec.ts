@@ -18,3 +18,22 @@ test("a new user can walk the MVP without a terminal", async ({ page, request })
   await expect(page.getByRole("button", { name: "Preview on one document" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Materialise chunks" })).toBeVisible();
 });
+
+test("the QA set and experiment pages open and can start their dialogs", async ({
+  page,
+  request,
+}) => {
+  const health = await request.get("http://localhost:8000/health").catch(() => null);
+  test.skip(!health?.ok(), "API is not running on :8000");
+
+  await page.goto("/qa-sets");
+  await expect(page.getByRole("heading", { name: "QA sets" })).toBeVisible();
+  await page.getByRole("button", { name: "New QA set" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.goto("/experiments");
+  await expect(page.getByRole("heading", { name: "Experiments" })).toBeVisible();
+  await page.getByRole("button", { name: "New experiment" }).click();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toBeDisabled();
+});

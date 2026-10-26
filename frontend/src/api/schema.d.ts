@@ -964,16 +964,366 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/qa-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Qa Sets
+         * @description List the QA sets with their question counts.
+         */
+        get: operations["list_qa_sets_api_v1_qa_sets_get"];
+        put?: never;
+        /**
+         * Create Qa Set
+         * @description Create an empty QA set.
+         */
+        post: operations["create_qa_set_api_v1_qa_sets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Qa Set
+         * @description Return a QA set with a page of its questions and their gold documents.
+         */
+        get: operations["get_qa_set_api_v1_qa_sets__qa_set_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Questions
+         * @description Import questions and gold files from a CSV or JSONL file, reporting every row.
+         */
+        post: operations["import_questions_api_v1_qa_sets__qa_set_id__import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/qa-sets/{qa_set_id}/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Qa Set Snapshots
+         * @description List the snapshots of a QA set, newest first.
+         */
+        get: operations["list_qa_set_snapshots_api_v1_qa_sets__qa_set_id__snapshots_get"];
+        put?: never;
+        /**
+         * Freeze Qa Set
+         * @description Freeze the current questions, or return the snapshot with the same composition.
+         */
+        post: operations["freeze_qa_set_api_v1_qa_sets__qa_set_id__snapshots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Experiments
+         * @description List the experiments, newest first.
+         */
+        get: operations["list_experiments_api_v1_experiments_get"];
+        put?: never;
+        /**
+         * Create Experiment
+         * @description Create an experiment, refusing variants on another snapshot and uncovered gold.
+         */
+        post: operations["create_experiment_api_v1_experiments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Coverage
+         * @description List the questions whose gold documents are not all in a corpus snapshot.
+         */
+        get: operations["check_coverage_api_v1_experiments_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Experiment
+         * @description Return an experiment with its variants, runs and gold coverage.
+         */
+        get: operations["get_experiment_api_v1_experiments__experiment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Run
+         * @description Create a run of an experiment and start it on Temporal.
+         */
+        post: operations["start_run_api_v1_experiments__experiment_id__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run
+         * @description Return a run with its progress and the configuration copied at launch.
+         *
+         *     Served from the denormalised row, so polling it never depends on Temporal.
+         */
+        get: operations["get_run_api_v1_experiments__experiment_id__runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Run
+         * @description Relaunch an interrupted or partly failed run, redoing only what did not succeed.
+         */
+        post: operations["resume_run_api_v1_experiments__experiment_id__runs__run_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Run
+         * @description Cancel a running run, recording `cancelled` as its reason.
+         */
+        post: operations["cancel_run_api_v1_experiments__experiment_id__runs__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Results
+         * @description Return the aggregated metrics per variant, with effective and excluded counts.
+         */
+        get: operations["get_results_api_v1_experiments__experiment_id__runs__run_id__results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/results.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Results Csv
+         * @description Download the aggregated metrics of a run as CSV.
+         */
+        get: operations["get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Run Questions
+         * @description List the questions of a run with the outcome of each variant.
+         */
+        get: operations["list_run_questions_api_v1_experiments__experiment_id__runs__run_id__questions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Question
+         * @description Return what each variant retrieved for a question, hit by hit.
+         */
+        get: operations["get_run_question_api_v1_experiments__experiment_id__runs__run_id__questions__question_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AmbiguousCandidateRead */
+        AmbiguousCandidateRead: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Content Hash */
+            content_hash: string;
+        };
+        /**
+         * AmbiguousFileRead
+         * @description A gold file name shared by several documents; the row can name one by hash.
+         */
+        AmbiguousFileRead: {
+            /** File */
+            file: string;
+            /** Candidates */
+            candidates: components["schemas"]["AmbiguousCandidateRead"][];
+        };
+        /** AmbiguousRowRead */
+        AmbiguousRowRead: {
+            /** Row */
+            row: number;
+            /** Question */
+            question: string;
+            /** Files */
+            files: components["schemas"]["AmbiguousFileRead"][];
+        };
         /**
          * ArtifactStatus
          * @description Lifecycle of a *pipeline artefact*, shared by parsing, chunking and index builds.
          * @enum {string}
          */
         ArtifactStatus: "pending" | "running" | "ready" | "failed";
+        /** Body_import_questions_api_v1_qa_sets__qa_set_id__import_post */
+        Body_import_questions_api_v1_qa_sets__qa_set_id__import_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_corpus_documents_api_v1_corpora__corpus_id__documents_upload_post */
         Body_upload_corpus_documents_api_v1_corpora__corpus_id__documents_upload_post: {
             /** Files */
@@ -1593,6 +1943,18 @@ export interface components {
             description?: string | null;
         };
         /**
+         * CoverageRead
+         * @description How much of a QA snapshot a corpus snapshot can answer.
+         */
+        CoverageRead: {
+            /** Question Count */
+            question_count: number;
+            /** Uncovered Count */
+            uncovered_count: number;
+            /** Uncovered */
+            uncovered: components["schemas"]["UncoveredQuestionRead"][];
+        };
+        /**
          * DocumentChunksRead
          * @description One page of the chunks of a document, with the state of the artefact holding them.
          */
@@ -1846,15 +2208,252 @@ export interface components {
              */
             created_at: string;
         };
+        /** ExecutionDetailRead */
+        ExecutionDetailRead: {
+            /**
+             * Execution Id
+             * Format: uuid
+             */
+            execution_id: string;
+            /** Repetition */
+            repetition: number;
+            status: components["schemas"]["ExecutionStatus"];
+            /** Error */
+            error?: string | null;
+            /** Excluded Reason */
+            excluded_reason?: string | null;
+            /** Timings */
+            timings?: {
+                [key: string]: unknown;
+            } | null;
+            /** Hits */
+            hits: components["schemas"]["HitDetailRead"][];
+        };
+        /**
+         * ExecutionStatus
+         * @description Lifecycle of a run and of each of its executions.
+         * @enum {string}
+         */
+        ExecutionStatus: "pending" | "running" | "succeeded" | "failed" | "skipped";
+        /**
+         * ExpectedAnswerRead
+         * @description An acceptable answer to a question; the primary one comes first.
+         */
+        ExpectedAnswerRead: {
+            /** Text */
+            text: string;
+            /** Is Primary */
+            is_primary: boolean;
+        };
+        /**
+         * ExperimentCreate
+         * @description Payload creating an experiment.
+         */
+        ExperimentCreate: {
+            /** Name */
+            name: string;
+            /** @default retrieval */
+            type: components["schemas"]["ExperimentType"];
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Qa Set Snapshot Id
+             * Format: uuid
+             */
+            qa_set_snapshot_id: string;
+            /**
+             * Repetitions
+             * @default 1
+             */
+            repetitions: number;
+            /** Variants */
+            variants: components["schemas"]["VariantCreate"][];
+            /**
+             * Uncovered Policy
+             * @description Required when some questions have gold documents outside the corpus snapshot: `exclude` runs them but leaves them out of the metrics' denominator.
+             */
+            uncovered_policy?: "exclude" | null;
+        };
+        /**
+         * ExperimentDetail
+         * @description An experiment with its variants, runs and gold coverage.
+         */
+        ExperimentDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            type: components["schemas"]["ExperimentType"];
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Qa Set Snapshot Id
+             * Format: uuid
+             */
+            qa_set_snapshot_id: string;
+            /** Repetitions */
+            repetitions: number;
+            retrieval_scope: components["schemas"]["RetrievalScope"];
+            /** Uncovered Policy */
+            uncovered_policy?: string | null;
+            /**
+             * Variant Count
+             * @default 0
+             */
+            variant_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Variants */
+            variants: components["schemas"]["VariantRead"][];
+            /** Runs */
+            runs: components["schemas"]["RunRead"][];
+            coverage: components["schemas"]["CoverageRead"];
+        };
+        /**
+         * ExperimentRead
+         * @description An experiment as listed.
+         */
+        ExperimentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            type: components["schemas"]["ExperimentType"];
+            /**
+             * Corpus Snapshot Id
+             * Format: uuid
+             */
+            corpus_snapshot_id: string;
+            /**
+             * Qa Set Snapshot Id
+             * Format: uuid
+             */
+            qa_set_snapshot_id: string;
+            /** Repetitions */
+            repetitions: number;
+            retrieval_scope: components["schemas"]["RetrievalScope"];
+            /** Uncovered Policy */
+            uncovered_policy?: string | null;
+            /**
+             * Variant Count
+             * @default 0
+             */
+            variant_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ExperimentType
+         * @enum {string}
+         */
+        ExperimentType: "retrieval" | "qa";
         /**
          * FileOutcome
          * @enum {string}
          */
         FileOutcome: "imported" | "skipped_duplicate" | "skipped_unsupported" | "failed";
+        /**
+         * GoldDocumentRead
+         * @description A document that contains the answer to a question.
+         */
+        GoldDocumentRead: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HitDetailRead
+         * @description A retrieved chunk with the document it comes from and whether it counted as relevant.
+         */
+        HitDetailRead: {
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number | null;
+            /** Chunk Id */
+            chunk_id: string | null;
+            /** Document Id */
+            document_id: string | null;
+            /** Filename */
+            filename: string | null;
+            /** Ordinal */
+            ordinal: number | null;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string | null;
+            /** Relevant Document */
+            relevant_document: boolean | null;
+        };
+        /**
+         * ImportSummaryRead
+         * @description What an import did, row by row: nothing is dropped without being listed.
+         *
+         *     `existing` are rows whose question text was already in the set: questions are
+         *     immutable, so a re-import leaves them as they are instead of duplicating them.
+         */
+        ImportSummaryRead: {
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /** Total Rows */
+            total_rows: number;
+            /** Imported */
+            imported: components["schemas"]["ImportedQuestionRead"][];
+            /** Existing */
+            existing: components["schemas"]["ImportedQuestionRead"][];
+            /** Unresolved */
+            unresolved: components["schemas"]["UnresolvedRowRead"][];
+            /** Ambiguous */
+            ambiguous: components["schemas"]["AmbiguousRowRead"][];
+            /** Invalid */
+            invalid: components["schemas"]["InvalidRowRead"][];
+        };
+        /**
+         * ImportedQuestionRead
+         * @description A row turned into a question.
+         */
+        ImportedQuestionRead: {
+            /** Row */
+            row: number;
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /** Gold Documents */
+            gold_documents: components["schemas"]["GoldDocumentRead"][];
         };
         /**
          * IndexBuildAccepted
@@ -2039,6 +2638,18 @@ export interface components {
             created_at: string;
         };
         /**
+         * InvalidRowRead
+         * @description A malformed row, e.g. an empty question or an answerable one without gold files.
+         */
+        InvalidRowRead: {
+            /** Row */
+            row: number;
+            /** Question */
+            question: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
          * MaterializationAccepted
          * @description A launched run, stating whether this request is what started it.
          *
@@ -2203,6 +2814,28 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * MetricResultRead
+         * @description Statistics of one metric for one variant, always with how many scores they rest on.
+         */
+        MetricResultRead: {
+            /** Key */
+            key: string;
+            /** Direction */
+            direction: string;
+            /** Mean */
+            mean: number | null;
+            /** Stddev */
+            stddev: number | null;
+            /** Median */
+            median: number | null;
+            /** P95 */
+            p95: number | null;
+            /** N Effective */
+            n_effective: number;
+            /** N Excluded */
+            n_excluded: number;
+        };
         /** Page[ChunkingConfigurationExpanded] */
         Page_ChunkingConfigurationExpanded_: {
             /** Items */
@@ -2269,6 +2902,17 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[ExperimentRead] */
+        Page_ExperimentRead_: {
+            /** Items */
+            items?: components["schemas"]["ExperimentRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[IndexBuildRead] */
         Page_IndexBuildRead_: {
             /** Items */
@@ -2302,10 +2946,54 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[QASetRead] */
+        Page_QASetRead_: {
+            /** Items */
+            items?: components["schemas"]["QASetRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[QASetSnapshotRead] */
+        Page_QASetSnapshotRead_: {
+            /** Items */
+            items?: components["schemas"]["QASetSnapshotRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[QuestionRead] */
+        Page_QuestionRead_: {
+            /** Items */
+            items?: components["schemas"]["QuestionRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[RetrievalProfileRead] */
         Page_RetrievalProfileRead_: {
             /** Items */
             items?: components["schemas"]["RetrievalProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[RunQuestionRead] */
+        Page_RunQuestionRead_: {
+            /** Items */
+            items?: components["schemas"]["RunQuestionRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -2392,6 +3080,221 @@ export interface components {
             created_at: string;
         };
         /**
+         * ProgressRead
+         * @description Execution counters of a run: pending includes the ones still running.
+         */
+        ProgressRead: {
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Succeeded
+             * @default 0
+             */
+            succeeded: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+        };
+        /**
+         * QASetCreate
+         * @description Payload creating a QA set.
+         */
+        QASetCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Origin Corpus Id
+             * @description Corpus the gold file names of an import are resolved in.
+             */
+            origin_corpus_id?: string | null;
+        };
+        /**
+         * QASetDetail
+         * @description A QA set with one page of its questions.
+         */
+        QASetDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Origin Corpus Id */
+            origin_corpus_id?: string | null;
+            /**
+             * Question Count
+             * @default 0
+             */
+            question_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            questions: components["schemas"]["Page_QuestionRead_"];
+        };
+        /**
+         * QASetRead
+         * @description A QA set as exposed by the API.
+         */
+        QASetRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Origin Corpus Id */
+            origin_corpus_id?: string | null;
+            /**
+             * Question Count
+             * @default 0
+             */
+            question_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * QASetSnapshotCreate
+         * @description Payload freezing the current questions of a set.
+         */
+        QASetSnapshotCreate: {
+            /** Label */
+            label?: string | null;
+        };
+        /**
+         * QASetSnapshotCreated
+         * @description A snapshot with the outcome of the get-or-create that returned it.
+         */
+        QASetSnapshotCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            snapshot: components["schemas"]["QASetSnapshotRead"];
+        };
+        /**
+         * QASetSnapshotRead
+         * @description An immutable freeze of a QA set.
+         */
+        QASetSnapshotRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /** Label */
+            label: string;
+            /** Question Count */
+            question_count: number;
+            /** Composition Hash */
+            composition_hash: string;
+            /**
+             * Frozen At
+             * Format: date-time
+             */
+            frozen_at: string;
+        };
+        /**
+         * QuestionDrilldownRead
+         * @description What each variant returned for one question, side by side.
+         */
+        QuestionDrilldownRead: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /** Tags */
+            tags: string[];
+            /** Answerable */
+            answerable: boolean;
+            /** Gold Documents */
+            gold_documents: components["schemas"]["UncoveredDocumentRead"][];
+            /** Variants */
+            variants: components["schemas"]["VariantDrilldownRead"][];
+        };
+        /**
+         * QuestionRead
+         * @description A question with its gold documents and expected answers.
+         */
+        QuestionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /** Tags */
+            tags: string[];
+            /** Answerable */
+            answerable: boolean;
+            /** Gold Documents */
+            gold_documents: components["schemas"]["GoldDocumentRead"][];
+            /** Expected Answers */
+            expected_answers: components["schemas"]["ExpectedAnswerRead"][];
+        };
+        /**
+         * QuestionVariantOutcomeRead
+         * @description How one variant did on a question, on its first repetition.
+         */
+        QuestionVariantOutcomeRead: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            status: components["schemas"]["ExecutionStatus"];
+            /** First Relevant Rank */
+            first_relevant_rank?: number | null;
+            /** Excluded Reason */
+            excluded_reason?: string | null;
+        };
+        /**
          * RetrievalProfileCreate
          * @description Payload creating a retrieval profile.
          *
@@ -2443,6 +3346,12 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * RetrievalScope
+         * @description Which chunks a metric is computed on: what was retrieved, put in context or cited.
+         * @enum {string}
+         */
+        RetrievalScope: "retrieved" | "in_context" | "cited";
         /**
          * RetrievalStrategy
          * @description How the vector store is searched; only `dense` is executable today.
@@ -2543,10 +3452,226 @@ export interface components {
             text: string | null;
         };
         /**
+         * RunAccepted
+         * @description A launched run, stating whether this request is what started its workflow.
+         */
+        RunAccepted: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            status: components["schemas"]["ExecutionStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            progress: components["schemas"]["ProgressRead"];
+            /** Error */
+            error?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started */
+            started: boolean;
+            /** Detail */
+            detail?: string | null;
+        };
+        /**
+         * RunDetail
+         * @description A run with the full configuration copied at launch.
+         */
+        RunDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            status: components["schemas"]["ExecutionStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            progress: components["schemas"]["ProgressRead"];
+            /** Error */
+            error?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Config Snapshot */
+            config_snapshot: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * RunLaunchRequest
+         * @description Optional parameters of a run launch.
+         */
+        RunLaunchRequest: {
+            /**
+             * Concurrency
+             * @description Queries processed at once; lower it when the embedder rate limits.
+             */
+            concurrency?: number | null;
+        };
+        /**
+         * RunQuestionRead
+         * @description A question of the run with the outcome of each variant.
+         */
+        RunQuestionRead: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /** Tags */
+            tags: string[];
+            /** Answerable */
+            answerable: boolean;
+            /** Outcomes */
+            outcomes: components["schemas"]["QuestionVariantOutcomeRead"][];
+        };
+        /**
+         * RunRead
+         * @description A run with its denormalised progress, as polled by the UI.
+         */
+        RunRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            status: components["schemas"]["ExecutionStatus"];
+            /** Workflow Id */
+            workflow_id?: string | null;
+            progress: components["schemas"]["ProgressRead"];
+            /** Error */
+            error?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * RunResultsRead
+         * @description The aggregated metrics of a run, per variant, with the snapshots they were measured on.
+         */
+        RunResultsRead: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            status: components["schemas"]["ExecutionStatus"];
+            /** Repetitions */
+            repetitions: number;
+            /** Question Count */
+            question_count: number;
+            corpus_snapshot: components["schemas"]["SnapshotDeclaredRead"];
+            qa_set_snapshot: components["schemas"]["SnapshotDeclaredRead"];
+            /** Slice Key */
+            slice_key: string;
+            /** Slice Value */
+            slice_value: string;
+            /** Variants */
+            variants: components["schemas"]["VariantResultRead"][];
+        };
+        /**
          * RuntimeType
          * @enum {string}
          */
         RuntimeType: "builtin" | "http";
+        /**
+         * SnapshotDeclaredRead
+         * @description The snapshot a result was computed on: a metric is meaningless without it.
+         */
+        SnapshotDeclaredRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Document Count */
+            document_count?: number | null;
+            /** Question Count */
+            question_count?: number | null;
+            /** Corpus Id */
+            corpus_id?: string | null;
+        };
+        /** UncoveredDocumentRead */
+        UncoveredDocumentRead: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+        };
+        /**
+         * UncoveredQuestionRead
+         * @description A question with gold documents missing from the corpus snapshot.
+         */
+        UncoveredQuestionRead: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /** Missing Documents */
+            missing_documents: components["schemas"]["UncoveredDocumentRead"][];
+        };
+        /**
+         * UnresolvedRowRead
+         * @description A row whose gold files match no document of the corpus.
+         */
+        UnresolvedRowRead: {
+            /** Row */
+            row: number;
+            /** Question */
+            question: string;
+            /** Files */
+            files: string[];
+        };
         /**
          * UploadFileResult
          * @description Outcome of one file of an upload request.
@@ -2592,6 +3717,101 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VariantCreate
+         * @description A variant: an index build searched under a retrieval profile.
+         */
+        VariantCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /**
+             * Is Baseline
+             * @default false
+             */
+            is_baseline: boolean;
+        };
+        /** VariantDrilldownRead */
+        VariantDrilldownRead: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            /** Name */
+            name: string;
+            /** Is Baseline */
+            is_baseline: boolean;
+            /** Executions */
+            executions: components["schemas"]["ExecutionDetailRead"][];
+        };
+        /**
+         * VariantRead
+         * @description A variant with the index build and retrieval profile it points at.
+         */
+        VariantRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Is Baseline */
+            is_baseline: boolean;
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /** Index Build Name */
+            index_build_name: string;
+            index_build_status: components["schemas"]["ArtifactStatus"];
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /** Retrieval Profile Name */
+            retrieval_profile_name: string;
+            /** Top K */
+            top_k: number;
+        };
+        /** VariantResultRead */
+        VariantResultRead: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            /** Name */
+            name: string;
+            /** Is Baseline */
+            is_baseline: boolean;
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /** Top K */
+            top_k: number;
+            /** Metrics */
+            metrics: components["schemas"]["MetricResultRead"][];
         };
         /**
          * VectorStoreProfileCreate
@@ -4598,6 +5818,603 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RetrieveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_qa_sets_api_v1_qa_sets_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_QASetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_qa_set_api_v1_qa_sets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QASetCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QASetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_qa_set_api_v1_qa_sets__qa_set_id__get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QASetDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_questions_api_v1_qa_sets__qa_set_id__import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_questions_api_v1_qa_sets__qa_set_id__import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportSummaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_qa_set_snapshots_api_v1_qa_sets__qa_set_id__snapshots_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_QASetSnapshotRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    freeze_qa_set_api_v1_qa_sets__qa_set_id__snapshots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qa_set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QASetSnapshotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QASetSnapshotCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_experiments_api_v1_experiments_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ExperimentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_experiment_api_v1_experiments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_coverage_api_v1_experiments_coverage_get: {
+        parameters: {
+            query: {
+                corpus_snapshot_id: string;
+                qa_set_snapshot_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_experiment_api_v1_experiments__experiment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_run_api_v1_experiments__experiment_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RunLaunchRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_api_v1_experiments__experiment_id__runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_run_api_v1_experiments__experiment_id__runs__run_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_run_api_v1_experiments__experiment_id__runs__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_results_api_v1_experiments__experiment_id__runs__run_id__results_get: {
+        parameters: {
+            query?: {
+                /** @description Aggregate over one question tag. */
+                tag?: string | null;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunResultsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_run_questions_api_v1_experiments__experiment_id__runs__run_id__questions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_RunQuestionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_question_api_v1_experiments__experiment_id__runs__run_id__questions__question_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionDrilldownRead"];
                 };
             };
             /** @description Validation Error */

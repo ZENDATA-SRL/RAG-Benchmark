@@ -3119,10 +3119,1102 @@
           }
         }
       }
+    },
+    "/api/v1/qa-sets": {
+      "post": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Create Qa Set",
+        "description": "Create an empty QA set.",
+        "operationId": "create_qa_set_api_v1_qa_sets_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QASetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QASetRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "List Qa Sets",
+        "description": "List the QA sets with their question counts.",
+        "operationId": "list_qa_sets_api_v1_qa_sets_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_QASetRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}": {
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Get Qa Set",
+        "description": "Return a QA set with a page of its questions and their gold documents.",
+        "operationId": "get_qa_set_api_v1_qa_sets__qa_set_id__get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QASetDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}/import": {
+      "post": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Import Questions",
+        "description": "Import questions and gold files from a CSV or JSONL file, reporting every row.",
+        "operationId": "import_questions_api_v1_qa_sets__qa_set_id__import_post",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_questions_api_v1_qa_sets__qa_set_id__import_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSummaryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qa-sets/{qa_set_id}/snapshots": {
+      "post": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "Freeze Qa Set",
+        "description": "Freeze the current questions, or return the snapshot with the same composition.",
+        "operationId": "freeze_qa_set_api_v1_qa_sets__qa_set_id__snapshots_post",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QASetSnapshotCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QASetSnapshotCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "qa-sets"
+        ],
+        "summary": "List Qa Set Snapshots",
+        "description": "List the snapshots of a QA set, newest first.",
+        "operationId": "list_qa_set_snapshots_api_v1_qa_sets__qa_set_id__snapshots_get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_QASetSnapshotRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create Experiment",
+        "description": "Create an experiment, refusing variants on another snapshot and uncovered gold.",
+        "operationId": "create_experiment_api_v1_experiments_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List Experiments",
+        "description": "List the experiments, newest first.",
+        "operationId": "list_experiments_api_v1_experiments_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ExperimentRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/coverage": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Check Coverage",
+        "description": "List the questions whose gold documents are not all in a corpus snapshot.",
+        "operationId": "check_coverage_api_v1_experiments_coverage_get",
+        "parameters": [
+          {
+            "name": "corpus_snapshot_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Corpus Snapshot Id"
+            }
+          },
+          {
+            "name": "qa_set_snapshot_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Snapshot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Experiment",
+        "description": "Return an experiment with its variants, runs and gold coverage.",
+        "operationId": "get_experiment_api_v1_experiments__experiment_id__get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Start Run",
+        "description": "Create a run of an experiment and start it on Temporal.",
+        "operationId": "start_run_api_v1_experiments__experiment_id__runs_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RunLaunchRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Run",
+        "description": "Return a run with its progress and the configuration copied at launch.\n\nServed from the denormalised row, so polling it never depends on Temporal.",
+        "operationId": "get_run_api_v1_experiments__experiment_id__runs__run_id__get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Resume Run",
+        "description": "Relaunch an interrupted or partly failed run, redoing only what did not succeed.",
+        "operationId": "resume_run_api_v1_experiments__experiment_id__runs__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Cancel Run",
+        "description": "Cancel a running run, recording `cancelled` as its reason.",
+        "operationId": "cancel_run_api_v1_experiments__experiment_id__runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/results": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Results",
+        "description": "Return the aggregated metrics per variant, with effective and excluded counts.",
+        "operationId": "get_results_api_v1_experiments__experiment_id__runs__run_id__results_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Aggregate over one question tag.",
+              "title": "Tag"
+            },
+            "description": "Aggregate over one question tag."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResultsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/results.csv": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Results Csv",
+        "description": "Download the aggregated metrics of a run as CSV.",
+        "operationId": "get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/questions": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List Run Questions",
+        "description": "List the questions of a run with the outcome of each variant.",
+        "operationId": "list_run_questions_api_v1_experiments__experiment_id__runs__run_id__questions_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RunQuestionRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/questions/{question_id}": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Run Question",
+        "description": "Return what each variant retrieved for a question, hit by hit.",
+        "operationId": "get_run_question_api_v1_experiments__experiment_id__runs__run_id__questions__question_id__get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionDrilldownRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AmbiguousCandidateRead": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename",
+          "content_hash"
+        ],
+        "title": "AmbiguousCandidateRead"
+      },
+      "AmbiguousFileRead": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/AmbiguousCandidateRead"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "candidates"
+        ],
+        "title": "AmbiguousFileRead",
+        "description": "A gold file name shared by several documents; the row can name one by hash."
+      },
+      "AmbiguousRowRead": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/AmbiguousFileRead"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "question",
+          "files"
+        ],
+        "title": "AmbiguousRowRead"
+      },
       "ArtifactStatus": {
         "type": "string",
         "enum": [
@@ -3133,6 +4225,20 @@
         ],
         "title": "ArtifactStatus",
         "description": "Lifecycle of a *pipeline artefact*, shared by parsing, chunking and index builds."
+      },
+      "Body_import_questions_api_v1_qa_sets__qa_set_id__import_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_questions_api_v1_qa_sets__qa_set_id__import_post"
       },
       "Body_upload_corpus_documents_api_v1_corpora__corpus_id__documents_upload_post": {
         "properties": {
@@ -4336,6 +5442,33 @@
         "title": "CorpusUpdate",
         "description": "Payload updating a corpus; omitted fields are left unchanged."
       },
+      "CoverageRead": {
+        "properties": {
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count"
+          },
+          "uncovered_count": {
+            "type": "integer",
+            "title": "Uncovered Count"
+          },
+          "uncovered": {
+            "items": {
+              "$ref": "#/components/schemas/UncoveredQuestionRead"
+            },
+            "type": "array",
+            "title": "Uncovered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_count",
+          "uncovered_count",
+          "uncovered"
+        ],
+        "title": "CoverageRead",
+        "description": "How much of a QA snapshot a corpus snapshot can answer."
+      },
       "DocumentChunksRead": {
         "properties": {
           "document_id": {
@@ -4812,6 +5945,325 @@
         "title": "EmbeddingProfileRead",
         "description": "An embedding profile as exposed by the API."
       },
+      "ExecutionDetailRead": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Execution Id"
+          },
+          "repetition": {
+            "type": "integer",
+            "title": "Repetition"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excluded Reason"
+          },
+          "timings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timings"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/HitDetailRead"
+            },
+            "type": "array",
+            "title": "Hits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "repetition",
+          "status",
+          "hits"
+        ],
+        "title": "ExecutionDetailRead"
+      },
+      "ExecutionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "failed",
+          "skipped"
+        ],
+        "title": "ExecutionStatus",
+        "description": "Lifecycle of a run and of each of its executions."
+      },
+      "ExpectedAnswerRead": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "title": "Is Primary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "is_primary"
+        ],
+        "title": "ExpectedAnswerRead",
+        "description": "An acceptable answer to a question; the primary one comes first."
+      },
+      "ExperimentCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ExperimentType",
+            "default": "retrieval"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "qa_set_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Snapshot Id"
+          },
+          "repetitions": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Repetitions",
+            "default": 1
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantCreate"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Variants"
+          },
+          "uncovered_policy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "exclude"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncovered Policy",
+            "description": "Required when some questions have gold documents outside the corpus snapshot: `exclude` runs them but leaves them out of the metrics' denominator."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "corpus_snapshot_id",
+          "qa_set_snapshot_id",
+          "variants"
+        ],
+        "title": "ExperimentCreate",
+        "description": "Payload creating an experiment."
+      },
+      "ExperimentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ExperimentType"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "qa_set_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Snapshot Id"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions"
+          },
+          "retrieval_scope": {
+            "$ref": "#/components/schemas/RetrievalScope"
+          },
+          "uncovered_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncovered Policy"
+          },
+          "variant_count": {
+            "type": "integer",
+            "title": "Variant Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantRead"
+            },
+            "type": "array",
+            "title": "Variants"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunRead"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "corpus_snapshot_id",
+          "qa_set_snapshot_id",
+          "repetitions",
+          "retrieval_scope",
+          "created_at",
+          "variants",
+          "runs",
+          "coverage"
+        ],
+        "title": "ExperimentDetail",
+        "description": "An experiment with its variants, runs and gold coverage."
+      },
+      "ExperimentRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ExperimentType"
+          },
+          "corpus_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Corpus Snapshot Id"
+          },
+          "qa_set_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Snapshot Id"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions"
+          },
+          "retrieval_scope": {
+            "$ref": "#/components/schemas/RetrievalScope"
+          },
+          "uncovered_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncovered Policy"
+          },
+          "variant_count": {
+            "type": "integer",
+            "title": "Variant Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "corpus_snapshot_id",
+          "qa_set_snapshot_id",
+          "repetitions",
+          "retrieval_scope",
+          "created_at"
+        ],
+        "title": "ExperimentRead",
+        "description": "An experiment as listed."
+      },
+      "ExperimentType": {
+        "type": "string",
+        "enum": [
+          "retrieval",
+          "qa"
+        ],
+        "title": "ExperimentType"
+      },
       "FileOutcome": {
         "type": "string",
         "enum": [
@@ -4821,6 +6273,26 @@
           "failed"
         ],
         "title": "FileOutcome"
+      },
+      "GoldDocumentRead": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename"
+        ],
+        "title": "GoldDocumentRead",
+        "description": "A document that contains the answer to a question."
       },
       "HTTPValidationError": {
         "properties": {
@@ -4834,6 +6306,211 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HitDetailRead": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "relevant_document": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Document"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "score",
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text",
+          "relevant_document"
+        ],
+        "title": "HitDetailRead",
+        "description": "A retrieved chunk with the document it comes from and whether it counted as relevant."
+      },
+      "ImportSummaryRead": {
+        "properties": {
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "total_rows": {
+            "type": "integer",
+            "title": "Total Rows"
+          },
+          "imported": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedQuestionRead"
+            },
+            "type": "array",
+            "title": "Imported"
+          },
+          "existing": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedQuestionRead"
+            },
+            "type": "array",
+            "title": "Existing"
+          },
+          "unresolved": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedRowRead"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
+          "ambiguous": {
+            "items": {
+              "$ref": "#/components/schemas/AmbiguousRowRead"
+            },
+            "type": "array",
+            "title": "Ambiguous"
+          },
+          "invalid": {
+            "items": {
+              "$ref": "#/components/schemas/InvalidRowRead"
+            },
+            "type": "array",
+            "title": "Invalid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_set_id",
+          "total_rows",
+          "imported",
+          "existing",
+          "unresolved",
+          "ambiguous",
+          "invalid"
+        ],
+        "title": "ImportSummaryRead",
+        "description": "What an import did, row by row: nothing is dropped without being listed.\n\n`existing` are rows whose question text was already in the set: questions are\nimmutable, so a re-import leaves them as they are instead of duplicating them."
+      },
+      "ImportedQuestionRead": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "gold_documents": {
+            "items": {
+              "$ref": "#/components/schemas/GoldDocumentRead"
+            },
+            "type": "array",
+            "title": "Gold Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "question_id",
+          "text",
+          "gold_documents"
+        ],
+        "title": "ImportedQuestionRead",
+        "description": "A row turned into a question."
       },
       "IndexBuildAccepted": {
         "properties": {
@@ -5168,6 +6845,30 @@
         ],
         "title": "IndexBuildRead",
         "description": "A vector DB population configuration as exposed by the API."
+      },
+      "InvalidRowRead": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "question",
+          "reason"
+        ],
+        "title": "InvalidRowRead",
+        "description": "A malformed row, e.g. an empty question or an answerable one without gold files."
       },
       "MaterializationAccepted": {
         "properties": {
@@ -5548,6 +7249,83 @@
         "title": "MaterializationRead",
         "description": "A materialisation run as exposed by the API.\n\nDenormalised on purpose: the UI polls this every couple of seconds and must not\nmake Temporal answer each refresh. The authoritative state stays in Temporal."
       },
+      "MetricResultRead": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "direction": {
+            "type": "string",
+            "title": "Direction"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "stddev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stddev"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "p95": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95"
+          },
+          "n_effective": {
+            "type": "integer",
+            "title": "N Effective"
+          },
+          "n_excluded": {
+            "type": "integer",
+            "title": "N Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "direction",
+          "mean",
+          "stddev",
+          "median",
+          "p95",
+          "n_effective",
+          "n_excluded"
+        ],
+        "title": "MetricResultRead",
+        "description": "Statistics of one metric for one variant, always with how many scores they rest on."
+      },
       "Page_ChunkingConfigurationExpanded_": {
         "properties": {
           "items": {
@@ -5728,6 +7506,36 @@
         ],
         "title": "Page[EmbeddingProfileRead]"
       },
+      "Page_ExperimentRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[ExperimentRead]"
+      },
       "Page_IndexBuildRead_": {
         "properties": {
           "items": {
@@ -5818,6 +7626,96 @@
         ],
         "title": "Page[ParsingProfileRead]"
       },
+      "Page_QASetRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QASetRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[QASetRead]"
+      },
+      "Page_QASetSnapshotRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QASetSnapshotRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[QASetSnapshotRead]"
+      },
+      "Page_QuestionRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[QuestionRead]"
+      },
       "Page_RetrievalProfileRead_": {
         "properties": {
           "items": {
@@ -5847,6 +7745,36 @@
           "offset"
         ],
         "title": "Page[RetrievalProfileRead]"
+      },
+      "Page_RunQuestionRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunQuestionRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[RunQuestionRead]"
       },
       "Page_VectorStoreProfileRead_": {
         "properties": {
@@ -5995,6 +7923,434 @@
         "title": "ParsingProfileRead",
         "description": "A parsing profile as exposed by the API."
       },
+      "ProgressRead": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "succeeded": {
+            "type": "integer",
+            "title": "Succeeded",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ProgressRead",
+        "description": "Execution counters of a run: pending includes the ones still running."
+      },
+      "QASetCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "origin_corpus_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Corpus Id",
+            "description": "Corpus the gold file names of an import are resolved in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "QASetCreate",
+        "description": "Payload creating a QA set."
+      },
+      "QASetDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "origin_corpus_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Corpus Id"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "questions": {
+            "$ref": "#/components/schemas/Page_QuestionRead_"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at",
+          "questions"
+        ],
+        "title": "QASetDetail",
+        "description": "A QA set with one page of its questions."
+      },
+      "QASetRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "origin_corpus_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Corpus Id"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "QASetRead",
+        "description": "A QA set as exposed by the API."
+      },
+      "QASetSnapshotCreate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "title": "QASetSnapshotCreate",
+        "description": "Payload freezing the current questions of a set."
+      },
+      "QASetSnapshotCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/QASetSnapshotRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "snapshot"
+        ],
+        "title": "QASetSnapshotCreated",
+        "description": "A snapshot with the outcome of the get-or-create that returned it."
+      },
+      "QASetSnapshotRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count"
+          },
+          "composition_hash": {
+            "type": "string",
+            "title": "Composition Hash"
+          },
+          "frozen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Frozen At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "qa_set_id",
+          "label",
+          "question_count",
+          "composition_hash",
+          "frozen_at"
+        ],
+        "title": "QASetSnapshotRead",
+        "description": "An immutable freeze of a QA set."
+      },
+      "QuestionDrilldownRead": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "answerable": {
+            "type": "boolean",
+            "title": "Answerable"
+          },
+          "gold_documents": {
+            "items": {
+              "$ref": "#/components/schemas/UncoveredDocumentRead"
+            },
+            "type": "array",
+            "title": "Gold Documents"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantDrilldownRead"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "question_id",
+          "text",
+          "tags",
+          "answerable",
+          "gold_documents",
+          "variants"
+        ],
+        "title": "QuestionDrilldownRead",
+        "description": "What each variant returned for one question, side by side."
+      },
+      "QuestionRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "answerable": {
+            "type": "boolean",
+            "title": "Answerable"
+          },
+          "gold_documents": {
+            "items": {
+              "$ref": "#/components/schemas/GoldDocumentRead"
+            },
+            "type": "array",
+            "title": "Gold Documents"
+          },
+          "expected_answers": {
+            "items": {
+              "$ref": "#/components/schemas/ExpectedAnswerRead"
+            },
+            "type": "array",
+            "title": "Expected Answers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "tags",
+          "answerable",
+          "gold_documents",
+          "expected_answers"
+        ],
+        "title": "QuestionRead",
+        "description": "A question with its gold documents and expected answers."
+      },
+      "QuestionVariantOutcomeRead": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "first_relevant_rank": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Relevant Rank"
+          },
+          "excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excluded Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "status"
+        ],
+        "title": "QuestionVariantOutcomeRead",
+        "description": "How one variant did on a question, on its first repetition."
+      },
       "RetrievalProfileCreate": {
         "properties": {
           "name": {
@@ -6112,6 +8468,16 @@
         ],
         "title": "RetrievalProfileRead",
         "description": "A retrieval profile as exposed by the API: the fields the engine applies today."
+      },
+      "RetrievalScope": {
+        "type": "string",
+        "enum": [
+          "retrieved",
+          "in_context",
+          "cited"
+        ],
+        "title": "RetrievalScope",
+        "description": "Which chunks a metric is computed on: what was retrieved, put in context or cited."
       },
       "RetrievalStrategy": {
         "type": "string",
@@ -6344,6 +8710,394 @@
         "title": "RetrievedHitRead",
         "description": "One retrieved chunk.\n\n`chunk_id` is null when the vector store returned a vector whose chunk no longer\nexists in the database; `text` then holds what the vector store kept."
       },
+      "RunAccepted": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressRead"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started": {
+            "type": "boolean",
+            "title": "Started"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "status",
+          "progress",
+          "created_at",
+          "started"
+        ],
+        "title": "RunAccepted",
+        "description": "A launched run, stating whether this request is what started its workflow."
+      },
+      "RunDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressRead"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "config_snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "status",
+          "progress",
+          "created_at",
+          "config_snapshot"
+        ],
+        "title": "RunDetail",
+        "description": "A run with the full configuration copied at launch."
+      },
+      "RunLaunchRequest": {
+        "properties": {
+          "concurrency": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concurrency",
+            "description": "Queries processed at once; lower it when the embedder rate limits."
+          }
+        },
+        "type": "object",
+        "title": "RunLaunchRequest",
+        "description": "Optional parameters of a run launch."
+      },
+      "RunQuestionRead": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "answerable": {
+            "type": "boolean",
+            "title": "Answerable"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionVariantOutcomeRead"
+            },
+            "type": "array",
+            "title": "Outcomes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "text",
+          "tags",
+          "answerable",
+          "outcomes"
+        ],
+        "title": "RunQuestionRead",
+        "description": "A question of the run with the outcome of each variant."
+      },
+      "RunRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressRead"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "status",
+          "progress",
+          "created_at"
+        ],
+        "title": "RunRead",
+        "description": "A run with its denormalised progress, as polled by the UI."
+      },
+      "RunResultsRead": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count"
+          },
+          "corpus_snapshot": {
+            "$ref": "#/components/schemas/SnapshotDeclaredRead"
+          },
+          "qa_set_snapshot": {
+            "$ref": "#/components/schemas/SnapshotDeclaredRead"
+          },
+          "slice_key": {
+            "type": "string",
+            "title": "Slice Key"
+          },
+          "slice_value": {
+            "type": "string",
+            "title": "Slice Value"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantResultRead"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "experiment_id",
+          "status",
+          "repetitions",
+          "question_count",
+          "corpus_snapshot",
+          "qa_set_snapshot",
+          "slice_key",
+          "slice_value",
+          "variants"
+        ],
+        "title": "RunResultsRead",
+        "description": "The aggregated metrics of a run, per variant, with the snapshots they were measured on."
+      },
       "RuntimeType": {
         "type": "string",
         "enum": [
@@ -6351,6 +9105,134 @@
           "http"
         ],
         "title": "RuntimeType"
+      },
+      "SnapshotDeclaredRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "document_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Count"
+          },
+          "question_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Count"
+          },
+          "corpus_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "SnapshotDeclaredRead",
+        "description": "The snapshot a result was computed on: a metric is meaningless without it."
+      },
+      "UncoveredDocumentRead": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename"
+        ],
+        "title": "UncoveredDocumentRead"
+      },
+      "UncoveredQuestionRead": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "missing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/UncoveredDocumentRead"
+            },
+            "type": "array",
+            "title": "Missing Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "text",
+          "missing_documents"
+        ],
+        "title": "UncoveredQuestionRead",
+        "description": "A question with gold documents missing from the corpus snapshot."
+      },
+      "UnresolvedRowRead": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "question",
+          "files"
+        ],
+        "title": "UnresolvedRowRead",
+        "description": "A row whose gold files match no document of the corpus."
       },
       "UploadFileResult": {
         "properties": {
@@ -6461,6 +9343,176 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VariantCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "index_build_id",
+          "retrieval_profile_id"
+        ],
+        "title": "VariantCreate",
+        "description": "A variant: an index build searched under a retrieval profile."
+      },
+      "VariantDrilldownRead": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline"
+          },
+          "executions": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionDetailRead"
+            },
+            "type": "array",
+            "title": "Executions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "name",
+          "is_baseline",
+          "executions"
+        ],
+        "title": "VariantDrilldownRead"
+      },
+      "VariantRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline"
+          },
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "index_build_name": {
+            "type": "string",
+            "title": "Index Build Name"
+          },
+          "index_build_status": {
+            "$ref": "#/components/schemas/ArtifactStatus"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "retrieval_profile_name": {
+            "type": "string",
+            "title": "Retrieval Profile Name"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "is_baseline",
+          "index_build_id",
+          "index_build_name",
+          "index_build_status",
+          "retrieval_profile_id",
+          "retrieval_profile_name",
+          "top_k"
+        ],
+        "title": "VariantRead",
+        "description": "A variant with the index build and retrieval profile it points at."
+      },
+      "VariantResultRead": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline"
+          },
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricResultRead"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "name",
+          "is_baseline",
+          "index_build_id",
+          "retrieval_profile_id",
+          "top_k",
+          "metrics"
+        ],
+        "title": "VariantResultRead"
       },
       "VectorStoreProfileCreate": {
         "properties": {

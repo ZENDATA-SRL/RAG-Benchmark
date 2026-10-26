@@ -59,6 +59,32 @@ export type ChunkComparisonRead = components["schemas"]["ChunkComparisonRead"];
 export type DocumentParseRead = components["schemas"]["DocumentParseRead"];
 export type ParsePageRead = components["schemas"]["ParsePageRead"];
 
+export type QASetRead = components["schemas"]["QASetRead"];
+export type QASetCreate = components["schemas"]["QASetCreate"];
+export type QASetDetail = components["schemas"]["QASetDetail"];
+export type QASetSnapshotRead = components["schemas"]["QASetSnapshotRead"];
+export type QASetSnapshotCreated = components["schemas"]["QASetSnapshotCreated"];
+export type QuestionRead = components["schemas"]["QuestionRead"];
+export type ImportSummaryRead = components["schemas"]["ImportSummaryRead"];
+
+export type ExperimentRead = components["schemas"]["ExperimentRead"];
+export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
+export type ExperimentCreate = components["schemas"]["ExperimentCreate"];
+export type VariantCreate = components["schemas"]["VariantCreate"];
+export type VariantRead = components["schemas"]["VariantRead"];
+export type CoverageRead = components["schemas"]["CoverageRead"];
+export type RunRead = components["schemas"]["RunRead"];
+export type RunDetail = components["schemas"]["RunDetail"];
+export type RunAccepted = components["schemas"]["RunAccepted"];
+export type RunResultsRead = components["schemas"]["RunResultsRead"];
+export type VariantResultRead = components["schemas"]["VariantResultRead"];
+export type MetricResultRead = components["schemas"]["MetricResultRead"];
+export type RunQuestionRead = components["schemas"]["RunQuestionRead"];
+export type QuestionDrilldownRead = components["schemas"]["QuestionDrilldownRead"];
+export type VariantDrilldownRead = components["schemas"]["VariantDrilldownRead"];
+export type HitDetailRead = components["schemas"]["HitDetailRead"];
+export type QuestionVariantOutcomeRead = components["schemas"]["QuestionVariantOutcomeRead"];
+
 export type Page<T> = {
   items: T[];
   total: number;
