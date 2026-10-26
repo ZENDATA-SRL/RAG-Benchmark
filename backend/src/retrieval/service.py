@@ -9,8 +9,10 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.components.builtin.contracts import VectorHit
+from src.experiments.exceptions import ExecutionNotFoundError
+from src.experiments.repository import ExecutionRepository
 from src.indexes.service import IndexBuildService
-from src.infrastructure.database.enums import ArtifactStatus
+from src.infrastructure.database.enums import ArtifactStatus, RetrievalStage
 from src.pipelines.exceptions import ProfileNotFoundError
 from src.pipelines.service import ProfileService
 from src.retrieval.embedders import resolve_embedder
@@ -68,6 +70,7 @@ class RetrievalService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repository = RetrievalRepository(session)
+        self.executions = ExecutionRepository(session)
         self.profiles = ProfileService(session)
 
     async def search(
@@ -91,7 +94,9 @@ class RetrievalService:
             retrieval_profile_id: Top-k and score threshold to apply.
             query: Text of the query.
             execution_id: Experiment execution the call belongs to, when an answer system
-                makes it. Without one the call is a manual test query and is only logged.
+                or an experiment run makes it. The call and its hits are then recorded
+                against the execution, the same way whoever makes it; without one the call
+                is a manual test query and is only logged.
 
         Returns:
             Hits ranked from 1, best first, and the time spent in each step.
@@ -99,10 +104,16 @@ class RetrievalService:
         Raises:
             IndexBuildNotFoundError: If the build does not exist.
             IndexBuildNotReadyError: If the build is not `ready`.
+            ExecutionNotFoundError: If `execution_id` is given and does not exist.
             ProfileNotFoundError: If the retrieval or embedding profile does not exist.
             RetrievalBackendError: If the embedder or the vector store fails.
         """
         started = time.perf_counter()
+        if (
+            execution_id is not None
+            and await self.executions.get_by_id(execution_id) is None
+        ):
+            raise ExecutionNotFoundError(execution_id)
         build = await IndexBuildService(self.session).get(index_build_id)
         if build.status != ArtifactStatus.READY:
             raise IndexBuildNotReadyError(build.id, build.status.value)
@@ -147,6 +158,20 @@ class RetrievalService:
             enrich_ms=_ms(enrich_started, finished),
             total_ms=_ms(started, finished),
         )
+        if execution_id is not None:
+            await self.executions.record_call(
+                execution_id,
+                query,
+                [
+                    {
+                        "chunk_id": hit.chunk_id,
+                        "rank": hit.rank,
+                        "score": hit.score,
+                        "stage": RetrievalStage.FINAL,
+                    }
+                    for hit in hits
+                ],
+            )
         logger.info(
             "retrieval index_build=%s profile=%s execution=%s hits=%d total_ms=%.1f",
             build.id,

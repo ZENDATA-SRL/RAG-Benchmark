@@ -13,11 +13,13 @@ cannot drift apart:
 | `distances.py` | The distance spaces (`cosine`, `l2`, `ip`), their Qdrant names, the default space applied by every writer, and the normalisation of raw distances into higher-is-better scores |
 | `readers/` | `ChromaVectorStoreReader`, `QdrantVectorStoreReader` and `BUILTIN_VECTOR_STORE_READERS`. Each reads the space from the collection itself, so scores stay right for collections created before the shared default |
 | `repository.py` | Component key of a profile's version, corpus of a snapshot, chunks by id with document and filename |
-| `service.py` | `RetrievalService.search` |
+| `service.py` | `RetrievalService.search`, which also records the call and its hits when given an `execution_id` |
 | `schemas.py`, `router.py`, `exceptions.py` | `POST /retrieve`; `IndexBuildNotReadyError` (`409`), `RetrievalBackendError` (`502`, with the failing `stage`) |
 
-No `models.py` yet: the module owns no table. Persisting each call and its hits
-(`retrieval_calls`, `retrieval_hits`) arrives with experiment executions.
+No `models.py`: the module owns no table. When a call carries an `execution_id` (an
+experiment run, or an answer system working for one) the call and its hits are recorded in
+`retrieval_calls` and `retrieval_hits`, which belong to `experiments`; an unknown execution id
+is a `404`. Without one the call is a test query and is only logged.
 
 ## A query, step by step
 
@@ -51,6 +53,6 @@ store to keep it so.
 ## Dependencies
 
 Depends on `indexes` (the build), `pipelines` (retrieval, embedding and vector store
-profiles), `artifacts` and `documents` (enrichment), `corpora` (snapshot documents) and
-`components` (contracts and keys). The worker imports `embedders.py`, `distances.py` and
+profiles), `artifacts` and `documents` (enrichment), `corpora` (snapshot documents),
+`experiments` (recording of tracked calls) and `components` (contracts and keys). The worker imports `embedders.py`, `distances.py` and
 `readers/`; nothing here imports the worker.
