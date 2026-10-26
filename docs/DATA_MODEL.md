@@ -499,8 +499,10 @@ Snapshot immutabile congelato prima dell'esecuzione (RF-D08).
 | `qa_set_id` | UUID | FK → qa_sets, NOT NULL | |
 | `label` | TEXT | NOT NULL | |
 | `question_count` | INTEGER | NOT NULL | |
+| `composition_hash` | TEXT | NOT NULL, indicizzato | sha-256 sugli id delle domande ordinati: congelare due volte le stesse domande restituisce lo stesso snapshot |
 | `langfuse_dataset_id` | TEXT | | id dataset Langfuse (RT-L01) |
 | `frozen_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+| | | UNIQUE (qa_set_id, composition_hash) | deduplicazione per composizione, come per `corpus_snapshots` |
 
 ### `questions`
 Testo, allegati, tag, flag. **Immutabile e condivisa** fra tutte le configurazioni (RF-D02).
@@ -548,18 +550,6 @@ Lista dei file che contengono la risposta. **Stabile fra tutte le configurazioni
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (question_id, document_id) | è una lista, non un singolo doc |
 
-### `gold_citations`
-Ancora testuale dell'evidenza. Condivisa; **non usata per decidere la rilevanza** (§5.5). Sopravvive al riparse integrale.
-
-| Campo | Tipo | Vincoli | Note |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `question_id` | UUID | FK → questions, NOT NULL | |
-| `document_id` | UUID | FK → documents, NOT NULL | documento a cui appartiene |
-| `quote` | TEXT | NOT NULL | citazione testuale originale |
-| `quote_normalized` | TEXT | NOT NULL | forma normalizzata (RT-M01) |
-| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
-
 ### `evidence_links`
 Quali chunk contengono la risposta, con **stato**. **Uno per configurazione di chunking** (§3.1). Questa è l'entità che ancora il gold alla `chunking_configuration`.
 
@@ -588,6 +578,8 @@ I chunk specifici del legame, con grado di rilevanza e flag di sufficienza (RF-D
 | `graded_relevance` | SMALLINT | | rilevanza graduata per nDCG (0..3) |
 | | | UNIQUE (evidence_link_id, chunk_id) | |
 
+> **Non esiste una citazione gold separata.** L'evidenza di una domanda è l'insieme dei chunk confermati qui: la piattaforma non conserva citazioni testuali a sé stanti. Quando serve l'evidenza in forma testuale (per il judge, o come testo di riferimento di un trasferimento) si usa il testo di questi chunk. I chunk di una configurazione restano archiviati anche quando se ne crea un'altra, quindi l'evidenza resta descritta anche dopo un riparse integrale.
+
 **Invariante critica.** Un legame **assente** (`evidence_links` senza riga) ≠ un legame con stato **`not_found`**: il primo è *non ancora esaminato*, il secondo è *verificato: l'evidenza non esiste in questa configurazione*. Solo `not_found` entra nel calcolo del tetto teorico di recall (RF-T09, RF-V06).
 
 ---
@@ -595,13 +587,13 @@ I chunk specifici del legame, con grado di rilevanza e flag di sufficienza (RF-D
 ## Blocco 6 — Trasferimento fra configurazioni (§6.6)
 
 ### `transfer_jobs`
-Trasferisce un QA set da una configurazione di chunking a un'altra (RF-T01). Traccia l'avanzamento.
+Propone i chunk gold di un QA set in una configurazione di chunking e ne traccia la revisione. Con una configurazione di origine è un **trasferimento** (RF-T01): il testo di riferimento di ogni domanda è il testo dei suoi chunk confermati nell'origine. Senza origine è la **proposta per le domande importate**, che arrivano con documenti gold ma senza chunk: il testo di riferimento è domanda più risposta attesa.
 
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
 | `qa_set_id` | UUID | FK → qa_sets, NOT NULL | |
-| `source_configuration_id` | UUID | FK → chunking_configurations, NULL | configurazione di origine (opzionale) |
+| `source_configuration_id` | UUID | FK → chunking_configurations, NULL | configurazione di origine; NULL per le domande importate |
 | `target_configuration_id` | UUID | FK → chunking_configurations, NOT NULL | configurazione di destinazione |
 | `workflow_id` | TEXT | UNIQUE | ID Temporal |
 | `status` | transfer_status | NOT NULL DEFAULT 'pending' | |
@@ -632,6 +624,8 @@ Chunk **proposto** per una domanda, con punteggio combinato e fascia di confiden
 
 **Invariante.** I candidati sono proposte: la conferma umana crea/aggiorna le righe di `evidence_link_chunks` e porta il relativo `evidence_links.status` a `confirmed` (o `not_found`).
 
+> **Proposta senza origine.** Domanda e risposta attesa non sono un estratto del documento, quindi l'identità testuale con un chunk non è mai quasi certa: per le domande importate nessun candidato è pre-selezionato e l'ordinamento si regge soprattutto sul segnale semantico. Il rilevamento dell'assenza è più debole che in un trasferimento, e `not_found` resta una decisione dell'annotatore.
+
 > **Il trasferimento non richiede uno snapshot.** I candidati sono ristretti ai documenti gold della domanda (RF-T03, RT-M03), e i chunk di quei documenti nella configurazione di destinazione esistono come `chunk_results` indipendentemente da qualsiasi insieme congelato. Un trasferimento si può quindi eseguire prima di costruire l'indice.
 
 ---
@@ -650,6 +644,7 @@ Tipo (retrieval o Q&A), snapshot di corpus e QA set, ripetizioni, ambito di calc
 | `qa_set_snapshot_id` | UUID | FK → qa_set_snapshots, NOT NULL | |
 | `repetitions` | INTEGER | NOT NULL DEFAULT 1 | ripetizioni per domanda |
 | `retrieval_scope` | retrieval_scope | NOT NULL DEFAULT 'retrieved' | ambito metriche (RF-O04) |
+| `uncovered_policy` | TEXT | | `exclude` se alla creazione c'erano domande con gold fuori snapshot e l'utente ha scelto di escluderle; NULL altrimenti |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
 > **Perché lo snapshot è ripetuto qui** anche se è derivabile risalendo `variants → index_builds`: non è una denormalizzazione per la lettura, è una **guardia**. Rende esprimibile e verificabile il vincolo "tutte le varianti di questo esperimento cercano nello stesso spazio", senza il quale si può costruire l'esperimento in cui una variante cerca fra 50 documenti e l'altra fra 200 e il confronto non significa nulla.
@@ -666,7 +661,7 @@ Indice × profilo di retrieval × profilo di risposta (RF-E02). Per esperimenti 
 | `name` | TEXT | NOT NULL | |
 | `index_build_id` | UUID | FK → index_builds, NOT NULL | |
 | `retrieval_profile_id` | UUID | FK → retrieval_profiles, NOT NULL | |
-| `answer_profile_id` | UUID | FK → answer_profiles, NULL | NULL se retrieval puro; i `params` sono la `config` passata al sistema |
+| `answer_profile_id` | UUID | FK → answer_profiles, NULL | NULL se retrieval puro; i `params` sono la `config` passata al sistema. Finché `answer_profiles` non esiste la colonna c'è ma senza vincolo di FK |
 | `is_baseline` | BOOLEAN | NOT NULL DEFAULT false | baseline dei confronti (RF-E04) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
@@ -689,6 +684,8 @@ Una esecuzione dell'esperimento, con **snapshot integrale della configurazione**
 | `workflow_id` | TEXT | UNIQUE | ID Temporal (RT-O01) |
 | `status` | execution_status | NOT NULL DEFAULT 'pending' | |
 | `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio |
+| `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI |
+| `error` | TEXT | | motivo se il run si è fermato per una ragione propria (per esempio `cancelled`) |
 | `langfuse_run_name` | TEXT | | identifica esperimento/variante/run (RT-L01) |
 | `started_at` | TIMESTAMPTZ | | |
 | `finished_at` | TIMESTAMPTZ | | |
@@ -875,7 +872,6 @@ erDiagram
     qa_sets ||--o{ qa_set_snapshots : congela
     questions ||--o{ expected_answers : ha
     questions ||--o{ gold_documents : lista
-    questions ||--o{ gold_citations : ancora
     questions ||--o{ evidence_links : per_config
     chunking_configurations ||--o{ evidence_links : ambito
     evidence_links ||--o{ evidence_link_chunks : dettaglia
@@ -921,7 +917,7 @@ erDiagram
 - **Estendibilità v2.** Multi-tenancy → aggiungere `tenant_id` come dimensione; costi → nuova entità `usage_records` collegata a `executions`; conversazioni multi-turno → `conversation_id`/`turn_index` su `questions`/`executions`; snapshot su più corpora → rendere `corpus_snapshots.corpus_id` nullable (additivo; l'operazione inversa non lo sarebbe).
 - **Chunker corpus-scoped (v2).** Se servisse un chunker che deduplica boilerplate sull'intero corpus, si aggiunge `chunk_results.corpus_snapshot_id` nullable: non nullo solo per quei chunker, che perdono il riuso cross-snapshot. Fino ad allora `capabilities.scope` ammette solo `document`.
 
-## Riepilogo tabelle (46)
+## Riepilogo tabelle (45)
 
 | # | Blocco | Tabella |
 |---|---|---|
@@ -954,23 +950,22 @@ erDiagram
 | 27 | Dataset | `qa_snapshot_questions` |
 | 28 | Dataset | `expected_answers` |
 | 29 | Dataset | `gold_documents` |
-| 30 | Dataset | `gold_citations` |
-| 31 | Dataset | `evidence_links` |
-| 32 | Dataset | `evidence_link_chunks` |
-| 33 | Trasferimento | `transfer_jobs` |
-| 34 | Trasferimento | `transfer_candidates` |
-| 35 | Esperimenti | `experiments` |
-| 36 | Esperimenti | `variants` |
-| 37 | Esperimenti | `runs` |
-| 38 | Esperimenti | `executions` |
-| 39 | Esperimenti | `retrieval_calls` |
-| 40 | Esperimenti | `retrieval_hits` |
-| 41 | Esperimenti | `metric_definitions` |
-| 42 | Esperimenti | `evaluators` |
-| 43 | Esperimenti | `evaluations` |
-| 44 | Esperimenti | `human_annotations` |
-| 45 | Esperimenti | `metric_aggregates` |
-| 46 | Pipeline | `materialization_runs` |
+| 30 | Dataset | `evidence_links` |
+| 31 | Dataset | `evidence_link_chunks` |
+| 32 | Trasferimento | `transfer_jobs` |
+| 33 | Trasferimento | `transfer_candidates` |
+| 34 | Esperimenti | `experiments` |
+| 35 | Esperimenti | `variants` |
+| 36 | Esperimenti | `runs` |
+| 37 | Esperimenti | `executions` |
+| 38 | Esperimenti | `retrieval_calls` |
+| 39 | Esperimenti | `retrieval_hits` |
+| 40 | Esperimenti | `metric_definitions` |
+| 41 | Esperimenti | `evaluators` |
+| 42 | Esperimenti | `evaluations` |
+| 43 | Esperimenti | `human_annotations` |
+| 44 | Esperimenti | `metric_aggregates` |
+| 45 | Pipeline | `materialization_runs` |
 
 
 ---

@@ -113,8 +113,8 @@ Entrambi i percorsi producono la stessa struttura, differendo solo per come ci a
 
 | Percorso | Input dell'utente | Risoluzione |
 |---|---|---|
-| Authoring interno | selezione dei chunk in UI | diretta; citazione e documenti gold derivati automaticamente |
-| Import esterno | riferimento al file + citazione testuale | risoluzione assistita con coda di revisione |
+| Authoring interno | selezione dei chunk in UI | diretta; documenti gold derivati automaticamente |
+| Import esterno | domanda + risposta attesa + riferimento ai file gold | chunk proposti nei documenti gold e confermati dall'utente in una coda di revisione |
 
 Un solo formato di gold, un solo motore di metriche, una sola UI di revisione.
 
@@ -234,15 +234,17 @@ Le citazioni sono opzionali: senza di esse le metriche di retrieval si calcolano
 | RF-D03 | Ammettere **più risposte accettabili** per domanda, con eventuale rubrica per il judge |
 | RF-D04 | I **documenti gold sono una lista**, non un singolo documento |
 | RF-D05 | Selezionare i chunk gold da UI navigando il documento chunk per chunk |
-| RF-D06 | Derivare automaticamente documenti gold e citazione testuale dai chunk selezionati |
+| RF-D06 | Derivare automaticamente i documenti gold dai chunk selezionati |
 | RF-D07 | Distinguere evidenza **sufficiente** (basta da sola) da evidenza **di supporto** |
 | RF-D08 | Congelare un QA set in uno snapshot immutabile prima dell'esecuzione |
-| RF-D09 | Importare dataset da JSONL/CSV con riferimenti per nome file e citazione testuale |
-| RF-D10 | Verificare in fase di import che ogni citazione esista nel documento indicato, segnalando i riferimenti irrisolti |
+| RF-D09 | Importare dataset da JSONL/CSV con domanda, risposta attesa e riferimenti ai documenti gold (nome file o hash del contenuto) |
+| RF-D10 | Verificare in fase di import che ogni documento indicato esista nel corpus, segnalando i riferimenti irrisolti o ambigui; i chunk gold delle domande importate si ottengono poi con una proposta assistita confermata dall'utente |
 | RF-D11 | Esportare un dataset nello stesso formato accettato in import (simmetria per il ciclo esporta-correggi-reimporta) |
 | RF-D12 | L'authoring non richiede uno snapshot di corpus: si annota navigando i documenti gold e i loro chunk nella configurazione di chunking scelta |
 
 **Motivazione RF-D01/D12.** Per scrivere una domanda servono i documenti da leggere e i chunk da selezionare, entrambi disponibili per documento (RF-P10): l'annotazione tocca i due o tre file gold di quella domanda, non un insieme congelato. Legare il QA set a uno snapshot con un vincolo rigido lo renderebbe inutilizzabile appena il corpus si estende, reintroducendo il costo di ri-annotazione che §3.1 riserva al solo cambio di parsing o chunking. Il vincolo corretto è verificato al momento dell'esperimento (RF-E09): i documenti gold delle domande valutate devono essere contenuti nello snapshot indicizzato.
+
+**Motivazione RF-D09/D10.** L'evidenza gold è sempre un insieme di chunk confermati da una persona, mai una citazione testuale conservata a parte. Chi importa un dataset conosce la domanda, la risposta e i file in cui sta, ma non i chunk di una configurazione che magari non esisteva quando il dataset è stato scritto. L'import si ferma quindi ai documenti gold, e i chunk si ottengono con lo stesso meccanismo di proposta e conferma del trasferimento, senza una configurazione di origine.
 
 **Motivazione RF-D04.** Il corpus di prova ha mostrato boilerplate identico fra documenti diversi (per esempio `Allegato C` e `Allegato C.2`). Se la risposta sta in un paragrafo presente in tre allegati, tutti e tre sono gold validi e il recall deve considerare rilevante qualsiasi documento della lista.
 
@@ -271,7 +273,9 @@ Le citazioni sono opzionali: senza di esse le metriche di retrieval si calcolano
 
 Il segnale semantico è ciò che recupera le tabelle, dove il matching lessicale crolla al 49%. Il segnale lessicale è ciò che autorizza la pre-selezione: una similarità coseno alta può indicare un passaggio *simile* (tre clausole con struttura analoga hanno embedding vicinissimi) e non lo *stesso* passaggio, quindi da sola non basta a confermare automaticamente. Il segnale posizionale è quasi gratuito e disambigua proprio il caso del boilerplate ripetuto.
 
-**Nota sul rilevamento dell'assenza.** Una ricerca semantica su un insieme filtrato restituisce sempre qualcosa: se il parser ha perso una tabella, proporrà comunque candidati con punteggio decente. È il segnale lessicale basso a funzionare da **rilevatore di assenza**, e quindi a produrre l'esito "non trovato" — il dato con cui si scopre che una configurazione ha perso 12 evidenze su 150.
+**Testo di riferimento.** I segnali confrontano i chunk candidati con il testo dei chunk confermati della domanda nella configurazione di origine. Per le domande importate, che non hanno ancora chunk, il testo di riferimento è domanda più risposta attesa: non essendo un estratto del documento, non autorizza la pre-selezione, e l'ordinamento si regge soprattutto sul segnale semantico.
+
+**Nota sul rilevamento dell'assenza.** Una ricerca semantica su un insieme filtrato restituisce sempre qualcosa: se il parser ha perso una tabella, proporrà comunque candidati con punteggio decente. È il segnale lessicale basso a funzionare da **rilevatore di assenza**, e quindi a produrre l'esito "non trovato" — il dato con cui si scopre che una configurazione ha perso 12 evidenze su 150. Senza configurazione di origine il rilevatore è più debole, e "non trovato" resta interamente una decisione dell'annotatore.
 
 **Effetto pratico atteso.** Su ~150 domande il wizard trasforma 150 ricerche manuali in un numero elevato di conferme rapide più una minoranza di ricerche assistite. I casi difficili saranno prevalentemente tabelle: il fallimento del matcher è quindi il segnale diagnostico che quel parser ha perso quel contenuto.
 
@@ -431,11 +435,9 @@ La creazione di una configurazione di popolamento (RF-P09) è la composizione di
 
 ### 5.5 Matching testuale e semantico (ruolo ausiliario)
 
-Il matching **non decide** la rilevanza. Serve a tre scopi:
+Il matching **non decide** la rilevanza: serve solo a **ordinare i candidati** nel wizard di trasferimento e nella proposta per le domande importate. La rilevanza è sempre la conferma umana di un chunk.
 
-1. **Ordinare i candidati** nel wizard di trasferimento
-2. **Ancorare durevolmente** l'evidenza: se il corpus viene riparsato integralmente, la citazione testuale è l'unica descrizione di *cosa* fosse l'evidenza, indipendente da qualsiasi identificativo
-3. **Fornire contesto al judge**: l'evidenza attesa in forma testuale, indipendente dai chunk
+La piattaforma non conserva citazioni testuali dell'evidenza: l'evidenza è l'insieme dei chunk confermati. Quando serve in forma testuale (per il judge, o come testo di riferimento di un trasferimento) si usa il testo di quei chunk. I chunk di una configurazione restano archiviati quando se ne crea un'altra, quindi l'evidenza resta descritta anche dopo un riparse integrale.
 
 | ID | Requisito |
 |---|---|
@@ -533,7 +535,6 @@ Questa è la parte in cui si concretizza la decisione di §3.1.
 | **Domanda** | testo, allegati, tag, flag di risposta possibile | **immutabile, condivisa** fra tutte le configurazioni |
 | **Risposta attesa** | una o più risposte accettabili, con rubrica per il judge | condivisa |
 | **Documento gold** | lista dei file che contengono la risposta | **stabile fra tutte le configurazioni** |
-| **Citazione gold** | ancora testuale dell'evidenza | condivisa; **non usata per decidere la rilevanza** |
 | **Legame di evidenza** | quali chunk contengono la risposta, con stato (da esaminare / confermato / non trovato) | **uno per configurazione di chunking** |
 | **Chunk del legame** | i chunk specifici, con grado di rilevanza e flag di sufficienza | per configurazione |
 
@@ -545,7 +546,7 @@ Questa è la parte in cui si concretizza la decisione di §3.1.
 
 | Entità | Ruolo |
 |---|---|
-| **Job di trasferimento** | da una configurazione di chunking a un'altra, per un QA set; traccia l'avanzamento |
+| **Job di trasferimento** | da una configurazione di chunking a un'altra, per un QA set; senza origine, propone i chunk alle domande importate; traccia l'avanzamento |
 | **Candidato** | chunk proposto per una domanda, con punteggio combinato, fascia di confidenza e flag di pre-selezione |
 
 **Invariante.** I candidati sono **proposte**: nessuno diventa evidenza gold senza conferma umana.
@@ -633,7 +634,9 @@ Varianza fra ripetizioni, tasso di errore, tasso di timeout.
 
 3. AUTHORING      scrivi domanda + risposta attesa
                   seleziona i chunk gold navigando il documento
-                  -> documenti gold e citazione derivati automaticamente
+                  -> documenti gold derivati automaticamente
+                  (oppure importa domande + risposte + documenti gold da file,
+                   poi conferma i chunk proposti)
                   -> legame di evidenza confermato (per configurazione di chunking)
 
 4. FREEZE         snapshot del QA set: il dataset e' congelato
