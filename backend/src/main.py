@@ -27,6 +27,7 @@ from src.infrastructure.database.session import dispose_engine, session_factory
 from src.infrastructure.temporal import reset_workflow_client
 from src.materializations.router import router as materializations_router
 from src.pipelines.router import router as pipelines_router
+from src.qa_sets.router import questions_router
 from src.qa_sets.router import router as qa_sets_router
 from src.retrieval.router import router as retrieval_router
 from src.settings import get_settings
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(indexes_router, prefix=API_PREFIX)
     app.include_router(retrieval_router, prefix=API_PREFIX)
     app.include_router(qa_sets_router, prefix=API_PREFIX)
+    app.include_router(questions_router, prefix=API_PREFIX)
     app.include_router(experiments_router, prefix=API_PREFIX)
 
     return app

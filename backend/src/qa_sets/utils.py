@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import dataclasses
+import enum
 import io
 import json
 import re
@@ -33,6 +34,68 @@ class ImportRow:
     answerable: bool
     answer: str | None = None
     error: str | None = None
+
+
+class ExportFormat(str, enum.Enum):
+    """File formats of an export: the same two the import reads."""
+
+    CSV = "csv"
+    JSONL = "jsonl"
+
+
+# Columns of an exported CSV, in the order the import documents them.
+EXPORT_COLUMNS = ("question", "answer", "gold_files", "tags", "answerable")
+
+
+@dataclasses.dataclass(frozen=True)
+class ExportRow:
+    """One question as written to an export file."""
+
+    question: str
+    answer: str | None
+    gold_files: list[str]
+    tags: list[str]
+    answerable: bool
+
+
+def render_export(
+    rows: list[ExportRow], export_format: ExportFormat
+) -> tuple[str, str]:
+    """Write rows in the format the import reads back, and return it with its media type.
+
+    Lists are joined with the same separator the CSV import splits on; JSONL keeps them as
+    arrays. A missing answer is an empty cell in a CSV and `null` in JSONL.
+    """
+    if export_format is ExportFormat.JSONL:
+        lines = [
+            json.dumps(
+                {
+                    "question": row.question,
+                    "answer": row.answer,
+                    "gold_files": row.gold_files,
+                    "tags": row.tags,
+                    "answerable": row.answerable,
+                },
+                ensure_ascii=False,
+            )
+            for row in rows
+        ]
+        return "".join(f"{line}\n" for line in lines), "application/x-ndjson"
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(EXPORT_COLUMNS)
+    for row in rows:
+        writer.writerow(
+            [
+                row.question,
+                row.answer or "",
+                LIST_SEPARATOR.join(row.gold_files),
+                LIST_SEPARATOR.join(row.tags),
+                "true" if row.answerable else "false",
+            ]
+        )
+    return buffer.getvalue(), "text/csv"
 
 
 def content_hash_of(reference: str) -> str | None:

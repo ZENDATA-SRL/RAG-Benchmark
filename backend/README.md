@@ -48,7 +48,7 @@ was `created` or reused.
 | `materializations/` | User-triggered chunk materialisation runs and their progress |
 | `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
 | `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
-| `qa_sets/` | Question sets with their gold documents and expected answers, CSV/JSONL import and immutable snapshots |
+| `qa_sets/` | Question sets: authoring of questions, gold documents, expected answers, evidence chunks confirmed per chunking configuration, CSV/JSONL import and export, immutable snapshots |
 | `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document-level metrics and results |
 
 The pipeline modules depend on each other in one direction only:
@@ -194,11 +194,17 @@ With an `execution_id` the call and its hits are recorded against that experimen
 
 ### `qa_sets/`
 
-Question sets, their gold documents, expected answers and snapshots. `POST /qa-sets/{id}/import`
+Question sets, their gold documents, expected answers, evidence chunks and snapshots.
+`POST /qa-sets/{id}/import`
 reads a CSV or JSONL (`question`, `answer`, `gold_files`, `tags`, `answerable`), resolves the
 files by name or hash
 among the documents of the set's origin corpus and reports every row (imported, already
-present, unresolved, ambiguous, invalid) without dropping any. `POST /qa-sets/{id}/snapshots`
+present, unresolved, ambiguous, invalid) without dropping any; `GET /qa-sets/{id}/export`
+writes the same format back. Questions are also written one by one
+(`POST /qa-sets/{id}/questions`), edited until a snapshot holds them and replaced afterwards
+(`/questions/{id}`, `/questions/{id}/replace`). `PUT /questions/{id}/evidence` records which
+chunks of a chunking configuration hold the answer (a draft, confirmed, or not found), and
+confirming adds their documents to the gold documents. `POST /qa-sets/{id}/snapshots`
 freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`](src/qa_sets/README.md).
 
 ### `experiments/`
@@ -216,7 +222,7 @@ Metrics, guards and the run lifecycle are described in [`src/experiments/README.
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
 `retrieval_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
 `chunks`, `index_builds`, `materialization_runs`, `qa_sets`, `questions`, `expected_answers`, `gold_documents`,
-`qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
+`evidence_links`, `evidence_link_chunks`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
 `retrieval_calls`, `retrieval_hits`, `metric_definitions`, `evaluators`, `evaluations`,
 `metric_aggregates`. Profiles and configurations are in
 `pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
@@ -250,6 +256,8 @@ the Temporal README.
 ```
 POST /qa-sets                         a question set (optionally with its origin corpus)
 POST /qa-sets/{id}/import             CSV/JSONL: question, answer, gold files, tags → summary of every row
+POST /qa-sets/{id}/questions          or write the questions one by one
+PUT  /questions/{id}/evidence         confirm the chunks that hold the answer, per chunking configuration
 POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (same questions, same snapshot)
 POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile)
 POST /experiments/{id}/runs           → RunExperimentWorkflow on the worker

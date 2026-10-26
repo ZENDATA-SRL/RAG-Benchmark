@@ -12,18 +12,39 @@ from src.core.hashing import composition_hash
 from src.corpora.exceptions import CorpusNotFoundError
 from src.corpora.repository import CorpusRepository
 from src.documents.models import Document
+from src.infrastructure.database.enums import EvidenceLinkStatus
+from src.pipelines.exceptions import ChunkingConfigurationNotFoundError
+from src.pipelines.repository import ChunkingConfigurationRepository
 from src.qa_sets.exceptions import (
+    DocumentsOutsideCorpusError,
+    DuplicateQuestionError,
     EmptyQASetError,
+    GoldDocumentHasEvidenceError,
     QASetNotFoundError,
     QASetSnapshotNotFoundError,
+    QuestionFrozenError,
+    QuestionNotFoundError,
+    QuestionReplacedError,
 )
 from src.qa_sets.models import ExpectedAnswer, QASet, QASetSnapshot, Question
 from src.qa_sets.repository import (
+    EvidenceRepository,
     QASetRepository,
     QASetSnapshotRepository,
     QuestionRepository,
 )
-from src.qa_sets.utils import ImportRow, content_hash_of, parse_import
+from src.qa_sets.utils import (
+    ExportFormat,
+    ExportRow,
+    ImportRow,
+    content_hash_of,
+    parse_import,
+    render_export,
+)
+
+# Evidence status of a question with no link under a configuration: never reviewed, which
+# is different from a reviewed link whose evidence was not found.
+NOT_REVIEWED = "not_reviewed"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -40,14 +61,58 @@ class AnswerRef:
 
 @dataclasses.dataclass(frozen=True)
 class QuestionView:
-    """A question with its gold documents and expected answers, as the API lists it."""
+    """A question with its gold documents and expected answers, as the API lists it.
+
+    `frozen` says whether a snapshot holds it, hence whether it can still be edited.
+    `evidence_status` is the state of its evidence under the chunking configuration the
+    caller asked about, `None` when none was asked.
+    """
 
     id: uuid.UUID
+    qa_set_id: uuid.UUID
     text: str
     tags: list[str]
     answerable: bool
     gold_documents: list[GoldRef]
     expected_answers: list[AnswerRef]
+    frozen: bool
+    replaced_by_question_id: uuid.UUID | None = None
+    evidence_status: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class QuestionDraft:
+    """The editable content of a question, as authored in the UI."""
+
+    text: str
+    tags: list[str]
+    answerable: bool
+    expected_answers: list[AnswerRef]
+    gold_document_ids: list[uuid.UUID]
+
+
+@dataclasses.dataclass(frozen=True)
+class EvidenceCoverage:
+    """How far the evidence of a set has been reviewed under one configuration.
+
+    Counted on the answerable questions of the set; the others have no evidence to find.
+    """
+
+    qa_set_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    answerable: int
+    not_answerable: int
+    confirmed: int
+    not_found: int
+    to_review: int
+    not_reviewed: int
+
+
+@dataclasses.dataclass(frozen=True)
+class ExportFile:
+    filename: str
+    media_type: str
+    content: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -160,23 +225,53 @@ class QASetService:
         return await self.questions.count_by_set(qa_set_id)
 
     async def list_questions(
-        self, qa_set_id: uuid.UUID, *, limit: int = 50, offset: int = 0
+        self,
+        qa_set_id: uuid.UUID,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        chunking_configuration_id: uuid.UUID | None = None,
     ) -> tuple[list[QuestionView], int]:
-        """One page of the questions of a set with gold documents and answers, and the total.
+        """One page of the current questions of a set, and their total.
+
+        Replaced questions are left out: they only live on in the snapshots that hold them.
+        With a chunking configuration each question also carries the status of its
+        evidence under it.
 
         Raises:
             QASetNotFoundError: If the set does not exist.
+            ChunkingConfigurationNotFoundError: If the configuration does not exist.
         """
         await self.get(qa_set_id)
+        if chunking_configuration_id is not None:
+            await self.require_configuration(chunking_configuration_id)
         questions = await self.questions.list_by_set(
             qa_set_id, limit=limit, offset=offset
         )
+        views = await self.views(questions, chunking_configuration_id)
+        return views, await self.questions.count_by_set(qa_set_id)
+
+    async def views(
+        self,
+        questions: Sequence[Question],
+        chunking_configuration_id: uuid.UUID | None = None,
+    ) -> list[QuestionView]:
+        """Questions with gold documents, answers, frozen flag and evidence status."""
         question_ids = [question.id for question in questions]
         gold = await self.questions.gold_by_question(question_ids)
         answers = await self.questions.answers_by_question(question_ids)
-        views = [
+        frozen = await self.questions.frozen_ids(question_ids)
+        statuses = (
+            await EvidenceRepository(self.session).statuses(
+                question_ids, chunking_configuration_id
+            )
+            if chunking_configuration_id is not None
+            else {}
+        )
+        return [
             QuestionView(
                 id=question.id,
+                qa_set_id=question.qa_set_id,
                 text=question.text,
                 tags=list(question.tags),
                 answerable=question.answerable,
@@ -185,10 +280,119 @@ class QASetService:
                     AnswerRef(answer.text, answer.is_primary)
                     for answer in answers.get(question.id, [])
                 ],
+                frozen=question.id in frozen,
+                replaced_by_question_id=question.replaced_by_question_id,
+                evidence_status=(
+                    None
+                    if chunking_configuration_id is None
+                    else _status_value(statuses.get(question.id))
+                ),
             )
             for question in questions
         ]
-        return views, await self.questions.count_by_set(qa_set_id)
+
+    async def require_configuration(self, chunking_configuration_id: uuid.UUID) -> None:
+        """Check that a chunking configuration exists.
+
+        Raises:
+            ChunkingConfigurationNotFoundError: If it does not.
+        """
+        repository = ChunkingConfigurationRepository(self.session)
+        if await repository.get_by_id(chunking_configuration_id) is None:
+            raise ChunkingConfigurationNotFoundError(chunking_configuration_id)
+
+    async def evidence_coverage(
+        self, qa_set_id: uuid.UUID, chunking_configuration_id: uuid.UUID
+    ) -> EvidenceCoverage:
+        """Count the current questions of a set by the status of their evidence.
+
+        Raises:
+            QASetNotFoundError: If the set does not exist.
+            ChunkingConfigurationNotFoundError: If the configuration does not exist.
+        """
+        await self.get(qa_set_id)
+        await self.require_configuration(chunking_configuration_id)
+        answerable = await self.questions.answerable_ids_by_set(qa_set_id)
+        total = await self.questions.count_by_set(qa_set_id)
+        statuses = await EvidenceRepository(self.session).statuses(
+            answerable, chunking_configuration_id
+        )
+        counts = {status: 0 for status in EvidenceLinkStatus}
+        for status in statuses.values():
+            counts[status] += 1
+        return EvidenceCoverage(
+            qa_set_id=qa_set_id,
+            chunking_configuration_id=chunking_configuration_id,
+            answerable=len(answerable),
+            not_answerable=total - len(answerable),
+            confirmed=counts[EvidenceLinkStatus.CONFIRMED],
+            not_found=counts[EvidenceLinkStatus.NOT_FOUND],
+            to_review=counts[EvidenceLinkStatus.TO_REVIEW],
+            not_reviewed=len(answerable) - len(statuses),
+        )
+
+    async def export(
+        self,
+        qa_set_id: uuid.UUID,
+        export_format: ExportFormat,
+        *,
+        snapshot_id: uuid.UUID | None = None,
+    ) -> ExportFile:
+        """Export questions in the same format the import reads.
+
+        The current questions of the set, or those of one of its snapshots. Gold files
+        are written by name, or by `sha256:` when another document in the corpus carries
+        the same name, so that importing the file back never meets an ambiguous name.
+        Only the primary expected answer is written, because the import reads one. The
+        evidence chunks are not exported: they are ids of one installation's chunks, not
+        something another installation could resolve.
+
+        Raises:
+            QASetNotFoundError: If the set does not exist.
+            QASetSnapshotNotFoundError: If the snapshot does not exist in this set.
+        """
+        qa_set = await self.get(qa_set_id)
+        if snapshot_id is None:
+            question_ids = await self.questions.ids_by_set(qa_set_id)
+        else:
+            snapshot = await QASetSnapshotRepository(self.session).get_by_id(
+                snapshot_id
+            )
+            if snapshot is None or snapshot.qa_set_id != qa_set_id:
+                raise QASetSnapshotNotFoundError(snapshot_id)
+            question_ids = await QASetSnapshotRepository(self.session).question_ids(
+                snapshot_id
+            )
+        questions = await self.questions.list_by_ids(question_ids)
+        answers = await self.questions.answers_by_question(question_ids)
+        files = await self.questions.gold_files_by_question(question_ids)
+        ambiguous = await self.questions.ambiguous_filenames(
+            sorted({name for refs in files.values() for name, _ in refs}),
+            qa_set.origin_corpus_id,
+        )
+        rows = []
+        for question in questions:
+            primary = next(
+                (a for a in answers.get(question.id, []) if a.is_primary), None
+            )
+            rows.append(
+                ExportRow(
+                    question=question.text,
+                    answer=primary.text if primary else None,
+                    gold_files=[
+                        f"sha256:{digest}" if name in ambiguous else name
+                        for name, digest in files.get(question.id, [])
+                    ],
+                    tags=list(question.tags),
+                    answerable=question.answerable,
+                )
+            )
+        content, media_type = render_export(rows, export_format)
+        return ExportFile(
+            filename=f"{_slug(qa_set.name)}.{export_format.value}",
+            media_type=media_type,
+            content=content,
+        )
 
     async def import_file(
         self, qa_set_id: uuid.UUID, filename: str, data: bytes
@@ -319,6 +523,240 @@ class QASetService:
         summary.imported.append(
             ImportedQuestion(row.row, question.id, row.question, gold)
         )
+
+
+class QuestionService:
+    """Authoring of single questions: create, edit until frozen, replace, delete.
+
+    A question held by a snapshot is never edited, because snapshots reference questions
+    and a past experiment would silently change meaning; it is replaced by a new question
+    instead. Gold documents are an annotation rather than part of the question, so they
+    can change on a frozen question too.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.qa_sets = QASetService(session)
+        self.questions = QuestionRepository(session)
+        self.evidence = EvidenceRepository(session)
+
+    async def get(self, question_id: uuid.UUID) -> Question:
+        """Return a question.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+        """
+        question = await self.questions.get_by_id(question_id)
+        if question is None:
+            raise QuestionNotFoundError(question_id)
+        return question
+
+    async def view(
+        self, question_id: uuid.UUID, chunking_configuration_id: uuid.UUID | None = None
+    ) -> QuestionView:
+        """Return a question as the API shows it.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+        """
+        question = await self.get(question_id)
+        return (await self.qa_sets.views([question], chunking_configuration_id))[0]
+
+    async def create(self, qa_set_id: uuid.UUID, draft: QuestionDraft) -> QuestionView:
+        """Add a question to a set.
+
+        Gold documents are optional: they are also derived later from the chunks a person
+        confirms as evidence.
+
+        Raises:
+            QASetNotFoundError: If the set does not exist.
+            DuplicateQuestionError: If the set already has a question with this text.
+            DocumentsOutsideCorpusError: If a gold document is not in the origin corpus.
+        """
+        qa_set = await self.qa_sets.get(qa_set_id)
+        await self._check_unique_text(qa_set_id, draft.text)
+        await self._check_documents(qa_set, draft.gold_document_ids)
+        question = await self._insert(qa_set_id, draft)
+        return await self.view(question.id)
+
+    async def update(
+        self,
+        question_id: uuid.UUID,
+        *,
+        text: str | None = None,
+        tags: list[str] | None = None,
+        answerable: bool | None = None,
+        expected_answers: list[AnswerRef] | None = None,
+    ) -> QuestionView:
+        """Edit a question that no snapshot holds yet; `None` leaves a field as it is.
+
+        Its evidence links are kept: until it is frozen the question is a draft, and the
+        person editing it is the one who reviews the evidence.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+            QuestionReplacedError: If it already has a successor.
+            QuestionFrozenError: If a snapshot holds it.
+            DuplicateQuestionError: If the new text is already in the set.
+        """
+        question = await self._editable(question_id)
+        if text is not None and text != question.text:
+            await self._check_unique_text(question.qa_set_id, text)
+            question.text = text
+        if tags is not None:
+            question.tags = tags
+        if answerable is not None:
+            question.answerable = answerable
+        if expected_answers is not None:
+            await self.questions.replace_expected_answers(
+                question.id, _answers(question.id, expected_answers)
+            )
+        await self.session.flush()
+        return await self.view(question.id)
+
+    async def delete(self, question_id: uuid.UUID) -> None:
+        """Delete a question that no snapshot holds, with its answers and evidence.
+
+        Deleting the successor of a replaced question brings the replaced one back into
+        the set, which is how a replacement is undone.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+            QuestionFrozenError: If a snapshot holds it.
+        """
+        question = await self.get(question_id)
+        if await self.questions.frozen_ids([question.id]):
+            raise QuestionFrozenError(question.id)
+        await self.questions.delete(question)
+        await self.session.flush()
+
+    async def replace(
+        self, question_id: uuid.UUID, draft: QuestionDraft
+    ) -> QuestionView:
+        """Replace a question with a new one, leaving the old one to its snapshots.
+
+        The old question leaves the current set, so the next freeze holds the new one, and
+        the snapshots that hold the old one are untouched. Evidence links are not copied:
+        the question changed, so its evidence has to be reviewed again.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+            QuestionReplacedError: If it was already replaced.
+            DuplicateQuestionError: If another current question has the new text.
+            DocumentsOutsideCorpusError: If a gold document is not in the origin corpus.
+        """
+        old = await self.get(question_id)
+        if old.replaced_by_question_id is not None:
+            raise QuestionReplacedError(old.id, old.replaced_by_question_id)
+        qa_set = await self.qa_sets.get(old.qa_set_id)
+        await self._check_unique_text(old.qa_set_id, draft.text, ignore=old.id)
+        await self._check_documents(qa_set, draft.gold_document_ids)
+        new = await self._insert(old.qa_set_id, draft)
+        old.replaced_by_question_id = new.id
+        await self.session.flush()
+        return await self.view(new.id)
+
+    async def set_gold_documents(
+        self, question_id: uuid.UUID, document_ids: list[uuid.UUID]
+    ) -> QuestionView:
+        """Set the gold documents of a question to exactly this list.
+
+        Allowed on frozen questions: the gold is an annotation of the question, and the
+        evidence a person confirms adds to it anyway. A document that holds confirmed
+        evidence chunks cannot be removed, or the evidence would point outside the gold.
+
+        Raises:
+            QuestionNotFoundError: If it does not exist.
+            DocumentsOutsideCorpusError: If a document is not in the origin corpus.
+            GoldDocumentHasEvidenceError: If a removed document holds confirmed evidence.
+        """
+        question = await self.get(question_id)
+        qa_set = await self.qa_sets.get(question.qa_set_id)
+        await self._check_documents(qa_set, document_ids)
+        current = await self.questions.gold_document_ids(question.id)
+        removed = sorted(current - set(document_ids))
+        blocked = await self.evidence.documents_with_confirmed_chunks(
+            question.id, removed
+        )
+        if blocked:
+            raise GoldDocumentHasEvidenceError(sorted(blocked))
+        await self.questions.remove_gold_documents(question.id, removed)
+        await self.questions.add_gold_documents(
+            question.id, [d for d in document_ids if d not in current]
+        )
+        await self.session.flush()
+        return await self.view(question.id)
+
+    async def _editable(self, question_id: uuid.UUID) -> Question:
+        question = await self.get(question_id)
+        if question.replaced_by_question_id is not None:
+            raise QuestionReplacedError(question.id, question.replaced_by_question_id)
+        if await self.questions.frozen_ids([question.id]):
+            raise QuestionFrozenError(question.id)
+        return question
+
+    async def _check_unique_text(
+        self, qa_set_id: uuid.UUID, text: str, *, ignore: uuid.UUID | None = None
+    ) -> None:
+        existing = await self.questions.active_with_text(qa_set_id, text)
+        if existing is not None and existing != ignore:
+            raise DuplicateQuestionError(text, existing)
+
+    async def _check_documents(
+        self, qa_set: QASet, document_ids: Sequence[uuid.UUID]
+    ) -> None:
+        found = await self.questions.existing_documents(
+            document_ids, qa_set.origin_corpus_id
+        )
+        missing = [d for d in document_ids if d not in found]
+        if missing:
+            raise DocumentsOutsideCorpusError(missing)
+
+    async def _insert(self, qa_set_id: uuid.UUID, draft: QuestionDraft) -> Question:
+        question = self.questions.add(
+            Question(
+                qa_set_id=qa_set_id,
+                text=draft.text,
+                tags=draft.tags,
+                answerable=draft.answerable,
+                # Stamped by the application, like an import, so questions created in one
+                # transaction keep their order in the listing.
+                created_at=dt.datetime.now(dt.UTC),
+            )
+        )
+        await self.session.flush()
+        await self.questions.add_gold_documents(question.id, draft.gold_document_ids)
+        self.session.add_all(_answers(question.id, draft.expected_answers))
+        await self.session.flush()
+        return question
+
+
+def _answers(
+    question_id: uuid.UUID, answers: Sequence[AnswerRef]
+) -> list[ExpectedAnswer]:
+    """Expected answer rows, with exactly one primary when there is any answer.
+
+    The primary answer is the reference handed to a judge; when none is marked, the
+    first one is.
+    """
+    has_primary = any(answer.is_primary for answer in answers)
+    return [
+        ExpectedAnswer(
+            question_id=question_id,
+            text=answer.text,
+            is_primary=answer.is_primary if has_primary else index == 0,
+        )
+        for index, answer in enumerate(answers)
+    ]
+
+
+def _status_value(status: EvidenceLinkStatus | None) -> str:
+    return status.value if status is not None else NOT_REVIEWED
+
+
+def _slug(name: str) -> str:
+    slug = "".join(c if c.isalnum() else "-" for c in name.lower()).strip("-")
+    return "-".join(part for part in slug.split("-") if part) or "qa-set"
 
 
 class QASetSnapshotService:

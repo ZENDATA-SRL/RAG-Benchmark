@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.pagination import Page
+from src.infrastructure.database.enums import EvidenceLinkStatus, RelevanceGrade
 from src.pipelines.schemas import DeduplicatedRead
+
+# State of the evidence of a question under one chunking configuration, as read: the
+# stored link status, or `not_reviewed` when there is no link at all.
+EvidenceStatus = Literal["not_reviewed", "to_review", "confirmed", "not_found"]
 
 
 class QASetCreate(BaseModel):
@@ -53,16 +59,186 @@ class ExpectedAnswerRead(BaseModel):
 
 
 class QuestionRead(BaseModel):
-    """A question with its gold documents and expected answers."""
+    """A question with its gold documents and expected answers.
+
+    `frozen` is true when a snapshot holds the question: it can then only be replaced.
+    `evidence_status` is set when the listing was asked for a chunking configuration.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    qa_set_id: uuid.UUID
     text: str
     tags: list[str]
     answerable: bool
     gold_documents: list[GoldDocumentRead]
     expected_answers: list[ExpectedAnswerRead]
+    frozen: bool = False
+    replaced_by_question_id: uuid.UUID | None = None
+    evidence_status: EvidenceStatus | None = None
+
+
+class ExpectedAnswerWrite(BaseModel):
+    """An acceptable answer; with none marked primary, the first one is."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(min_length=1, max_length=10000)
+    is_primary: bool = False
+
+
+def _clean_tags(tags: list[str]) -> list[str]:
+    return list(dict.fromkeys(tag.strip() for tag in tags if tag.strip()))
+
+
+def _single_primary(answers: list[ExpectedAnswerWrite]) -> list[ExpectedAnswerWrite]:
+    if sum(answer.is_primary for answer in answers) > 1:
+        raise ValueError("at most one expected answer can be primary")
+    return answers
+
+
+class QuestionCreate(BaseModel):
+    """A question written in the UI; gold documents can also come later, from evidence."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(min_length=1, max_length=5000)
+    tags: list[str] = Field(default_factory=list)
+    answerable: bool = True
+    expected_answers: list[ExpectedAnswerWrite] = Field(default_factory=list)
+    gold_document_ids: list[uuid.UUID] = Field(default_factory=list)
+
+    @field_validator("tags")
+    @classmethod
+    def _tags(cls, tags: list[str]) -> list[str]:
+        return _clean_tags(tags)
+
+    @field_validator("expected_answers")
+    @classmethod
+    def _answers(cls, answers: list[ExpectedAnswerWrite]) -> list[ExpectedAnswerWrite]:
+        return _single_primary(answers)
+
+    @field_validator("gold_document_ids")
+    @classmethod
+    def _documents(cls, ids: list[uuid.UUID]) -> list[uuid.UUID]:
+        return list(dict.fromkeys(ids))
+
+
+class QuestionUpdate(BaseModel):
+    """Changes to a question not frozen yet; an omitted field is left as it is.
+
+    `expected_answers`, when given, replaces the whole list.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str | None = Field(default=None, min_length=1, max_length=5000)
+    tags: list[str] | None = None
+    answerable: bool | None = None
+    expected_answers: list[ExpectedAnswerWrite] | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def _tags(cls, tags: list[str] | None) -> list[str] | None:
+        return None if tags is None else _clean_tags(tags)
+
+    @field_validator("expected_answers")
+    @classmethod
+    def _answers(
+        cls, answers: list[ExpectedAnswerWrite] | None
+    ) -> list[ExpectedAnswerWrite] | None:
+        return None if answers is None else _single_primary(answers)
+
+
+class GoldDocumentsWrite(BaseModel):
+    """The complete list of gold documents of a question."""
+
+    document_ids: list[uuid.UUID]
+
+    @field_validator("document_ids")
+    @classmethod
+    def _documents(cls, ids: list[uuid.UUID]) -> list[uuid.UUID]:
+        return list(dict.fromkeys(ids))
+
+
+class EvidenceChunkWrite(BaseModel):
+    """A chunk chosen as evidence, sufficient on its own or supporting the answer."""
+
+    chunk_id: uuid.UUID
+    relevance: RelevanceGrade
+    graded_relevance: int | None = Field(
+        default=None, ge=0, le=3, description="Optional graded relevance, 0 to 3."
+    )
+
+
+class EvidenceWrite(BaseModel):
+    """The whole evidence of a question under one chunking configuration.
+
+    `to_review` saves a draft; `confirmed` needs chunks; `not_found` takes none. Both
+    decisions need `annotator`.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    chunking_configuration_id: uuid.UUID
+    status: EvidenceLinkStatus
+    chunks: list[EvidenceChunkWrite] = Field(default_factory=list)
+    annotator: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _distinct_chunks(self) -> EvidenceWrite:
+        ids = [chunk.chunk_id for chunk in self.chunks]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a chunk can appear only once in the evidence")
+        return self
+
+
+class EvidenceChunkRead(BaseModel):
+    """An evidence chunk with where it comes from, for the review panel."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    filename: str
+    ordinal: int
+    text: str
+    metadata: dict[str, Any]
+    relevance: RelevanceGrade
+    graded_relevance: int | None = None
+
+
+class EvidenceRead(BaseModel):
+    """The evidence of a question under one chunking configuration.
+
+    `added_gold_document_ids` lists the documents a confirmation added to the gold.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    question_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    status: EvidenceStatus
+    confirmed_by: str | None = None
+    confirmed_at: dt.datetime | None = None
+    chunks: list[EvidenceChunkRead]
+    added_gold_document_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class EvidenceCoverageRead(BaseModel):
+    """How far the evidence of a set is reviewed under one configuration."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    qa_set_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    answerable: int
+    not_answerable: int
+    confirmed: int
+    not_found: int
+    to_review: int
+    not_reviewed: int
 
 
 class QASetDetail(QASetRead):
