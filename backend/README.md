@@ -49,7 +49,7 @@ was `created` or reused.
 | `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
 | `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
 | `qa_sets/` | Question sets: authoring of questions, gold documents, expected answers, evidence chunks confirmed per chunking configuration, CSV/JSONL import and export, immutable snapshots |
-| `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document-level metrics and results |
+| `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document- and chunk-level metrics, re-evaluation, results grouped by chunking configuration |
 
 The pipeline modules depend on each other in one direction only:
 
@@ -213,7 +213,8 @@ freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`
 |---|---|
 | `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list and read (each naming its corpus and QA set), check coverage |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}`, `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | Launch a run on Temporal, poll it, cancel it, relaunch it redoing only what did not succeed |
-| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Document-level metrics per variant with effective and excluded counts, and the per-question drill-down |
+| `POST …/runs/{run_id}/evaluate` | Re-score a finished run from its stored hits on the evidence as it is now, recording the fingerprint of that evidence |
+| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Document- and chunk-level metrics per variant, grouped by chunking configuration, with effective and excluded counts per reason, and the per-question drill-down |
 
 Metrics, guards and the run lifecycle are described in [`src/experiments/README.md`](src/experiments/README.md).
 
@@ -262,6 +263,7 @@ POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (sa
 POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile)
 POST /experiments/{id}/runs           → RunExperimentWorkflow on the worker
 GET  /experiments/{id}/runs/{run}     progress: pending → running → succeeded | failed
-GET  /experiments/{id}/runs/{run}/results      recall, precision, hit rate, MRR per variant, with n
+GET  /experiments/{id}/runs/{run}/results      document and chunk metrics per variant, grouped by chunking configuration, with n
+POST /experiments/{id}/runs/{run}/evaluate     re-score after annotating, without retrieving again
 GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved, hit by hit
 ```

@@ -10,6 +10,8 @@ from src.infrastructure.database.enums import (
     ArtifactStatus,
     ExecutionStatus,
     ExperimentType,
+    MetricLevel,
+    RelevanceGrade,
     RetrievalScope,
 )
 
@@ -172,9 +174,10 @@ class SnapshotDeclaredRead(BaseModel):
 
 
 class MetricResultRead(BaseModel):
-    """Statistics of one metric for one variant, always with how many scores they rest on."""
+    """Statistics of one metric for one variant, always with how many questions they rest on."""
 
     key: str
+    level: MetricLevel
     direction: str
     mean: float | None
     stddev: float | None
@@ -182,6 +185,10 @@ class MetricResultRead(BaseModel):
     p95: float | None
     n_effective: int
     n_excluded: int
+    excluded_reasons: dict[str, int] = Field(
+        default_factory=dict,
+        description="Excluded questions by reason; they add up to `n_excluded`.",
+    )
 
 
 class VariantResultRead(BaseModel):
@@ -194,8 +201,57 @@ class VariantResultRead(BaseModel):
     metrics: list[MetricResultRead]
 
 
+class EvidenceCountsRead(BaseModel):
+    """How the evidence of the answerable questions stood when the run was scored."""
+
+    answerable: int
+    confirmed: int
+    not_found: int
+    to_review: int
+    not_reviewed: int
+
+
+class ResultGroupRead(BaseModel):
+    """The variants that search one chunking configuration, whose chunk metrics compare."""
+
+    chunking_configuration_id: uuid.UUID
+    chunking_configuration_name: str
+    parsing: str
+    chunking: str
+    evidence_coverage: EvidenceCountsRead | None = Field(
+        default=None,
+        description="Absent when the run was scored before chunk-level evidence existed.",
+    )
+    recall_ceiling: float | None = Field(
+        default=None,
+        description=(
+            "1 - not found / reviewed: the share of the reviewed questions whose evidence "
+            "exists among the chunks of this configuration."
+        ),
+    )
+    variants: list[VariantResultRead]
+
+
+class CrossGroupRead(BaseModel):
+    """Which metrics compare across chunking configurations, and why only those."""
+
+    keys: list[str]
+    reason: str
+
+
+class ChunkGoldRead(BaseModel):
+    """The evidence the chunk metrics were computed on: when, and its fingerprint."""
+
+    evaluated_at: dt.datetime
+    hash: str
+
+
 class RunResultsRead(BaseModel):
-    """The aggregated metrics of a run, per variant, with the snapshots they were measured on."""
+    """The aggregated metrics of a run, grouped by chunking configuration.
+
+    Chunk-level metrics only compare within a group, since the evidence is confirmed on
+    the chunks of one configuration; document-level metrics compare everywhere.
+    """
 
     run_id: uuid.UUID
     experiment_id: uuid.UUID
@@ -206,16 +262,20 @@ class RunResultsRead(BaseModel):
     qa_set_snapshot: SnapshotDeclaredRead
     slice_key: str
     slice_value: str
-    variants: list[VariantResultRead]
+    chunk_gold: ChunkGoldRead | None = None
+    cross_group_metrics: CrossGroupRead
+    groups: list[ResultGroupRead]
 
 
 class QuestionVariantOutcomeRead(BaseModel):
-    """How one variant did on a question, on its first repetition."""
+    """How one variant did on a question, on its first repetition, at both levels."""
 
     variant_id: uuid.UUID
     status: ExecutionStatus
     first_relevant_rank: float | None = None
     excluded_reason: str | None = None
+    chunk_first_relevant_rank: float | None = None
+    chunk_excluded_reason: str | None = None
 
 
 class RunQuestionRead(BaseModel):
@@ -240,6 +300,10 @@ class HitDetailRead(BaseModel):
     page: int | None
     text: str | None
     relevant_document: bool | None
+    relevant_chunk: bool | None = None
+    relevance: RelevanceGrade | None = Field(
+        default=None, description="Grade of the chunk when it is an evidence chunk."
+    )
 
 
 class ExecutionDetailRead(BaseModel):
@@ -248,14 +312,37 @@ class ExecutionDetailRead(BaseModel):
     status: ExecutionStatus
     error: str | None = None
     excluded_reason: str | None = None
+    chunk_excluded_reason: str | None = None
     timings: dict[str, Any] | None = None
     hits: list[HitDetailRead]
+
+
+class GoldChunkRead(BaseModel):
+    """An evidence chunk of the question, and whether the variant retrieved it."""
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    filename: str
+    ordinal: int
+    page: int | None
+    text: str
+    relevance: RelevanceGrade
+    graded_relevance: int | None
+    retrieved: bool
 
 
 class VariantDrilldownRead(BaseModel):
     variant_id: uuid.UUID
     name: str
     is_baseline: bool
+    chunking_configuration_id: uuid.UUID
+    evidence_status: str = Field(
+        description=(
+            "Of the question under the variant's configuration: `not_reviewed`, "
+            "`to_review`, `confirmed` or `not_found`."
+        )
+    )
+    gold_chunks: list[GoldChunkRead]
     executions: list[ExecutionDetailRead]
 
 
@@ -264,6 +351,7 @@ class QuestionDrilldownRead(BaseModel):
 
     run_id: uuid.UUID
     question_id: uuid.UUID
+    qa_set_id: uuid.UUID
     text: str
     tags: list[str]
     answerable: bool

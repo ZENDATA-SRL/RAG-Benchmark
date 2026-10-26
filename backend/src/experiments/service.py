@@ -16,6 +16,7 @@ from src.experiments.exceptions import (
     ExperimentNotFoundError,
     GoldCoverageChoiceRequiredError,
     MultipleBaselinesError,
+    RunInProgressError,
     RunNotCancellableError,
     RunNotFoundError,
     RunNotResumableError,
@@ -376,10 +377,40 @@ class RunService:
             if execution.status != ExecutionStatus.SUCCEEDED:
                 await evaluation.evaluate_execution(execution.id)
         await evaluation.aggregate_run(run_id)
+        await evaluation.record_chunk_gold(
+            run, await self.experiments.get_by_id(run.experiment_id)
+        )
         await self.refresh_progress(run)
         run.status = ExecutionStatus.SUCCEEDED
         run.finished_at = dt.datetime.now(dt.UTC)
         await self.session.flush()
+
+    async def evaluate_run(self, run_id: uuid.UUID, experiment_id: uuid.UUID) -> Run:
+        """Score a finished run again from its stored hits, on the evidence as it is now.
+
+        Annotating questions after a run gives it chunk metrics it did not have, and
+        changing the evidence changes them, so re-scoring is an explicit action and never a
+        side effect of reading the results. No retrieval is repeated: every execution is
+        re-scored from the hits it recorded, the aggregates are rewritten, and the run
+        records the fingerprint of the evidence it used. Document-level scores come out
+        the same unless the gold documents changed.
+
+        Raises:
+            RunNotFoundError: If the run does not exist or belongs to another experiment.
+            RunInProgressError: If the run has not finished.
+        """
+        run = await self.get(run_id, experiment_id)
+        if run.status in (ExecutionStatus.PENDING, ExecutionStatus.RUNNING):
+            raise RunInProgressError(run_id, run.status.value)
+        evaluation = EvaluationService(self.session)
+        for execution in await self.executions.list_by_run(run_id):
+            await evaluation.evaluate_execution(execution.id)
+        await evaluation.aggregate_run(run_id)
+        await evaluation.record_chunk_gold(
+            run, await self.experiments.get_by_id(run.experiment_id)
+        )
+        await self.session.refresh(run)
+        return run
 
     async def fail_run(self, run_id: uuid.UUID, reason: str) -> None:
         """Record that a run stopped for a reason that is not one of its executions."""

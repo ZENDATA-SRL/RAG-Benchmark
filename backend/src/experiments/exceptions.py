@@ -139,3 +139,15 @@ class RunNotResumableError(ConflictError, ExperimentError):
             f"run {run_id} cannot be resumed: {reason}",
             details={"run_id": str(run_id), "reason": reason},
         )
+
+
+class RunInProgressError(ConflictError, ExperimentError):
+    """Raised when a run is re-evaluated while its executions are still being written."""
+
+    code = "run_in_progress"
+
+    def __init__(self, run_id: object, status: object) -> None:
+        super().__init__(
+            f"run {run_id} is still in progress (status={status}): evaluate it once it ends",
+            details={"run_id": str(run_id), "status": str(status)},
+        )

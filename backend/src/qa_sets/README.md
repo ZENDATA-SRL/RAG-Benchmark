@@ -88,8 +88,10 @@ too. The annotator is a free name: there is no login, it records who decided, it
 authorise.
 
 `GET /qa-sets/{id}/evidence-coverage?chunking_configuration_id=` counts the answerable
-current questions by status (`confirmed`, `not_found`, `to_review`, `not_reviewed`), and
-the set detail reports each question's `evidence_status` under the configuration passed as
+current questions by status (`confirmed`, `not_found`, `to_review`, `not_reviewed`) and
+gives the `recall_ceiling` of the configuration, `1 - not_found / (confirmed + not_found)`:
+a question whose evidence is not among the chunks of a configuration cannot be retrieved
+from them, whatever the embedder. The set detail reports each question's `evidence_status` under the configuration passed as
 `chunking_configuration_id`.
 
 ## Export (`utils.py`, `QASetService.export`)
@@ -115,7 +117,7 @@ experiments that are really comparable.
 | `POST /qa-sets`, `GET /qa-sets` | Create a set; list with question counts |
 | `GET /qa-sets/{id}?limit=&offset=&chunking_configuration_id=` | A set with a page of its current questions, their gold documents, expected answers, `frozen` flag and, with a configuration, `evidence_status` |
 | `POST /qa-sets/{id}/questions` | Write a question |
-| `GET /qa-sets/{id}/evidence-coverage?chunking_configuration_id=` | Questions counted by evidence status |
+| `GET /qa-sets/{id}/evidence-coverage?chunking_configuration_id=` | Questions counted by evidence status, and the recall ceiling |
 | `GET /qa-sets/{id}/export?format=&snapshot_id=` | CSV or JSONL download, readable by the import |
 | `GET /questions/{id}[?chunking_configuration_id=]`, `PATCH /questions/{id}`, `DELETE /questions/{id}` | Read; edit or delete a question no snapshot holds |
 | `POST /questions/{id}/replace` | Replace a question, frozen or not, with a new one |

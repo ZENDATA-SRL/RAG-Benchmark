@@ -2,7 +2,8 @@
 
 Retrieval experiments: a comparison of **variants** (index build x retrieval profile) on one
 corpus snapshot and one frozen question set, executed on Temporal and measured at document
-level. Only `type = retrieval` exists; the Q&A type is modelled and refused.
+level and, where the evidence is confirmed, at chunk level. Only `type = retrieval` exists;
+the Q&A type is modelled and refused.
 
 ## Entities (`models.py`)
 
@@ -10,11 +11,11 @@ level. Only `type = retrieval` exists; the Q&A type is modelled and refused.
 |---|---|
 | `Experiment` | Corpus snapshot, QA snapshot, repetitions, `uncovered_policy`. The snapshot is repeated here although derivable from the variants: it is the guard that makes "every variant searches the same documents" checkable |
 | `Variant` | Index build x retrieval profile; one is the baseline (the first, if none is marked) |
-| `Run` | One execution, with `config_snapshot` (experiment, snapshots, variants, index builds and profiles **copied by value**), the denormalised `progress` the UI polls, and `error` |
+| `Run` | One execution, with `config_snapshot` (experiment, snapshots, variants, index builds and profiles **copied by value**, and the evidence the chunk metrics were scored on), the denormalised `progress` the UI polls, and `error` |
 | `Execution` | Question x variant x repetition, unique per run: the unit of idempotency and resume |
-| `RetrievalCall`, `RetrievalHit` | One call of the retrieval tool and the chunks it returned, with rank, score, stage and `relevant_document` |
-| `MetricDefinition`, `Evaluator`, `Evaluation` | The catalog of metrics, the deterministic evaluator that scores them, and one score (or exclusion with its reason) per execution and metric |
-| `MetricAggregate` | Per run, variant, metric and slice: mean, standard deviation, median, p95, `n_effective`, `n_excluded` |
+| `RetrievalCall`, `RetrievalHit` | One call of the retrieval tool and the chunks it returned, with rank, score, stage, `relevant_document` and `relevant_chunk` |
+| `MetricDefinition`, `Evaluator`, `Evaluation` | The catalog of metrics (each with its level, `document` or `chunk`), one deterministic evaluator per level, and one score (or exclusion with its reason) per execution and metric |
+| `MetricAggregate` | Per run, variant, metric and slice: mean, standard deviation, median, p95, `n_effective`, `n_excluded` and `excluded_reasons` |
 
 `executions`, `retrieval_calls` and `retrieval_hits` grow as questions x variants x
 repetitions x top-k. They are not partitioned yet: with the volumes of a first experiment it
@@ -58,9 +59,12 @@ execution.
 
 Computed per execution on the `final` hits of the `retrieved` scope, from the stored hits.
 The cutoff k counts **retrieved chunks**, best first: `@5` judges the first five chunks, which
-is what a generator would be given. A chunk is relevant when the document it comes from is
-one of the question's gold documents; a chunk with no known document keeps its place and is
-not relevant.
+is what a generator would be given. The cutoffs are fixed and not the profile's top-k, so
+`recall@5` means the same in every variant.
+
+**Document level.** A chunk is relevant when the document it comes from is one of the
+question's gold documents; a chunk with no known document keeps its place and is not
+relevant.
 
 | Metric | Definition |
 |---|---|
@@ -70,22 +74,53 @@ not relevant.
 | `mrr` | 1 / rank of the first relevant chunk, 0 if none |
 | `first_relevant_rank` | that rank; empty (no score) when none was retrieved |
 
-The cutoffs are fixed and not the profile's top-k, so `recall@5` means the same in every
-variant. The flag `relevant_document` is written on each hit so the drill-down shows why a
-hit counts.
+**Chunk level.** A chunk is relevant when it is a confirmed evidence chunk of the question
+under the chunking configuration the variant searches (`variant → index build → chunking
+configuration`): evidence confirmed under another configuration says nothing about these
+chunks, which is why chunk metrics only compare variants of the same configuration. A chunk
+retrieved twice by one execution keeps its first rank and counts once.
 
-Executions that do not count get an evaluation per metric with `excluded = true` and the
-reason, and no score. In this order: `not_answerable` (the question is flagged as not
-answerable), `no_gold_documents`, `gold_document_not_in_snapshot`, `execution_failed`.
-At the end of the run `metric_aggregates` are written per variant and metric, over all
-questions (`slice_key = all`) and over each question tag (`slice_key = tag`).
-`n_effective` is how many scores entered the statistics and `n_excluded` how many
-evaluations were left out, so together they account for every execution of the variant
-(for `first_relevant_rank`, whose empty values are not scores, `n_effective` counts only the
-found ones). Confidence intervals and significance tests are not computed.
+| Metric | Definition |
+|---|---|
+| `chunk_recall@k` | evidence chunks (sufficient or supporting) among the first k / evidence chunks |
+| `chunk_precision@k` | evidence chunks among the first k / chunks among them |
+| `chunk_hit_rate@k` | 1 if any of the first k chunks is an evidence chunk |
+| `chunk_sufficient_hit@k` | 1 if the first k chunks are enough to answer: a sufficient chunk, or every supporting chunk when none is sufficient |
+| `chunk_ndcg@k` | nDCG with the graded relevance as gain, or 2 for sufficient and 1 for supporting when no grade was given; empty if every gain is 0 |
+| `chunk_mrr`, `chunk_first_relevant_rank` | as at document level, on the first evidence chunk |
 
-`seed.py` registers the metric definitions and the deterministic evaluator at startup and
-again, idempotently, before evaluating, so a worker never depends on the API having started.
+The flags `relevant_document` and `relevant_chunk` are written on each hit so the drill-down
+shows why a hit counts; `relevant_chunk` is empty when the chunk level does not apply.
+
+**Exclusions.** Executions that do not count get an evaluation per metric with
+`excluded = true` and the reason, and no score. At document level, in this order:
+`not_answerable`, `no_gold_documents`, `gold_document_not_in_snapshot`, `execution_failed`.
+At chunk level: `not_answerable`, then `evidence_not_reviewed` (no link under the
+configuration, or a draft) and `evidence_not_found` (looked for and not among its chunks),
+then `gold_document_not_in_snapshot` and `execution_failed`. A question can therefore count
+for its documents and be left out for its chunks; a missing evidence is never scored 0.
+
+**Aggregation.** At the end of the run `metric_aggregates` are written per variant and
+metric, over all questions (`slice_key = all`) and over each question tag
+(`slice_key = tag`). The repetitions of a question are averaged first and the statistics are
+taken across questions, so `n_effective` counts questions: a question counts when one of its
+repetitions has a score, and is excluded when all of them are, under the first of their
+reasons. `n_excluded` and `excluded_reasons` (excluded questions by reason) account for the
+rest (for `first_relevant_rank`, whose empty values are not scores, `n_effective` counts only
+the found ones). Confidence intervals and significance tests are not computed.
+
+**Evidence and re-evaluation.** The evidence keeps changing after a QA set is frozen, so the
+chunk metrics of a run are computed on the evidence **at the time of scoring**. Closing a run
+writes `config_snapshot.chunk_gold`: the time, a fingerprint of the links read and their
+chunks, the counts per chunking configuration and the links with their status.
+`POST …/runs/{run_id}/evaluate` re-scores a finished run from its stored hits (no retrieval
+call is repeated), rewrites the aggregates and the record; `409 run_in_progress` while the run
+is pending or running. Scoring it twice on the same evidence gives the same numbers and the
+same fingerprint.
+
+`seed.py` registers the metric definitions and the two deterministic evaluators
+(`document_level_retrieval`, `chunk_level_retrieval`) at startup and again, idempotently,
+before evaluating, so a worker never depends on the API having started.
 
 ## Results (`results.py`)
 
@@ -95,10 +130,16 @@ again, idempotently, before evaluating, so a worker never depends on the API hav
 | `GET /experiments/coverage?corpus_snapshot_id=&qa_set_snapshot_id=` | The questions with gold documents outside a corpus snapshot |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}` | Launch (`202`, `started=false` if already running); read a run with progress and configuration, served from the row |
 | `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | See above |
-| `GET …/runs/{run_id}/results[?tag=]` | Metrics per variant with `n_effective` and `n_excluded`, and the corpus and QA snapshots they were measured on |
-| `GET …/runs/{run_id}/results.csv` | The same as CSV, one row per variant and metric |
-| `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome |
-| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: every variant's executions and hits (rank, score, file, page, text, relevance), and the gold documents |
+| `POST …/runs/{run_id}/evaluate` | Re-score a finished run on the current evidence; returns the run with its `chunk_gold` |
+| `GET …/runs/{run_id}/results[?tag=]` | `groups`, one per chunking configuration (parser, chunker, `evidence_coverage`, `recall_ceiling`), each with its variants and their metrics at both levels with `n_effective`, `n_excluded` and `excluded_reasons`; `cross_group_metrics` names the keys that compare across groups (document level only) and why; `chunk_gold` gives the date and fingerprint of the evidence; and the corpus and QA snapshots |
+| `GET …/runs/{run_id}/results.csv` | The same as CSV, one row per variant and metric, with the chunking configuration and the level |
+| `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome at both levels |
+| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: every variant's executions and hits (rank, score, file, page, text, `relevant_document`, `relevant_chunk` and its grade), the evidence status under its configuration and the evidence chunks, retrieved or not; the gold documents |
+
+`recall_ceiling` is `1 - not_found / (confirmed + not_found)` on the evidence the run was
+scored on: the share of the reviewed questions whose evidence exists among the chunks of the
+configuration. It is a property of the configuration on the QA set, not of a variant, and
+bounds what any variant of the group can reach on those questions.
 
 ## Dependencies
 

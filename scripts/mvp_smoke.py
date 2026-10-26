@@ -5,8 +5,10 @@ create the parsing and chunking profiles, compose the configuration, preview on 
 document, materialise the rest, follow the progress by polling, then read back the parse
 and the chunks. With `--embedder`, it goes on to freeze a snapshot, build an index on it
 and query that index with a known sentence, then import a question set with gold files,
-run a retrieval experiment with two variants and read the document-level metrics. Every step
-asserts what the API promised, and the first deviation exits non-zero with the reason.
+run a retrieval experiment with two variants and read the document-level metrics, confirm
+the evidence chunk of one question and re-evaluate the run for its chunk-level metrics.
+Every step asserts what the API promised, and the first deviation exits non-zero with the
+reason.
 
 Needs the compose services, the API and the Temporal worker running:
 
@@ -751,6 +753,11 @@ def _questions_csv(rows: list[tuple[str, str]]) -> bytes:
     return buffer.getvalue().encode()
 
 
+def _variants(results: dict[str, Any]) -> list[dict[str, Any]]:
+    """The variants of every chunking configuration group of a run's results."""
+    return [variant for group in results["groups"] for variant in group["variants"]]
+
+
 def check_experiment(
     client: httpx.Client, *, corpus_id: str, context: dict[str, str]
 ) -> dict[str, Any]:
@@ -870,7 +877,7 @@ def check_experiment(
         results["corpus_snapshot"]["id"] == context["corpus_snapshot_id"],
         "the result declares the corpus snapshot it was measured on",
     )
-    for variant in results["variants"]:
+    for variant in _variants(results):
         metrics = {metric["key"]: metric for metric in variant["metrics"]}
         recall = metrics["recall@5"]
         check(
@@ -898,9 +905,64 @@ def check_experiment(
     )
     export = client.get(f"{base}/runs/{run['id']}/results.csv")
     check(
-        export.status_code == 200 and export.text.startswith("variant,"),
-        "the results download as CSV",
+        export.status_code == 200
+        and export.text.startswith("chunking_configuration_id,variant,"),
+        "the results download as CSV, with the configuration and level of each row",
     )
+    return check_chunk_metrics(
+        client, base=base, run_id=run["id"], drilldown=drilldown, before=results
+    )
+
+
+def check_chunk_metrics(
+    client: httpx.Client,
+    *,
+    base: str,
+    run_id: str,
+    drilldown: dict[str, Any],
+    before: dict[str, Any],
+) -> dict[str, Any]:
+    """Confirm the evidence chunk of one question, re-evaluate the run, read the chunk metrics."""
+    step("Confirm the evidence of one question and re-evaluate the run")
+    variant = drilldown["variants"][0]
+    top_hit = variant["executions"][0]["hits"][0]
+    request(
+        client,
+        "PUT",
+        f"/questions/{drilldown['question_id']}/evidence",
+        json={
+            "chunking_configuration_id": variant["chunking_configuration_id"],
+            "status": "confirmed",
+            "annotator": "smoke",
+            "chunks": [{"chunk_id": top_hit["chunk_id"], "relevance": "sufficient"}],
+        },
+    )
+    evaluated = request(client, "POST", f"{base}/runs/{run_id}/evaluate")
+    check(
+        bool(evaluated["config_snapshot"]["chunk_gold"]["hash"]),
+        "the run records the fingerprint of the evidence it was scored on",
+    )
+    results = request(client, "GET", f"{base}/runs/{run_id}/results")
+    group = results["groups"][0]
+    check(
+        group["evidence_coverage"]["confirmed"] == 1 and group["recall_ceiling"] == 1.0,
+        "one confirmed question, nothing marked not found: recall ceiling 1.0",
+    )
+    recall_before = {
+        variant["name"]: {m["key"]: m for m in variant["metrics"]}["recall@5"]
+        for variant in _variants(before)
+    }
+    for variant in _variants(results):
+        metrics = {metric["key"]: metric for metric in variant["metrics"]}
+        chunk_mrr = metrics["chunk_mrr"]
+        check(
+            chunk_mrr["n_effective"] == 1 and chunk_mrr["mean"] == 1.0,
+            f"{variant['name']}: the confirmed chunk comes first (chunk_mrr 1.0, 1 question)",
+        )
+        check(
+            metrics["recall@5"] == recall_before[variant["name"]],
+            f"{variant['name']}: the document-level metrics did not change",
+        )
     return results
 
 
@@ -982,7 +1044,7 @@ def run(base_url: str, *, embedder: str | None, vector_store: str) -> None:
             print(f"      {first['score']:.3f} {first['filename']} p{first['page']}")
         if experiment is not None:
             print("\n    Experiment metrics (recall@5, n effective of n total):")
-            for variant in experiment["variants"]:
+            for variant in _variants(experiment):
                 recall = {m["key"]: m for m in variant["metrics"]}["recall@5"]
                 total = recall["n_effective"] + recall["n_excluded"]
                 print(

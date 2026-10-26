@@ -22,8 +22,16 @@ from src.experiments.models import (
     Run,
     Variant,
 )
-from src.infrastructure.database.enums import ExecutionStatus, RetrievalStage
+from src.indexes.models import IndexBuild
+from src.infrastructure.database.enums import (
+    EvidenceLinkStatus,
+    ExecutionStatus,
+    RelevanceGrade,
+    RetrievalStage,
+)
 from src.qa_sets.models import (
+    EvidenceLink,
+    EvidenceLinkChunk,
     GoldDocument,
     QASet,
     QASetSnapshot,
@@ -32,7 +40,7 @@ from src.qa_sets.models import (
 )
 
 # Rows per INSERT: asyncpg caps a statement at 32767 bind parameters, and an execution row
-# binds four, an aggregate thirteen.
+# binds four, an aggregate fourteen.
 _EXECUTION_BATCH = 1000
 _AGGREGATE_BATCH = 1000
 
@@ -44,6 +52,19 @@ class UncoveredQuestion:
     question_id: uuid.UUID
     text: str
     missing_documents: list[tuple[uuid.UUID, str]]
+
+
+@dataclasses.dataclass(frozen=True)
+class EvidenceRow:
+    """One chunk of an evidence link, or the link alone when it has no chunk."""
+
+    link_id: uuid.UUID
+    question_id: uuid.UUID
+    chunking_configuration_id: uuid.UUID
+    status: EvidenceLinkStatus
+    chunk_id: uuid.UUID | None
+    relevance: RelevanceGrade | None
+    graded_relevance: int | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -198,6 +219,56 @@ class ExperimentRepository:
             GoldDocument.question_id == question_id
         )
         return set((await self.session.scalars(stmt)).all())
+
+    async def variant_configurations(
+        self, variant_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, uuid.UUID]:
+        """The chunking configuration each variant searches, through its index build."""
+        if not variant_ids:
+            return {}
+        stmt = (
+            select(Variant.id, IndexBuild.chunking_configuration_id)
+            .join(IndexBuild, IndexBuild.id == Variant.index_build_id)
+            .where(Variant.id.in_(variant_ids))
+        )
+        return dict((await self.session.execute(stmt)).all())
+
+    async def evidence_rows(
+        self,
+        question_ids: Sequence[uuid.UUID],
+        chunking_configuration_ids: Sequence[uuid.UUID],
+    ) -> list[EvidenceRow]:
+        """The evidence links of some questions under some configurations, chunk by chunk.
+
+        Ordered by question, configuration and chunk, so what is built from the rows (a
+        fingerprint, for one) does not depend on the order the database returns them in.
+        """
+        if not question_ids or not chunking_configuration_ids:
+            return []
+        stmt = (
+            select(
+                EvidenceLink.id,
+                EvidenceLink.question_id,
+                EvidenceLink.chunking_configuration_id,
+                EvidenceLink.status,
+                EvidenceLinkChunk.chunk_id,
+                EvidenceLinkChunk.relevance,
+                EvidenceLinkChunk.graded_relevance,
+            )
+            .outerjoin(
+                EvidenceLinkChunk, EvidenceLinkChunk.evidence_link_id == EvidenceLink.id
+            )
+            .where(
+                EvidenceLink.question_id.in_(question_ids),
+                EvidenceLink.chunking_configuration_id.in_(chunking_configuration_ids),
+            )
+            .order_by(
+                EvidenceLink.question_id,
+                EvidenceLink.chunking_configuration_id,
+                EvidenceLinkChunk.chunk_id,
+            )
+        )
+        return [EvidenceRow(*row) for row in (await self.session.execute(stmt)).all()]
 
 
 class RunRepository:
@@ -404,8 +475,10 @@ class EvaluationRow:
 
     variant_id: uuid.UUID
     metric_definition_id: uuid.UUID
+    question_id: uuid.UUID
     score: float | None
     excluded: bool
+    exclusion_reason: str | None
     tags: list[str]
 
 
@@ -433,8 +506,10 @@ class EvaluationRepository:
             select(
                 Execution.variant_id,
                 Evaluation.metric_definition_id,
+                Execution.question_id,
                 Evaluation.score,
                 Evaluation.excluded,
+                Evaluation.exclusion_reason,
                 Question.tags,
             )
             .join(Execution, Execution.id == Evaluation.execution_id)
@@ -442,10 +517,8 @@ class EvaluationRepository:
             .where(Execution.run_id == run_id)
         )
         return [
-            EvaluationRow(variant_id, metric_id, score, excluded, list(tags))
-            for variant_id, metric_id, score, excluded, tags in (
-                await self.session.execute(stmt)
-            ).all()
+            EvaluationRow(*row[:-1], tags=list(row[-1]))
+            for row in (await self.session.execute(stmt)).all()
         ]
 
     async def evaluations_of_executions(

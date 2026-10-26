@@ -39,6 +39,7 @@ from src.qa_sets.utils import (
     ImportRow,
     content_hash_of,
     parse_import,
+    recall_ceiling,
     render_export,
 )
 
@@ -106,6 +107,10 @@ class EvidenceCoverage:
     not_found: int
     to_review: int
     not_reviewed: int
+
+    @property
+    def recall_ceiling(self) -> float | None:
+        return recall_ceiling(self.confirmed, self.not_found)
 
 
 @dataclasses.dataclass(frozen=True)

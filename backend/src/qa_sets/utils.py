@@ -98,6 +98,19 @@ def render_export(
     return buffer.getvalue(), "text/csv"
 
 
+def recall_ceiling(confirmed: int, not_found: int) -> float | None:
+    """The best chunk recall a chunking configuration allows on the reviewed questions.
+
+    A question whose evidence was looked for and not found among the chunks of the
+    configuration cannot be answered from them, whatever the retriever does. Questions
+    not reviewed yet do not count either way; with none reviewed there is no ceiling.
+    """
+    reviewed = confirmed + not_found
+    if reviewed == 0:
+        return None
+    return 1 - not_found / reviewed
+
+
 def content_hash_of(reference: str) -> str | None:
     """Return the sha-256 a gold file reference names, or `None` if it names a file.
 

@@ -513,6 +513,8 @@ async def test_coverage_and_listing_report_the_evidence_status(client, session) 
         "not_found": 1,
         "to_review": 0,
         "not_reviewed": 1,
+        # One of the two reviewed questions has no evidence under this configuration.
+        "recall_ceiling": 0.5,
     }
     assert [q["evidence_status"] for q in listed.json()["questions"]["items"]] == [
         "confirmed",

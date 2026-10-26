@@ -10,6 +10,7 @@ from src.experiments.evaluation import ExecutionRunner
 from src.experiments.models import (
     Evaluation,
     Execution,
+    MetricDefinition,
     RetrievalCall,
     RetrievalHit,
 )
@@ -19,7 +20,12 @@ from src.indexes.models import IndexBuild
 from src.infrastructure.database.enums import ArtifactStatus, ExecutionStatus
 from src.retrieval.exceptions import IndexBuildNotReadyError
 from src.retrieval.service import RetrievalService
-from tests.pipeline_factory import Scenario, build_scenario
+from tests.pipeline_factory import (
+    Scenario,
+    build_scenario,
+    make_configuration,
+    materialise,
+)
 from tests.retrieval_factory import indexed_build
 
 pytestmark = pytest.mark.integration
@@ -128,6 +134,11 @@ async def _create(client, world: World, **overrides) -> dict:
     response = await client.post(EXPERIMENTS, json=_body(world, **overrides))
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def _variants(results: dict) -> list[dict]:
+    """The variants of every chunking configuration group, in order."""
+    return [variant for group in results["groups"] for variant in group["variants"]]
 
 
 async def _execute_run(session, run_id: str) -> None:
@@ -332,9 +343,9 @@ async def test_results_count_every_question_and_name_the_snapshot(
     assert results["corpus_snapshot"]["id"] == experiment["corpus_snapshot_id"]
     assert results["corpus_snapshot"]["document_count"] == 3
     assert results["question_count"] == 4
-    for variant in results["variants"]:
+    for variant in _variants(results):
         for metric in variant["metrics"]:
-            if metric["key"] == "first_relevant_rank":
+            if metric["level"] == "chunk" or metric["key"] == "first_relevant_rank":
                 continue
             # 2 questions count, 2 are excluded: together they are the snapshot.
             assert (
@@ -343,7 +354,7 @@ async def test_results_count_every_question_and_name_the_snapshot(
             )
             assert metric["n_effective"] == 2
             assert metric["n_excluded"] == 2
-    by_name = {variant["name"]: variant for variant in results["variants"]}
+    by_name = {variant["name"]: variant for variant in _variants(results)}
     large = {metric["key"]: metric for metric in by_name["top-6"]["metrics"]}
     # The query is the text of a chunk of the gold document, so it comes back first.
     assert large["mrr"]["mean"] == 1.0
@@ -364,9 +375,7 @@ async def test_tag_slices_aggregate_over_the_questions_with_that_tag(
         params={"tag": "alpha"},
     )
 
-    metric = {m["key"]: m for m in response.json()["variants"][0]["metrics"]}[
-        "recall@5"
-    ]
+    metric = {m["key"]: m for m in _variants(response.json())[0]["metrics"]}["recall@5"]
     # alpha: the answerable question (counts) and the unanswerable one (excluded).
     assert (metric["n_effective"], metric["n_excluded"]) == (1, 1)
 
@@ -378,18 +387,29 @@ async def test_excluded_executions_carry_their_reason(client, session, world) ->
 
     rows = (
         await session.execute(
-            select(Evaluation.exclusion_reason, func.count())
+            select(MetricDefinition.level, Evaluation.exclusion_reason, func.count())
             .join(Execution, Execution.id == Evaluation.execution_id)
+            .join(
+                MetricDefinition,
+                MetricDefinition.id == Evaluation.metric_definition_id,
+            )
             .where(
                 Execution.run_id == uuid.UUID(run["id"]), Evaluation.excluded.is_(True)
             )
-            .group_by(Evaluation.exclusion_reason)
+            .group_by(MetricDefinition.level, Evaluation.exclusion_reason)
         )
     ).all()
-    reasons = dict(rows)
+    reasons = {(level.value, reason): count for level, reason, count in rows}
 
-    # Per variant and metric: 1 unanswerable + 1 uncovered question. 2 variants x 14 metrics.
-    assert reasons == {"not_answerable": 28, "gold_document_not_in_snapshot": 28}
+    # Per variant and metric, 2 variants. Documents, 14 metrics: 1 unanswerable and 1
+    # uncovered question. Chunks, 22 metrics: the unanswerable one, and the other three
+    # because nobody reviewed their evidence, which comes before the snapshot check.
+    assert reasons == {
+        ("document", "not_answerable"): 28,
+        ("document", "gold_document_not_in_snapshot"): 28,
+        ("chunk", "not_answerable"): 44,
+        ("chunk", "evidence_not_reviewed"): 132,
+    }
 
 
 async def test_the_drilldown_shows_each_variant_hits_and_why_they_count(
@@ -475,8 +495,12 @@ async def test_results_download_as_csv(client, session, world) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     lines = response.text.strip().splitlines()
-    assert lines[0].startswith("variant,is_baseline,metric,mean")
-    assert len(lines) == 1 + 2 * 14
+    assert lines[0].startswith(
+        "chunking_configuration_id,variant,is_baseline,level,metric,mean"
+    )
+    assert len(lines) == 1 + 2 * (14 + 22)
+    assert ",document,recall@5," in response.text
+    assert ",chunk,chunk_recall@5," in response.text
     assert world.qa_snapshot_id in lines[1]
 
 
@@ -695,5 +719,267 @@ async def test_the_worker_activities_drive_a_run_to_the_same_results(
     results = (
         await client.get(f"{EXPERIMENTS}/{experiment['id']}/runs/{run['id']}/results")
     ).json()
-    mrr = {m["key"]: m for m in results["variants"][0]["metrics"]}["mrr"]
+    mrr = {m["key"]: m for m in _variants(results)[0]["metrics"]}["mrr"]
     assert (mrr["mean"], mrr["n_effective"], mrr["n_excluded"]) == (1.0, 2, 2)
+    # Chunk metrics are scored in the same pass, and the run records the evidence used.
+    chunk_mrr = {m["key"]: m for m in _variants(results)[0]["metrics"]}["chunk_mrr"]
+    assert chunk_mrr["excluded_reasons"] == {
+        "not_answerable": 1,
+        "evidence_not_reviewed": 3,
+    }
+    assert results["chunk_gold"]["hash"]
+
+
+# -- chunk level --------------------------------------------------------------------------
+
+QUESTIONS = "/api/v1/questions"
+
+
+async def _chunks(session, document, configuration_id) -> list[Chunk]:
+    stmt = (
+        select(Chunk)
+        .join(ChunkResult, ChunkResult.id == Chunk.chunk_result_id)
+        .where(
+            ChunkResult.document_id == document.id,
+            ChunkResult.chunking_configuration_id == configuration_id,
+        )
+        .order_by(Chunk.ordinal)
+    )
+    return list((await session.scalars(stmt)).all())
+
+
+def _question(world: World, prefix: str) -> str:
+    return next(
+        qid for text, qid in world.question_ids.items() if text.startswith(prefix)
+    )
+
+
+async def _evidence(client, world: World, question_id: str, status: str, chunks=()):
+    response = await client.put(
+        f"{QUESTIONS}/{question_id}/evidence",
+        json={
+            "chunking_configuration_id": str(world.build.chunking_configuration_id),
+            "status": status,
+            "annotator": "anna",
+            "chunks": [
+                {"chunk_id": str(chunk.id), "relevance": relevance}
+                for chunk, relevance in chunks
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+
+
+async def _annotate(client, session, world: World) -> None:
+    """The question on ready-0 answered by its first chunk; the one on ready-1 not found."""
+    first = await _chunks(
+        session, world.scenario.ready[0], world.build.chunking_configuration_id
+    )
+    await _evidence(
+        client,
+        world,
+        _question(world, "chunk 0 of ready-0"),
+        "confirmed",
+        [(first[0], "sufficient"), (first[1], "supporting")],
+    )
+    await _evidence(client, world, _question(world, "chunk 0 of ready-1"), "not_found")
+
+
+def _metrics(results: dict, variant: str) -> dict[str, dict]:
+    chosen = next(item for item in _variants(results) if item["name"] == variant)
+    return {metric["key"]: metric for metric in chosen["metrics"]}
+
+
+async def _calls(session, run_id: str) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(RetrievalCall)
+        .join(Execution, Execution.id == RetrievalCall.execution_id)
+        .where(Execution.run_id == uuid.UUID(run_id))
+    )
+    return await session.scalar(stmt)
+
+
+async def test_a_run_scored_before_annotation_gains_chunk_metrics_when_reevaluated(
+    client, session, world
+) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+    before = (await client.get(f"{base}/{run['id']}/results")).json()
+    calls = await _calls(session, run["id"])
+
+    chunk_recall = _metrics(before, "top-6")["chunk_recall@5"]
+    assert (chunk_recall["n_effective"], chunk_recall["excluded_reasons"]) == (
+        0,
+        {"not_answerable": 1, "evidence_not_reviewed": 3},
+    )
+    assert before["groups"][0]["evidence_coverage"]["not_reviewed"] == 3
+    assert before["groups"][0]["recall_ceiling"] is None
+
+    await _annotate(client, session, world)
+    evaluated = await client.post(f"{base}/{run['id']}/evaluate")
+    assert evaluated.status_code == 200, evaluated.text
+    after = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    large = _metrics(after, "top-6")
+    # The query is the text of the sufficient chunk, so it comes back first.
+    assert (large["chunk_mrr"]["mean"], large["chunk_mrr"]["n_effective"]) == (1.0, 1)
+    # The question with no evidence in this configuration is excluded, never a zero.
+    assert large["chunk_recall@5"]["excluded_reasons"] == {
+        "not_answerable": 1,
+        "evidence_not_found": 1,
+        "evidence_not_reviewed": 1,
+    }
+    assert large["chunk_sufficient_hit@1"]["mean"] == 1.0
+    assert large["chunk_mrr"]["level"] == "chunk"
+    group = after["groups"][0]
+    assert group["evidence_coverage"] == {
+        "answerable": 3,
+        "confirmed": 1,
+        "not_found": 1,
+        "to_review": 0,
+        "not_reviewed": 1,
+    }
+    assert group["recall_ceiling"] == 0.5
+    assert after["chunk_gold"]["hash"] != before["chunk_gold"]["hash"]
+    # Re-scoring reads the stored hits: documents unchanged, no new retrieval.
+    for variant in ("top-1", "top-6"):
+        for key, metric in _metrics(before, variant).items():
+            if metric["level"] == "document":
+                assert _metrics(after, variant)[key] == metric
+    assert await _calls(session, run["id"]) == calls
+
+
+async def test_reevaluating_twice_gives_the_same_numbers_and_fingerprint(
+    client, session, world
+) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+    await _annotate(client, session, world)
+
+    first = (await client.post(f"{base}/{run['id']}/evaluate")).json()
+    once = (await client.get(f"{base}/{run['id']}/results")).json()
+    second = (await client.post(f"{base}/{run['id']}/evaluate")).json()
+    twice = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    assert (
+        first["config_snapshot"]["chunk_gold"]["hash"]
+        == second["config_snapshot"]["chunk_gold"]["hash"]
+    )
+    assert [link["status"] for link in second["config_snapshot"]["chunk_gold"]["links"]]
+    assert once["groups"] == twice["groups"]
+
+
+async def test_a_run_in_progress_is_not_reevaluated(client, world) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+
+    response = await client.post(f"{base}/{run['id']}/evaluate")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "run_in_progress"
+
+
+async def test_repetitions_are_averaged_per_question_before_the_statistics(
+    client, session, world
+) -> None:
+    experiment = await _create(client, world, repetitions=3)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+
+    results = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    recall = _metrics(results, "top-6")["recall@5"]
+    # Twelve executions per variant, but four questions: two count and two do not.
+    assert (recall["n_effective"], recall["n_excluded"]) == (2, 2)
+    assert recall["excluded_reasons"] == {
+        "not_answerable": 1,
+        "gold_document_not_in_snapshot": 1,
+    }
+
+
+async def test_variants_on_two_chunking_configurations_are_two_groups(
+    client, session, world, chroma_client
+) -> None:
+    _, other = await make_configuration(session, chunk_size=300)
+    for document in world.scenario.ready:
+        await materialise(
+            session, document, world.scenario.parsing_profile, other, chunk_count=2
+        )
+    other_build = await indexed_build(
+        session,
+        dataclasses.replace(world.scenario, configuration=other),
+        chroma_client,
+    )
+    body_variants = [
+        {
+            "name": "small chunks",
+            "index_build_id": str(other_build.id),
+            "retrieval_profile_id": world.profile_large,
+        },
+        {
+            "name": "large chunks",
+            "index_build_id": str(world.build.id),
+            "retrieval_profile_id": world.profile_large,
+            "is_baseline": True,
+        },
+    ]
+    experiment = await _create(client, world, variants=body_variants)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+
+    results = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    groups = {group["chunking_configuration_id"]: group for group in results["groups"]}
+    assert {
+        configuration: [variant["name"] for variant in group["variants"]]
+        for configuration, group in groups.items()
+    } == {
+        str(other.id): ["small chunks"],
+        str(world.build.chunking_configuration_id): ["large chunks"],
+    }
+    assert groups[str(other.id)]["chunking"] == "chunk300"
+    cross = results["cross_group_metrics"]
+    assert "recall@5" in cross["keys"]
+    assert not any(key.startswith("chunk_") for key in cross["keys"])
+    assert "chunking configuration" in cross["reason"]
+
+
+async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved(
+    client, session, world
+) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+    await _annotate(client, session, world)
+    await client.post(f"{base}/{run['id']}/evaluate")
+    question_id = _question(world, "chunk 0 of ready-0")
+
+    body = (await client.get(f"{base}/{run['id']}/questions/{question_id}")).json()
+
+    assert body["qa_set_id"]
+    by_name = {variant["name"]: variant for variant in body["variants"]}
+    small = by_name["top-1"]
+    assert small["evidence_status"] == "confirmed"
+    [hit] = small["executions"][0]["hits"]
+    assert (hit["relevant_chunk"], hit["relevance"]) == (True, "sufficient")
+    # top-1 retrieves the sufficient chunk only: the supporting one is listed as missed.
+    assert {(c["relevance"], c["retrieved"]) for c in small["gold_chunks"]} == {
+        ("sufficient", True),
+        ("supporting", False),
+    }
+    large_hits = by_name["top-6"]["executions"][0]["hits"]
+    assert large_hits[0]["relevant_chunk"] is True
+
+    rows = (await client.get(f"{base}/{run['id']}/questions")).json()["items"]
+    unanswerable = next(row for row in rows if row["text"] == "Nobody knows?")
+    assert unanswerable["outcomes"][0]["chunk_excluded_reason"] == "not_answerable"
+    answered = next(row for row in rows if row["question_id"] == question_id)
+    assert answered["outcomes"][0]["chunk_first_relevant_rank"] == 1.0

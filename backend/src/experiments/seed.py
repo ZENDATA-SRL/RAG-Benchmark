@@ -11,14 +11,19 @@ from src.infrastructure.database.enums import EvaluatorKind, MetricFamily, Metri
 
 logger = logging.getLogger(__name__)
 
-DETERMINISTIC_EVALUATOR_NAME = "document_level_retrieval"
+# One deterministic evaluator per level: each rewrites only its own scores, and the
+# evaluation of a score names what judged it.
+DETERMINISTIC_EVALUATORS = {
+    MetricLevel.DOCUMENT: "document_level_retrieval",
+    MetricLevel.CHUNK: "chunk_level_retrieval",
+}
 DETERMINISTIC_EVALUATOR_VERSION = "1"
 
 
 async def seed_metric_catalog(
     session: AsyncSession,
-) -> tuple[dict[str, MetricDefinition], Evaluator]:
-    """Register the document-level metrics and their deterministic evaluator, idempotently.
+) -> tuple[dict[str, MetricDefinition], dict[MetricLevel, Evaluator]]:
+    """Register the retrieval metrics and their deterministic evaluators, idempotently.
 
     Runs at startup and again before a run is evaluated, so a worker never depends on the
     API having started first. Existing rows are left as they are: a definition that
@@ -28,7 +33,7 @@ async def seed_metric_catalog(
         session: Session owning the transaction; the caller commits.
 
     Returns:
-        The definitions by key and the evaluator that scores them.
+        The definitions by key and the evaluator of each level.
     """
     existing = {
         definition.key: definition
@@ -40,7 +45,7 @@ async def seed_metric_catalog(
         definition = MetricDefinition(
             key=spec.key,
             family=MetricFamily.RETRIEVAL,
-            level=MetricLevel.DOCUMENT,
+            level=spec.level,
             direction=spec.direction,
             aggregation=spec.aggregation,
             description=spec.description,
@@ -48,20 +53,23 @@ async def seed_metric_catalog(
         session.add(definition)
         existing[spec.key] = definition
 
-    evaluator = await session.scalar(
-        select(Evaluator).where(
-            Evaluator.kind == EvaluatorKind.DETERMINISTIC,
-            Evaluator.name == DETERMINISTIC_EVALUATOR_NAME,
-            Evaluator.version == DETERMINISTIC_EVALUATOR_VERSION,
+    evaluators = {}
+    for level, name in DETERMINISTIC_EVALUATORS.items():
+        evaluator = await session.scalar(
+            select(Evaluator).where(
+                Evaluator.kind == EvaluatorKind.DETERMINISTIC,
+                Evaluator.name == name,
+                Evaluator.version == DETERMINISTIC_EVALUATOR_VERSION,
+            )
         )
-    )
-    if evaluator is None:
-        evaluator = Evaluator(
-            kind=EvaluatorKind.DETERMINISTIC,
-            name=DETERMINISTIC_EVALUATOR_NAME,
-            version=DETERMINISTIC_EVALUATOR_VERSION,
-        )
-        session.add(evaluator)
+        if evaluator is None:
+            evaluator = Evaluator(
+                kind=EvaluatorKind.DETERMINISTIC,
+                name=name,
+                version=DETERMINISTIC_EVALUATOR_VERSION,
+            )
+            session.add(evaluator)
+        evaluators[level] = evaluator
     await session.flush()
     logger.debug("metric catalog seeded: %d definitions", len(existing))
-    return existing, evaluator
+    return existing, evaluators

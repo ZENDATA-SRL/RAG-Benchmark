@@ -239,6 +239,14 @@ class EvidenceCoverageRead(BaseModel):
     not_found: int
     to_review: int
     not_reviewed: int
+    recall_ceiling: float | None = Field(
+        default=None,
+        description=(
+            "1 - not found / reviewed: the share of the reviewed questions whose "
+            "evidence exists among the chunks of this configuration; empty when none "
+            "is reviewed."
+        ),
+    )
 
 
 class QASetDetail(QASetRead):

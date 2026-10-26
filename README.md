@@ -143,12 +143,12 @@ backend/
     indexes/          index builds over a corpus snapshot
     retrieval/        dense search over a ready index build, embedders, vector store readers
     qa_sets/          question sets, authoring, gold documents and evidence chunks, import/export, snapshots
-    experiments/      retrieval experiments: variants, runs, document-level metrics, results
+    experiments/      retrieval experiments: variants, runs, document- and chunk-level metrics, results by chunking configuration
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/
 frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, question sets and annotation, experiments, components
-scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval and of a retrieval experiment)
+scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval, of a retrieval experiment and of its re-evaluation on confirmed evidence)
 temporal/             worker, workflows, activities and builtin implementations
   activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs
   workflows/          ProcessDocument, MaterializeChunks, IndexCorpus, RunExperiment, RunVariant
