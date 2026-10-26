@@ -686,7 +686,7 @@ Una esecuzione dell'esperimento, con **snapshot integrale della configurazione**
 | `experiment_id` | UUID | FK → experiments, NOT NULL | |
 | `workflow_id` | TEXT | UNIQUE | ID Temporal (RT-O01) |
 | `status` | execution_status | NOT NULL DEFAULT 'pending' | |
-| `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio |
+| `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio; a ogni valutazione si aggiunge `chunk_gold`: data, impronta dei legami di evidenza usati (stato e chunk), conteggi per configurazione di chunking ed elenco dei legami |
 | `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI |
 | `error` | TEXT | | motivo se il run si è fermato per una ragione propria (per esempio `cancelled`) |
 | `langfuse_run_name` | TEXT | | identifica esperimento/variante/run (RT-L01) |
@@ -822,8 +822,9 @@ Per run, variante, metrica e slice; include numerosità effettiva **e numerosit�
 | `p95` | DOUBLE PRECISION | | |
 | `ci_low` | DOUBLE PRECISION | | intervallo di confidenza |
 | `ci_high` | DOUBLE PRECISION | | |
-| `n_effective` | INTEGER | NOT NULL | numerosità nel denominatore |
-| `n_excluded` | INTEGER | NOT NULL DEFAULT 0 | escluse (RF-V06) |
+| `n_effective` | INTEGER | NOT NULL | numerosità nel denominatore, in domande: le ripetizioni di una domanda si mediano prima |
+| `n_excluded` | INTEGER | NOT NULL DEFAULT 0 | domande escluse (RF-V06) |
+| `excluded_reasons` | JSONB | NOT NULL DEFAULT '{}' | domande escluse per motivo (per esempio `evidence_not_reviewed`, `evidence_not_found`); la somma è `n_excluded` |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (run_id, variant_id, metric_definition_id, slice_key, slice_value) | |
 

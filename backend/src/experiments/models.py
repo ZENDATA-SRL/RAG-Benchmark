@@ -287,3 +287,8 @@ class MetricAggregate(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     n_excluded: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0", default=0
     )
+    # Excluded questions by reason, adding up to `n_excluded`: a question left out because
+    # nobody reviewed its evidence is not the same as one whose evidence is not there.
+    excluded_reasons: Mapped[dict[str, int]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"), default=dict
+    )
