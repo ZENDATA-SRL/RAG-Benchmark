@@ -6,9 +6,10 @@ import statistics
 import uuid
 from collections.abc import Collection, Sequence
 
-# Cutoffs of the ranked metrics. Fixed and not taken from the retrieval profile's top-k, so
-# that `recall@5` means the same thing in every variant and variants with different top-k
-# stay comparable on one metric.
+# Cutoffs of the ranked metrics, counted in retrieved chunks: `@5` judges the first five
+# chunks, which is what a generator would be given. Fixed and not taken from the retrieval
+# profile's top-k, so that `recall@5` means the same thing in every variant and variants
+# with different top-k stay comparable on one metric.
 CUTOFFS = (1, 3, 5, 10)
 
 MRR = "mrr"
@@ -34,8 +35,8 @@ def metric_specs() -> list[MetricSpec]:
                 f"recall@{cutoff}",
                 "higher_is_better",
                 "mean",
-                f"Share of the gold documents found among the first {cutoff} distinct "
-                "documents retrieved.",
+                f"Share of the gold documents that at least one of the first {cutoff} "
+                "retrieved chunks comes from.",
             )
         )
     for cutoff in CUTOFFS:
@@ -44,8 +45,9 @@ def metric_specs() -> list[MetricSpec]:
                 f"precision@{cutoff}",
                 "higher_is_better",
                 "mean",
-                f"Share of the first {cutoff} distinct documents retrieved that are gold; "
-                "a query that retrieves fewer documents is judged on those it retrieved.",
+                f"Share of the first {cutoff} retrieved chunks that come from a gold "
+                "document; a query that retrieves fewer chunks is judged on those it "
+                "retrieved.",
             )
         )
     for cutoff in CUTOFFS:
@@ -54,8 +56,8 @@ def metric_specs() -> list[MetricSpec]:
                 f"hit_rate@{cutoff}",
                 "higher_is_better",
                 "mean",
-                f"1 if any gold document is among the first {cutoff} distinct documents "
-                "retrieved, else 0.",
+                f"1 if any of the first {cutoff} retrieved chunks comes from a gold "
+                "document, else 0.",
             )
         )
     specs.append(
@@ -63,7 +65,8 @@ def metric_specs() -> list[MetricSpec]:
             MRR,
             "higher_is_better",
             "mean",
-            "Reciprocal of the rank of the first gold document, 0 if none was retrieved.",
+            "Reciprocal of the rank of the first chunk from a gold document, 0 if none "
+            "was retrieved.",
         )
     )
     specs.append(
@@ -71,30 +74,23 @@ def metric_specs() -> list[MetricSpec]:
             FIRST_RELEVANT_RANK,
             "lower_is_better",
             "median",
-            "Rank of the first gold document among the distinct documents retrieved; "
-            "empty when none was retrieved.",
+            "Rank of the first chunk from a gold document; empty when none was "
+            "retrieved.",
         )
     )
     return specs
 
 
-def distinct_documents(document_ids: Sequence[uuid.UUID | None]) -> list[uuid.UUID]:
-    """Documents in the order of their first appearance in a ranked list of chunks.
-
-    A document retrieved through several chunks counts once, at the rank of its best chunk;
-    a chunk with no known document is skipped, because nothing can be said about it.
-    """
-    seen: dict[uuid.UUID, None] = {}
-    for document_id in document_ids:
-        if document_id is not None:
-            seen.setdefault(document_id, None)
-    return list(seen)
-
-
 def document_metrics(
     ranked_documents: Sequence[uuid.UUID | None], gold: Collection[uuid.UUID]
 ) -> dict[str, float | None]:
-    """Document-level retrieval metrics of one query.
+    """Document-level retrieval metrics of one query, cut on the ranked chunks.
+
+    The cutoff is applied to the chunks first, because they are what a generator receives,
+    and relevance is then judged by the document each chunk comes from. Recall counts each
+    gold document once however many of its chunks were retrieved; precision is the share
+    of the chunks that are useful context. A chunk with no known document still takes its
+    place in the ranking and is not relevant.
 
     Args:
         ranked_documents: Document of each retrieved chunk, best first; repeats are fine.
@@ -104,16 +100,16 @@ def document_metrics(
         A value per metric key. `first_relevant_rank` is `None` when no gold document was
         retrieved, which is different from a worst value and is left out of its statistics.
     """
-    documents = distinct_documents(ranked_documents)
-    relevant = [document in gold for document in documents]
+    relevant = [document in gold for document in ranked_documents]
     first = next((index + 1 for index, hit in enumerate(relevant) if hit), None)
 
     scores: dict[str, float | None] = {}
     for cutoff in CUTOFFS:
-        top = relevant[:cutoff]
-        found = sum(top)
-        scores[f"recall@{cutoff}"] = found / len(gold)
-        scores[f"precision@{cutoff}"] = found / len(top) if top else 0.0
+        top = ranked_documents[:cutoff]
+        found = {document for document in top if document in gold}
+        useful = sum(relevant[:cutoff])
+        scores[f"recall@{cutoff}"] = len(found) / len(gold)
+        scores[f"precision@{cutoff}"] = useful / len(top) if top else 0.0
         scores[f"hit_rate@{cutoff}"] = 1.0 if found else 0.0
     scores[MRR] = 1.0 / first if first else 0.0
     scores[FIRST_RELEVANT_RANK] = float(first) if first else None

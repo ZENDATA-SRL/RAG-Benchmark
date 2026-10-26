@@ -57,16 +57,17 @@ execution.
 ## Metrics (`metrics.py`, `evaluation.py`)
 
 Computed per execution on the `final` hits of the `retrieved` scope, from the stored hits.
-A document is relevant when it is one of the question's gold documents; a document retrieved
-through several chunks counts once, at the rank of its first chunk, and ranks are over
-**distinct documents**.
+The cutoff k counts **retrieved chunks**, best first: `@5` judges the first five chunks, which
+is what a generator would be given. A chunk is relevant when the document it comes from is
+one of the question's gold documents; a chunk with no known document keeps its place and is
+not relevant.
 
 | Metric | Definition |
 |---|---|
-| `recall@k`, k in 1, 3, 5, 10 | gold documents among the first k documents / gold documents |
-| `precision@k` | gold documents among the first k documents / documents among them (a query that retrieves fewer than k is judged on those it retrieved; nothing retrieved is 0) |
-| `hit_rate@k` | 1 if any gold document is among the first k |
-| `mrr` | 1 / rank of the first gold document, 0 if none |
+| `recall@k`, k in 1, 3, 5, 10 | distinct gold documents reached by the first k chunks / gold documents |
+| `precision@k` | relevant chunks among the first k / chunks among them (a query that retrieves fewer than k is judged on those it retrieved; nothing retrieved is 0) |
+| `hit_rate@k` | 1 if any of the first k chunks is relevant |
+| `mrr` | 1 / rank of the first relevant chunk, 0 if none |
 | `first_relevant_rank` | that rank; empty (no score) when none was retrieved |
 
 The cutoffs are fixed and not the profile's top-k, so `recall@5` means the same in every
