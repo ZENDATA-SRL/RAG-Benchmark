@@ -1350,6 +1350,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Run
+         * @description Re-score a finished run from its stored hits, on the evidence as it is now.
+         */
+        post: operations["evaluate_run_api_v1_experiments__experiment_id__runs__run_id__evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/experiments/{experiment_id}/runs/{run_id}/results": {
         parameters: {
             query?: never;
@@ -1517,6 +1537,19 @@ export interface components {
             chunk_result: components["schemas"]["ChunkResultRead"];
             /** Chunks */
             chunks?: components["schemas"]["ChunkRead"][];
+        };
+        /**
+         * ChunkGoldRead
+         * @description The evidence the chunk metrics were computed on: when, and its fingerprint.
+         */
+        ChunkGoldRead: {
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Hash */
+            hash: string;
         };
         /**
          * ChunkRead
@@ -2107,6 +2140,16 @@ export interface components {
             uncovered: components["schemas"]["UncoveredQuestionRead"][];
         };
         /**
+         * CrossGroupRead
+         * @description Which metrics compare across chunking configurations, and why only those.
+         */
+        CrossGroupRead: {
+            /** Keys */
+            keys: string[];
+            /** Reason */
+            reason: string;
+        };
+        /**
          * DocumentChunksRead
          * @description One page of the chunks of a document, with the state of the artefact holding them.
          */
@@ -2407,6 +2450,22 @@ export interface components {
             graded_relevance?: number | null;
         };
         /**
+         * EvidenceCountsRead
+         * @description How the evidence of the answerable questions stood when the run was scored.
+         */
+        EvidenceCountsRead: {
+            /** Answerable */
+            answerable: number;
+            /** Confirmed */
+            confirmed: number;
+            /** Not Found */
+            not_found: number;
+            /** To Review */
+            to_review: number;
+            /** Not Reviewed */
+            not_reviewed: number;
+        };
+        /**
          * EvidenceCoverageRead
          * @description How far the evidence of a set is reviewed under one configuration.
          */
@@ -2433,6 +2492,11 @@ export interface components {
             to_review: number;
             /** Not Reviewed */
             not_reviewed: number;
+            /**
+             * Recall Ceiling
+             * @description 1 - not found / reviewed: the share of the reviewed questions whose evidence exists among the chunks of this configuration; empty when none is reviewed.
+             */
+            recall_ceiling?: number | null;
         };
         /**
          * EvidenceLinkStatus
@@ -2507,6 +2571,8 @@ export interface components {
             error?: string | null;
             /** Excluded Reason */
             excluded_reason?: string | null;
+            /** Chunk Excluded Reason */
+            chunk_excluded_reason?: string | null;
             /** Timings */
             timings?: {
                 [key: string]: unknown;
@@ -2699,6 +2765,35 @@ export interface components {
          */
         FileOutcome: "imported" | "skipped_duplicate" | "skipped_unsupported" | "failed";
         /**
+         * GoldChunkRead
+         * @description An evidence chunk of the question, and whether the variant retrieved it.
+         */
+        GoldChunkRead: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string;
+            relevance: components["schemas"]["RelevanceGrade"];
+            /** Graded Relevance */
+            graded_relevance: number | null;
+            /** Retrieved */
+            retrieved: boolean;
+        };
+        /**
          * GoldDocumentRead
          * @description A document that contains the answer to a question.
          */
@@ -2747,6 +2842,10 @@ export interface components {
             text: string | null;
             /** Relevant Document */
             relevant_document: boolean | null;
+            /** Relevant Chunk */
+            relevant_chunk?: boolean | null;
+            /** @description Grade of the chunk when it is an evidence chunk. */
+            relevance?: components["schemas"]["RelevanceGrade"] | null;
         };
         /**
          * ImportSummaryRead
@@ -3151,12 +3250,18 @@ export interface components {
             created_at: string;
         };
         /**
+         * MetricLevel
+         * @enum {string}
+         */
+        MetricLevel: "document" | "chunk";
+        /**
          * MetricResultRead
-         * @description Statistics of one metric for one variant, always with how many scores they rest on.
+         * @description Statistics of one metric for one variant, always with how many questions they rest on.
          */
         MetricResultRead: {
             /** Key */
             key: string;
+            level: components["schemas"]["MetricLevel"];
             /** Direction */
             direction: string;
             /** Mean */
@@ -3171,6 +3276,13 @@ export interface components {
             n_effective: number;
             /** N Excluded */
             n_excluded: number;
+            /**
+             * Excluded Reasons
+             * @description Excluded questions by reason; they add up to `n_excluded`.
+             */
+            excluded_reasons?: {
+                [key: string]: number;
+            };
         };
         /** Page[ChunkingConfigurationExpanded] */
         Page_ChunkingConfigurationExpanded_: {
@@ -3601,6 +3713,11 @@ export interface components {
              * Format: uuid
              */
             question_id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
             /** Text */
             text: string;
             /** Tags */
@@ -3668,7 +3785,7 @@ export interface components {
         };
         /**
          * QuestionVariantOutcomeRead
-         * @description How one variant did on a question, on its first repetition.
+         * @description How one variant did on a question, on its first repetition, at both levels.
          */
         QuestionVariantOutcomeRead: {
             /**
@@ -3681,6 +3798,10 @@ export interface components {
             first_relevant_rank?: number | null;
             /** Excluded Reason */
             excluded_reason?: string | null;
+            /** Chunk First Relevant Rank */
+            chunk_first_relevant_rank?: number | null;
+            /** Chunk Excluded Reason */
+            chunk_excluded_reason?: string | null;
         };
         /**
          * RelevanceGrade
@@ -3688,6 +3809,32 @@ export interface components {
          * @enum {string}
          */
         RelevanceGrade: "sufficient" | "supporting";
+        /**
+         * ResultGroupRead
+         * @description The variants that search one chunking configuration, whose chunk metrics compare.
+         */
+        ResultGroupRead: {
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Chunking Configuration Name */
+            chunking_configuration_name: string;
+            /** Parsing */
+            parsing: string;
+            /** Chunking */
+            chunking: string;
+            /** @description Absent when the run was scored before chunk-level evidence existed. */
+            evidence_coverage?: components["schemas"]["EvidenceCountsRead"] | null;
+            /**
+             * Recall Ceiling
+             * @description 1 - not found / reviewed: the share of the reviewed questions whose evidence exists among the chunks of this configuration.
+             */
+            recall_ceiling?: number | null;
+            /** Variants */
+            variants: components["schemas"]["VariantResultRead"][];
+        };
         /**
          * RetrievalProfileCreate
          * @description Payload creating a retrieval profile.
@@ -3978,7 +4125,10 @@ export interface components {
         };
         /**
          * RunResultsRead
-         * @description The aggregated metrics of a run, per variant, with the snapshots they were measured on.
+         * @description The aggregated metrics of a run, grouped by chunking configuration.
+         *
+         *     Chunk-level metrics only compare within a group, since the evidence is confirmed on
+         *     the chunks of one configuration; document-level metrics compare everywhere.
          */
         RunResultsRead: {
             /**
@@ -4002,8 +4152,10 @@ export interface components {
             slice_key: string;
             /** Slice Value */
             slice_value: string;
-            /** Variants */
-            variants: components["schemas"]["VariantResultRead"][];
+            chunk_gold?: components["schemas"]["ChunkGoldRead"] | null;
+            cross_group_metrics: components["schemas"]["CrossGroupRead"];
+            /** Groups */
+            groups: components["schemas"]["ResultGroupRead"][];
         };
         /**
          * RuntimeType
@@ -4146,6 +4298,18 @@ export interface components {
             name: string;
             /** Is Baseline */
             is_baseline: boolean;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Evidence Status
+             * @description Of the question under the variant's configuration: `not_reviewed`, `to_review`, `confirmed` or `not_found`.
+             */
+            evidence_status: string;
+            /** Gold Chunks */
+            gold_chunks: components["schemas"]["GoldChunkRead"][];
             /** Executions */
             executions: components["schemas"]["ExecutionDetailRead"][];
         };
@@ -7013,6 +7177,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_run_api_v1_experiments__experiment_id__runs__run_id__evaluate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
                 };
             };
             /** @description Validation Error */

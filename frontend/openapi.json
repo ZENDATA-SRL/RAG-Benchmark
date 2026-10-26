@@ -4432,6 +4432,60 @@
         }
       }
     },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/evaluate": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Evaluate Run",
+        "description": "Re-score a finished run from its stored hits, on the evidence as it is now.",
+        "operationId": "evaluate_run_api_v1_experiments__experiment_id__runs__run_id__evaluate_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/experiments/{experiment_id}/runs/{run_id}/results": {
       "get": {
         "tags": [
@@ -4890,6 +4944,26 @@
         ],
         "title": "ChunkComparisonSide",
         "description": "The chunks a single configuration produced for the compared document."
+      },
+      "ChunkGoldRead": {
+        "properties": {
+          "evaluated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Evaluated At"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaluated_at",
+          "hash"
+        ],
+        "title": "ChunkGoldRead",
+        "description": "The evidence the chunk metrics were computed on: when, and its fingerprint."
       },
       "ChunkRead": {
         "properties": {
@@ -6026,6 +6100,28 @@
         "title": "CoverageRead",
         "description": "How much of a QA snapshot a corpus snapshot can answer."
       },
+      "CrossGroupRead": {
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keys",
+          "reason"
+        ],
+        "title": "CrossGroupRead",
+        "description": "Which metrics compare across chunking configurations, and why only those."
+      },
       "DocumentChunksRead": {
         "properties": {
           "document_id": {
@@ -6592,6 +6688,40 @@
         "title": "EvidenceChunkWrite",
         "description": "A chunk chosen as evidence, sufficient on its own or supporting the answer."
       },
+      "EvidenceCountsRead": {
+        "properties": {
+          "answerable": {
+            "type": "integer",
+            "title": "Answerable"
+          },
+          "confirmed": {
+            "type": "integer",
+            "title": "Confirmed"
+          },
+          "not_found": {
+            "type": "integer",
+            "title": "Not Found"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review"
+          },
+          "not_reviewed": {
+            "type": "integer",
+            "title": "Not Reviewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answerable",
+          "confirmed",
+          "not_found",
+          "to_review",
+          "not_reviewed"
+        ],
+        "title": "EvidenceCountsRead",
+        "description": "How the evidence of the answerable questions stood when the run was scored."
+      },
       "EvidenceCoverageRead": {
         "properties": {
           "qa_set_id": {
@@ -6627,6 +6757,18 @@
           "not_reviewed": {
             "type": "integer",
             "title": "Not Reviewed"
+          },
+          "recall_ceiling": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Ceiling",
+            "description": "1 - not found / reviewed: the share of the reviewed questions whose evidence exists among the chunks of this configuration; empty when none is reviewed."
           }
         },
         "type": "object",
@@ -6797,6 +6939,17 @@
               }
             ],
             "title": "Excluded Reason"
+          },
+          "chunk_excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Excluded Reason"
           },
           "timings": {
             "anyOf": [
@@ -7257,6 +7410,75 @@
         ],
         "title": "FileOutcome"
       },
+      "GoldChunkRead": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          },
+          "graded_relevance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded Relevance"
+          },
+          "retrieved": {
+            "type": "boolean",
+            "title": "Retrieved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text",
+          "relevance",
+          "graded_relevance",
+          "retrieved"
+        ],
+        "title": "GoldChunkRead",
+        "description": "An evidence chunk of the question, and whether the variant retrieved it."
+      },
       "GoldDocumentRead": {
         "properties": {
           "document_id": {
@@ -7403,6 +7625,28 @@
               }
             ],
             "title": "Relevant Document"
+          },
+          "relevant_chunk": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Chunk"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelevanceGrade"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Grade of the chunk when it is an evidence chunk."
           }
         },
         "type": "object",
@@ -8250,11 +8494,22 @@
         "title": "MaterializationRead",
         "description": "A materialisation run as exposed by the API.\n\nDenormalised on purpose: the UI polls this every couple of seconds and must not\nmake Temporal answer each refresh. The authoritative state stays in Temporal."
       },
+      "MetricLevel": {
+        "type": "string",
+        "enum": [
+          "document",
+          "chunk"
+        ],
+        "title": "MetricLevel"
+      },
       "MetricResultRead": {
         "properties": {
           "key": {
             "type": "string",
             "title": "Key"
+          },
+          "level": {
+            "$ref": "#/components/schemas/MetricLevel"
           },
           "direction": {
             "type": "string",
@@ -8311,11 +8566,20 @@
           "n_excluded": {
             "type": "integer",
             "title": "N Excluded"
+          },
+          "excluded_reasons": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Excluded Reasons",
+            "description": "Excluded questions by reason; they add up to `n_excluded`."
           }
         },
         "type": "object",
         "required": [
           "key",
+          "level",
           "direction",
           "mean",
           "stddev",
@@ -8325,7 +8589,7 @@
           "n_excluded"
         ],
         "title": "MetricResultRead",
-        "description": "Statistics of one metric for one variant, always with how many scores they rest on."
+        "description": "Statistics of one metric for one variant, always with how many questions they rest on."
       },
       "Page_ChunkingConfigurationExpanded_": {
         "properties": {
@@ -9262,6 +9526,11 @@
             "format": "uuid",
             "title": "Question Id"
           },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
           "text": {
             "type": "string",
             "title": "Text"
@@ -9296,6 +9565,7 @@
         "required": [
           "run_id",
           "question_id",
+          "qa_set_id",
           "text",
           "tags",
           "answerable",
@@ -9484,6 +9754,28 @@
               }
             ],
             "title": "Excluded Reason"
+          },
+          "chunk_first_relevant_rank": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk First Relevant Rank"
+          },
+          "chunk_excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Excluded Reason"
           }
         },
         "type": "object",
@@ -9492,7 +9784,7 @@
           "status"
         ],
         "title": "QuestionVariantOutcomeRead",
-        "description": "How one variant did on a question, on its first repetition."
+        "description": "How one variant did on a question, on its first repetition, at both levels."
       },
       "RelevanceGrade": {
         "type": "string",
@@ -9502,6 +9794,67 @@
         ],
         "title": "RelevanceGrade",
         "description": "Whether a gold chunk answers the question on its own or only supports the answer."
+      },
+      "ResultGroupRead": {
+        "properties": {
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "chunking_configuration_name": {
+            "type": "string",
+            "title": "Chunking Configuration Name"
+          },
+          "parsing": {
+            "type": "string",
+            "title": "Parsing"
+          },
+          "chunking": {
+            "type": "string",
+            "title": "Chunking"
+          },
+          "evidence_coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceCountsRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent when the run was scored before chunk-level evidence existed."
+          },
+          "recall_ceiling": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Ceiling",
+            "description": "1 - not found / reviewed: the share of the reviewed questions whose evidence exists among the chunks of this configuration."
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantResultRead"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunking_configuration_id",
+          "chunking_configuration_name",
+          "parsing",
+          "chunking",
+          "variants"
+        ],
+        "title": "ResultGroupRead",
+        "description": "The variants that search one chunking configuration, whose chunk metrics compare."
       },
       "RetrievalProfileCreate": {
         "properties": {
@@ -10226,12 +10579,25 @@
             "type": "string",
             "title": "Slice Value"
           },
-          "variants": {
+          "chunk_gold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChunkGoldRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cross_group_metrics": {
+            "$ref": "#/components/schemas/CrossGroupRead"
+          },
+          "groups": {
             "items": {
-              "$ref": "#/components/schemas/VariantResultRead"
+              "$ref": "#/components/schemas/ResultGroupRead"
             },
             "type": "array",
-            "title": "Variants"
+            "title": "Groups"
           }
         },
         "type": "object",
@@ -10245,10 +10611,11 @@
           "qa_set_snapshot",
           "slice_key",
           "slice_value",
-          "variants"
+          "cross_group_metrics",
+          "groups"
         ],
         "title": "RunResultsRead",
-        "description": "The aggregated metrics of a run, per variant, with the snapshots they were measured on."
+        "description": "The aggregated metrics of a run, grouped by chunking configuration.\n\nChunk-level metrics only compare within a group, since the evidence is confirmed on\nthe chunks of one configuration; document-level metrics compare everywhere."
       },
       "RuntimeType": {
         "type": "string",
@@ -10544,6 +10911,23 @@
             "type": "boolean",
             "title": "Is Baseline"
           },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Of the question under the variant's configuration: `not_reviewed`, `to_review`, `confirmed` or `not_found`."
+          },
+          "gold_chunks": {
+            "items": {
+              "$ref": "#/components/schemas/GoldChunkRead"
+            },
+            "type": "array",
+            "title": "Gold Chunks"
+          },
           "executions": {
             "items": {
               "$ref": "#/components/schemas/ExecutionDetailRead"
@@ -10557,6 +10941,9 @@
           "variant_id",
           "name",
           "is_baseline",
+          "chunking_configuration_id",
+          "evidence_status",
+          "gold_chunks",
           "executions"
         ],
         "title": "VariantDrilldownRead"

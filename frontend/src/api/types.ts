@@ -87,11 +87,14 @@ export type RunDetail = components["schemas"]["RunDetail"];
 export type RunAccepted = components["schemas"]["RunAccepted"];
 export type RunResultsRead = components["schemas"]["RunResultsRead"];
 export type VariantResultRead = components["schemas"]["VariantResultRead"];
+export type ResultGroupRead = components["schemas"]["ResultGroupRead"];
+export type EvidenceCountsRead = components["schemas"]["EvidenceCountsRead"];
 export type MetricResultRead = components["schemas"]["MetricResultRead"];
 export type RunQuestionRead = components["schemas"]["RunQuestionRead"];
 export type QuestionDrilldownRead = components["schemas"]["QuestionDrilldownRead"];
 export type VariantDrilldownRead = components["schemas"]["VariantDrilldownRead"];
 export type HitDetailRead = components["schemas"]["HitDetailRead"];
+export type GoldChunkRead = components["schemas"]["GoldChunkRead"];
 export type QuestionVariantOutcomeRead = components["schemas"]["QuestionVariantOutcomeRead"];
 
 export type Page<T> = {
