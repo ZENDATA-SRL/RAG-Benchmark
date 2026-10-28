@@ -29,6 +29,15 @@ from temporal.activities.materialization import (
 )
 from temporal.activities.parsing import ParseResult, parse_document
 from temporal.activities.reads import ConfigurationResolved, resolve_configuration
+from temporal.activities.transfer import (
+    fail_transfer_job,
+    finish_transfer_job,
+    list_unranked_questions,
+    mark_transfer_question_failed,
+    open_transfer_job,
+    rank_transfer_question,
+    record_transfer_progress,
+)
 from temporal.activities.vector_store import (
     prepare_index_collection,
     upsert_embedding_batch,
@@ -59,6 +68,13 @@ ALL_ACTIVITIES = [
     record_run_progress,
     finish_experiment_run,
     fail_experiment_run,
+    open_transfer_job,
+    list_unranked_questions,
+    rank_transfer_question,
+    mark_transfer_question_failed,
+    record_transfer_progress,
+    finish_transfer_job,
+    fail_transfer_job,
 ]
 
 __all__ = [
@@ -76,16 +92,23 @@ __all__ = [
     "documents_needing_chunking",
     "embed_batch",
     "fail_experiment_run",
+    "fail_transfer_job",
     "finish_experiment_run",
+    "finish_transfer_job",
     "list_unfinished_executions",
+    "list_unranked_questions",
     "mark_execution_failed",
+    "mark_transfer_question_failed",
     "open_experiment_run",
     "open_index_build",
     "open_materialization_run",
+    "open_transfer_job",
     "parse_document",
     "prepare_index_collection",
+    "rank_transfer_question",
     "record_progress",
     "record_run_progress",
+    "record_transfer_progress",
     "resolve_configuration",
     "resolve_index_build",
     "retrieve_question",

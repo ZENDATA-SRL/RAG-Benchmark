@@ -12,6 +12,10 @@ from temporal.workflows.run_experiment import (
     RunVariantInput,
     RunVariantWorkflow,
 )
+from temporal.workflows.transfer_dataset import (
+    TransferDatasetInput,
+    TransferDatasetWorkflow,
+)
 
 ALL_WORKFLOWS = [
     ProcessDocumentWorkflow,
@@ -19,6 +23,7 @@ ALL_WORKFLOWS = [
     IndexCorpusWorkflow,
     RunExperimentWorkflow,
     RunVariantWorkflow,
+    TransferDatasetWorkflow,
 ]
 
 __all__ = [
@@ -32,4 +37,6 @@ __all__ = [
     "RunExperimentWorkflow",
     "RunVariantInput",
     "RunVariantWorkflow",
+    "TransferDatasetInput",
+    "TransferDatasetWorkflow",
 ]

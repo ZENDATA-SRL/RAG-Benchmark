@@ -8,6 +8,7 @@ Deterministic orchestration only: no I/O, no randomness, no imports of heavy lib
 |---|---|---|
 | `ProcessDocumentWorkflow` | document id, chunking configuration id | `resolve_configuration` → `parse_document` → `chunk_document`. Returns `{status: "failed", reason: "parse_failed"}` rather than raising when the parse fails permanently |
 | `MaterializeChunksWorkflow` | `MaterializeInput` (document ids **or** a corpus snapshot id with its `total`, configuration id, optional corpus id, concurrency) | `open_materialization_run`, `documents_needing_chunking` (or `snapshot_documents_needing_chunking`, 500 ids per page, the offset carried by `continue_as_new`), then one `ProcessDocumentWorkflow` child per document that needs it (default concurrency 5), `record_progress`, `summarize_run`. `continue_as_new` after 500 documents, carrying counters so the denominator never shifts |
+| `TransferDatasetWorkflow` | `TransferDatasetInput` (job id, concurrency, cursor) | `open_transfer_job` (once, not again after `continue_as_new`), pages of `list_unranked_questions`, `rank_transfer_question` per question, `record_transfer_progress` per page, `finish_transfer_job`. A question failing for good calls `mark_transfer_question_failed`; the job failing calls `fail_transfer_job` before the workflow fails |
 | `IndexCorpusWorkflow` | `IndexCorpusInput` (or just an index build id) | `resolve_index_build`, `open_index_build`, child `MaterializeChunksWorkflow` over the snapshot, `count_index_chunks`, `prepare_index_collection`, then a loop of `embed_batch` + `upsert_embedding_batch` (100 chunks per batch), `complete_index_build`. `continue_as_new` every 100 batches. An activity or child failing for good marks the build `failed` before the workflow fails |
 
 | `RunExperimentWorkflow` | `RunExperimentInput` (run id, concurrency) | `open_experiment_run`, one child `RunVariantWorkflow` per variant in sequence, `finish_experiment_run`. Any activity or child failing for good calls `fail_experiment_run` before the workflow fails |
@@ -34,6 +35,8 @@ and upsert 5 min, reads 30 s,
 `PermanentParsingError` is non-retryable. Experiments: `retrieve_question` 2 min with up to 4
 attempts and exponential backoff (2 s, doubling, capped at 30 s) because the query
 embeddings are rate limited; run bookkeeping 60 s; closing a run 10 min; a variant child 6 h.
+Transfers: `rank_transfer_question` 5 min (it embeds a question's whole pool) with the same
+backoff, bookkeeping 60 s.
 
 ## Payload size
 
