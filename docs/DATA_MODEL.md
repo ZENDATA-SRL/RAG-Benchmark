@@ -39,7 +39,7 @@ CREATE TYPE component_type      AS ENUM ('source', 'parser', 'chunker', 'embedde
 CREATE TYPE runtime_type        AS ENUM ('builtin', 'http');
 CREATE TYPE evidence_link_status AS ENUM ('to_review', 'confirmed', 'not_found');
 CREATE TYPE relevance_grade     AS ENUM ('sufficient', 'supporting');
-CREATE TYPE transfer_status     AS ENUM ('pending', 'running', 'completed', 'cancelled');
+CREATE TYPE transfer_status     AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled');
 CREATE TYPE confidence_band     AS ENUM ('high', 'medium', 'low');
 CREATE TYPE experiment_type     AS ENUM ('retrieval', 'qa');
 CREATE TYPE execution_status    AS ENUM ('pending', 'running', 'succeeded', 'failed', 'skipped');
@@ -598,12 +598,14 @@ Propone i chunk gold di un QA set in una configurazione di chunking e ne traccia
 | `qa_set_id` | UUID | FK → qa_sets, NOT NULL | |
 | `source_configuration_id` | UUID | FK → chunking_configurations, NULL | configurazione di origine; NULL per le domande importate |
 | `target_configuration_id` | UUID | FK → chunking_configurations, NOT NULL | configurazione di destinazione |
+| `embedding_profile_id` | UUID | FK → embedding_profiles, NULL | embedder del segnale semantico: una configurazione di chunking non ne ha uno proprio. Di default quello dell'ultimo index build `ready` sulla destinazione; NULL = segnale semantico assente, il ranking si regge sugli altri due |
 | `workflow_id` | TEXT | UNIQUE | ID Temporal |
 | `status` | transfer_status | NOT NULL DEFAULT 'pending' | |
 | `signal_weights` | JSONB | NOT NULL DEFAULT '{}' | pesi dei tre segnali (RT-M04) |
 | `confidence_thresholds` | JSONB | NOT NULL DEFAULT '{}' | soglie fasce (RT-M04) |
-| `progress` | JSONB | NOT NULL DEFAULT '{}' | {reviewed, confirmed, not_found, total} |
+| `progress` | JSONB | NOT NULL DEFAULT '{}' | {total, ranked, failed, reviewed, confirmed, not_found}, più le domande saltate per motivo; copia per il polling, l'API la ricalcola dall'evidenza |
 | `recall_ceiling` | DOUBLE PRECISION | | tetto teorico di recall (RF-T09) |
+| `error` | TEXT | | motivo se il job si è fermato per una ragione propria |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
 ### `transfer_candidates`
@@ -621,9 +623,24 @@ Chunk **proposto** per una domanda, con punteggio combinato e fascia di confiden
 | `positional_score` | DOUBLE PRECISION | | prossimità posizionale |
 | `confidence` | confidence_band | NOT NULL | high / medium / low |
 | `preselected` | BOOLEAN | NOT NULL DEFAULT false | pre-selezione (solo identità quasi certa) |
+| `suggested_relevance` | relevance_grade | | con origine: il grado del chunk confermato a cui il candidato somiglia di più |
 | `rank` | INTEGER | NOT NULL | ordinamento fra candidati della domanda |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | INDEX (transfer_job_id, question_id, rank) | |
+| | | UNIQUE (transfer_job_id, question_id, chunk_id) | idempotenza del calcolo |
+
+### `transfer_questions`
+Le domande che un job classifica: **unità di idempotenza e resume**, come `executions` per un run. Una domanda classificata non si ricalcola, anche se non ha candidati.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `transfer_job_id` | UUID | FK → transfer_jobs ON DELETE CASCADE, NOT NULL | |
+| `question_id` | UUID | FK → questions ON DELETE CASCADE, NOT NULL | |
+| `status` | execution_status | NOT NULL DEFAULT 'pending' | `succeeded` = candidati scritti |
+| `candidate_count` | INTEGER | NOT NULL DEFAULT 0 | |
+| `error` | TEXT | | motivo del fallimento della domanda |
+| | | UNIQUE (transfer_job_id, question_id) | |
 
 **Invariante.** I candidati sono proposte: la conferma umana crea/aggiorna le righe di `evidence_link_chunks` e porta il relativo `evidence_links.status` a `confirmed` (o `not_found`).
 
@@ -884,6 +901,7 @@ erDiagram
     qa_sets ||--o{ transfer_jobs : trasferisce
     chunking_configurations ||--o{ transfer_jobs : destinazione
     transfer_jobs ||--o{ transfer_candidates : propone
+    transfer_jobs ||--o{ transfer_questions : classifica
     chunks ||--o{ transfer_candidates : candidato
 
     corpus_snapshots ||--o{ experiments : su
@@ -921,7 +939,7 @@ erDiagram
 - **Estendibilità v2.** Multi-tenancy → aggiungere `tenant_id` come dimensione; costi → nuova entità `usage_records` collegata a `executions`; conversazioni multi-turno → `conversation_id`/`turn_index` su `questions`/`executions`; snapshot su più corpora → rendere `corpus_snapshots.corpus_id` nullable (additivo; l'operazione inversa non lo sarebbe).
 - **Chunker corpus-scoped (v2).** Se servisse un chunker che deduplica boilerplate sull'intero corpus, si aggiunge `chunk_results.corpus_snapshot_id` nullable: non nullo solo per quei chunker, che perdono il riuso cross-snapshot. Fino ad allora `capabilities.scope` ammette solo `document`.
 
-## Riepilogo tabelle (45)
+## Riepilogo tabelle (46)
 
 | # | Blocco | Tabella |
 |---|---|---|
@@ -958,18 +976,19 @@ erDiagram
 | 31 | Dataset | `evidence_link_chunks` |
 | 32 | Trasferimento | `transfer_jobs` |
 | 33 | Trasferimento | `transfer_candidates` |
-| 34 | Esperimenti | `experiments` |
-| 35 | Esperimenti | `variants` |
-| 36 | Esperimenti | `runs` |
-| 37 | Esperimenti | `executions` |
-| 38 | Esperimenti | `retrieval_calls` |
-| 39 | Esperimenti | `retrieval_hits` |
-| 40 | Esperimenti | `metric_definitions` |
-| 41 | Esperimenti | `evaluators` |
-| 42 | Esperimenti | `evaluations` |
-| 43 | Esperimenti | `human_annotations` |
-| 44 | Esperimenti | `metric_aggregates` |
-| 45 | Pipeline | `materialization_runs` |
+| 34 | Trasferimento | `transfer_questions` |
+| 35 | Esperimenti | `experiments` |
+| 36 | Esperimenti | `variants` |
+| 37 | Esperimenti | `runs` |
+| 38 | Esperimenti | `executions` |
+| 39 | Esperimenti | `retrieval_calls` |
+| 40 | Esperimenti | `retrieval_hits` |
+| 41 | Esperimenti | `metric_definitions` |
+| 42 | Esperimenti | `evaluators` |
+| 43 | Esperimenti | `evaluations` |
+| 44 | Esperimenti | `human_annotations` |
+| 45 | Esperimenti | `metric_aggregates` |
+| 46 | Pipeline | `materialization_runs` |
 
 
 ---

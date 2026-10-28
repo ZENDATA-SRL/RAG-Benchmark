@@ -49,6 +49,7 @@ from src.sources.models import (
     ImportSelection,
     SourceConnection,
 )
+from src.transfers.models import TransferCandidate, TransferJob, TransferQuestion
 
 __all__ = [
     "Base",
@@ -91,6 +92,9 @@ __all__ = [
     "RetrievalProfile",
     "Run",
     "SourceConnection",
+    "TransferCandidate",
+    "TransferJob",
+    "TransferQuestion",
     "Variant",
     "VectorStoreProfile",
 ]

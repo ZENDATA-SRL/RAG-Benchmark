@@ -160,6 +160,24 @@ class RelevanceGrade(str, enum.Enum):
     SUPPORTING = "supporting"
 
 
+class TransferStatus(str, enum.Enum):
+    """Lifecycle of a job proposing evidence chunks in a chunking configuration."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ConfidenceBand(str, enum.Enum):
+    """How plausible a proposed chunk is, from its combined score."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
     """Build a native PostgreSQL ENUM that stores the enum *values*.
 
@@ -196,3 +214,5 @@ METRIC_LEVEL = pg_enum(MetricLevel, "metric_level")
 EVALUATOR_KIND = pg_enum(EvaluatorKind, "evaluator_kind")
 EVIDENCE_LINK_STATUS = pg_enum(EvidenceLinkStatus, "evidence_link_status")
 RELEVANCE_GRADE = pg_enum(RelevanceGrade, "relevance_grade")
+TRANSFER_STATUS = pg_enum(TransferStatus, "transfer_status")
+CONFIDENCE_BAND = pg_enum(ConfidenceBand, "confidence_band")
