@@ -2536,6 +2536,101 @@
         }
       }
     },
+    "/api/v1/chunks/search": {
+      "get": {
+        "tags": [
+          "inspection"
+        ],
+        "summary": "Search Chunks",
+        "description": "Find the chunks of a configuration containing a text, optionally in one corpus.",
+        "operationId": "search_chunks_api_v1_chunks_search_get",
+        "parameters": [
+          {
+            "name": "chunking_configuration_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chunking Configuration Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 500,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "corpus_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Corpus Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ChunkSearchHit_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chunks/{chunk_id}": {
       "get": {
         "tags": [
@@ -4750,6 +4845,397 @@
           }
         }
       }
+    },
+    "/api/v1/transfers": {
+      "post": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Create Transfer",
+        "description": "Create a job proposing evidence chunks and start ranking them on the worker.",
+        "operationId": "create_transfer_api_v1_transfers_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "List Transfers",
+        "description": "List the jobs, newest first, optionally of one QA set.",
+        "operationId": "list_transfers_api_v1_transfers_get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TransferRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers/{transfer_job_id}": {
+      "get": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Get Transfer",
+        "description": "Return a job with its progress, read live from the evidence.",
+        "operationId": "get_transfer_api_v1_transfers__transfer_job_id__get",
+        "parameters": [
+          {
+            "name": "transfer_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers/{transfer_job_id}/cancel": {
+      "post": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Cancel Transfer",
+        "description": "Stop ranking; the candidates already written stay reviewable.",
+        "operationId": "cancel_transfer_api_v1_transfers__transfer_job_id__cancel_post",
+        "parameters": [
+          {
+            "name": "transfer_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers/{transfer_job_id}/resume": {
+      "post": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Resume Transfer",
+        "description": "Relaunch a job, ranking only the questions not ranked yet.",
+        "operationId": "resume_transfer_api_v1_transfers__transfer_job_id__resume_post",
+        "parameters": [
+          {
+            "name": "transfer_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers/{transfer_job_id}/questions": {
+      "get": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "List Transfer Questions",
+        "description": "The review queue: questions waiting for a decision first, the near certain on top.",
+        "operationId": "list_transfer_questions_api_v1_transfers__transfer_job_id__questions_get",
+        "parameters": [
+          {
+            "name": "transfer_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Job Id"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "preselected",
+                    "to_review",
+                    "no_candidates",
+                    "pending",
+                    "failed",
+                    "decided"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_QueueRowRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers/{transfer_job_id}/questions/{question_id}": {
+      "get": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Get Transfer Question",
+        "description": "A question opened for review, with its candidates best first.\n\nThe decision is not written here: it is the question's evidence, saved with\n`PUT /questions/{question_id}/evidence` like any other annotation.",
+        "operationId": "get_transfer_question_api_v1_transfers__transfer_job_id__questions__question_id__get",
+        "parameters": [
+          {
+            "name": "transfer_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Job Id"
+            }
+          },
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionReviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4896,6 +5382,120 @@
           "files"
         ],
         "title": "Body_upload_documents_api_v1_documents_upload_post"
+      },
+      "CandidateRead": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "combined_score": {
+            "type": "number",
+            "title": "Combined Score"
+          },
+          "semantic_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Score"
+          },
+          "lexical_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical Score"
+          },
+          "positional_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positional Score"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceBand"
+          },
+          "preselected": {
+            "type": "boolean",
+            "title": "Preselected"
+          },
+          "suggested_relevance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelevanceGrade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text",
+          "rank",
+          "combined_score",
+          "semantic_score",
+          "lexical_score",
+          "positional_score",
+          "confidence",
+          "preselected",
+          "suggested_relevance"
+        ],
+        "title": "CandidateRead",
+        "description": "A proposed chunk, its scores and band; a proposal, never evidence by itself."
       },
       "ChunkComparisonRead": {
         "properties": {
@@ -5075,6 +5675,54 @@
         ],
         "title": "ChunkResultRead",
         "description": "The state of a chunking artefact.\n\nParsing and chunking state is a property of the artefact and not of the document;\nexposing it here rather than on `documents` keeps the API from inventing a status the\nmodel does not have."
+      },
+      "ChunkSearchHit": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text"
+        ],
+        "title": "ChunkSearchHit",
+        "description": "A chunk whose text contains the searched string, with the document it comes from."
       },
       "ChunkingConfigurationCompose": {
         "properties": {
@@ -5769,6 +6417,62 @@
         ],
         "title": "ComponentWithVersionsRead",
         "description": "A component together with its versions, so the UI builds its forms in one call."
+      },
+      "ConfidenceBand": {
+        "type": "string",
+        "enum": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "title": "ConfidenceBand",
+        "description": "How plausible a proposed chunk is, from its combined score."
+      },
+      "ConfidenceThresholds": {
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "preselect": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preselect"
+          }
+        },
+        "type": "object",
+        "title": "ConfidenceThresholds",
+        "description": "Bands of the combined score and the lexical score above which a chunk is ticked."
       },
       "CorpusCreate": {
         "properties": {
@@ -6903,6 +7607,39 @@
         ],
         "title": "EvidenceWrite",
         "description": "The whole evidence of a question under one chunking configuration.\n\n`to_review` saves a draft; `confirmed` needs chunks; `not_found` takes none. Both\ndecisions need `annotator`."
+      },
+      "ExcludedQuestionRead": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "missing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/UncoveredDocumentRead"
+            },
+            "type": "array",
+            "title": "Missing Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "text",
+          "reason",
+          "missing_documents"
+        ],
+        "title": "ExcludedQuestionRead",
+        "description": "A question left out of a job because its candidates cannot be computed."
       },
       "ExecutionDetailRead": {
         "properties": {
@@ -8591,6 +9328,36 @@
         "title": "MetricResultRead",
         "description": "Statistics of one metric for one variant, always with how many questions they rest on."
       },
+      "Page_ChunkSearchHit_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkSearchHit"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[ChunkSearchHit]"
+      },
       "Page_ChunkingConfigurationExpanded_": {
         "properties": {
           "items": {
@@ -8981,6 +9748,36 @@
         ],
         "title": "Page[QuestionRead]"
       },
+      "Page_QueueRowRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QueueRowRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[QueueRowRead]"
+      },
       "Page_RetrievalProfileRead_": {
         "properties": {
           "items": {
@@ -9040,6 +9837,36 @@
           "offset"
         ],
         "title": "Page[RunQuestionRead]"
+      },
+      "Page_TransferRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransferRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[TransferRead]"
       },
       "Page_VectorStoreProfileRead_": {
         "properties": {
@@ -9664,6 +10491,92 @@
         "title": "QuestionRead",
         "description": "A question with its gold documents and expected answers.\n\n`frozen` is true when a snapshot holds the question: it can then only be replaced.\n`evidence_status` is set when the listing was asked for a chunking configuration."
       },
+      "QuestionReviewRead": {
+        "properties": {
+          "transfer_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transfer Job Id"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preselected",
+              "to_review",
+              "no_candidates",
+              "pending",
+              "failed",
+              "decided"
+            ],
+            "title": "State"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status"
+          },
+          "target_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Configuration Id"
+          },
+          "reference": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceChunkRead"
+            },
+            "type": "array",
+            "title": "Reference"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateRead"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "next_question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Question Id",
+            "description": "The next question waiting for a decision, for a review in sequence."
+          }
+        },
+        "type": "object",
+        "required": [
+          "transfer_job_id",
+          "question_id",
+          "qa_set_id",
+          "text",
+          "state",
+          "evidence_status",
+          "target_configuration_id",
+          "reference",
+          "candidates",
+          "next_question_id"
+        ],
+        "title": "QuestionReviewRead",
+        "description": "A question of a job opened for review."
+      },
       "QuestionUpdate": {
         "properties": {
           "text": {
@@ -9785,6 +10698,125 @@
         ],
         "title": "QuestionVariantOutcomeRead",
         "description": "How one variant did on a question, on its first repetition, at both levels."
+      },
+      "QueueRowRead": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preselected",
+              "to_review",
+              "no_candidates",
+              "pending",
+              "failed",
+              "decided"
+            ],
+            "title": "State"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status"
+          },
+          "top_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Score"
+          },
+          "plausible": {
+            "type": "integer",
+            "title": "Plausible",
+            "description": "Candidates in the high or medium band."
+          },
+          "preselected": {
+            "type": "integer",
+            "title": "Preselected"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "text",
+          "state",
+          "evidence_status",
+          "top_score",
+          "plausible",
+          "preselected"
+        ],
+        "title": "QueueRowRead",
+        "description": "A question of a job in the review queue."
+      },
+      "ReferenceChunkRead": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "ordinal",
+          "page",
+          "text",
+          "relevance"
+        ],
+        "title": "ReferenceChunkRead",
+        "description": "A chunk confirmed in the source configuration: what the candidates are matched to."
       },
       "RelevanceGrade": {
         "type": "string",
@@ -10625,6 +11657,52 @@
         ],
         "title": "RuntimeType"
       },
+      "SignalWeights": {
+        "properties": {
+          "semantic": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic"
+          },
+          "lexical": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical"
+          },
+          "positional": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positional"
+          }
+        },
+        "type": "object",
+        "title": "SignalWeights",
+        "description": "Weights of the three signals; the defaults apply to those left out."
+      },
       "SnapshotDeclaredRead": {
         "properties": {
           "id": {
@@ -10678,6 +11756,396 @@
         ],
         "title": "SnapshotDeclaredRead",
         "description": "The snapshot a result was computed on: a metric is meaningless without it."
+      },
+      "TransferCreate": {
+        "properties": {
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "target_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Configuration Id"
+          },
+          "source_configuration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Configuration Id",
+            "description": "Where the evidence is already confirmed, to transfer it; absent, the job proposes chunks for questions that only have gold documents."
+          },
+          "embedding_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Profile Id",
+            "description": "Embedder of the semantic signal; defaults to the one of the newest ready index on the target configuration, and without any the signal is skipped."
+          },
+          "signal_weights": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalWeights"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence_thresholds": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceThresholds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "question_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Ids",
+            "description": "A subset of the set's questions."
+          },
+          "exclude_uncovered": {
+            "type": "boolean",
+            "title": "Exclude Uncovered",
+            "description": "Leave out the questions whose gold documents have no chunks in the target configuration, instead of refusing the job.",
+            "default": false
+          },
+          "concurrency": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concurrency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_set_id",
+          "target_configuration_id"
+        ],
+        "title": "TransferCreate",
+        "description": "A job proposing evidence chunks of a QA set in a chunking configuration."
+      },
+      "TransferCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "source_configuration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Configuration Id"
+          },
+          "target_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Configuration Id"
+          },
+          "embedding_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Profile Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransferStatus"
+          },
+          "signal_weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Signal Weights"
+          },
+          "confidence_thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Confidence Thresholds"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/TransferProgressRead"
+          },
+          "skipped": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Skipped",
+            "description": "Questions of the set not in the job, by reason."
+          },
+          "recall_ceiling": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Ceiling"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedQuestionRead"
+            },
+            "type": "array",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "qa_set_id",
+          "source_configuration_id",
+          "target_configuration_id",
+          "embedding_profile_id",
+          "status",
+          "signal_weights",
+          "confidence_thresholds",
+          "progress",
+          "recall_ceiling",
+          "error",
+          "created_at",
+          "excluded"
+        ],
+        "title": "TransferCreated",
+        "description": "A created job, with the questions excluded because they cannot be ranked."
+      },
+      "TransferProgressRead": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "ranked": {
+            "type": "integer",
+            "title": "Ranked"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "reviewed": {
+            "type": "integer",
+            "title": "Reviewed"
+          },
+          "confirmed": {
+            "type": "integer",
+            "title": "Confirmed"
+          },
+          "not_found": {
+            "type": "integer",
+            "title": "Not Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "ranked",
+          "failed",
+          "reviewed",
+          "confirmed",
+          "not_found"
+        ],
+        "title": "TransferProgressRead"
+      },
+      "TransferRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "source_configuration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Configuration Id"
+          },
+          "target_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Configuration Id"
+          },
+          "embedding_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Profile Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransferStatus"
+          },
+          "signal_weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Signal Weights"
+          },
+          "confidence_thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Confidence Thresholds"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/TransferProgressRead"
+          },
+          "skipped": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Skipped",
+            "description": "Questions of the set not in the job, by reason."
+          },
+          "recall_ceiling": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Ceiling"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "qa_set_id",
+          "source_configuration_id",
+          "target_configuration_id",
+          "embedding_profile_id",
+          "status",
+          "signal_weights",
+          "confidence_thresholds",
+          "progress",
+          "recall_ceiling",
+          "error",
+          "created_at"
+        ],
+        "title": "TransferRead",
+        "description": "A job with its live progress and the recall ceiling of its target configuration."
+      },
+      "TransferStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "TransferStatus",
+        "description": "Lifecycle of a job proposing evidence chunks in a chunking configuration."
       },
       "UncoveredDocumentRead": {
         "properties": {

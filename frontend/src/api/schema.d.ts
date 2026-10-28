@@ -773,6 +773,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chunks/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Chunks
+         * @description Find the chunks of a configuration containing a text, optionally in one corpus.
+         */
+        get: operations["search_chunks_api_v1_chunks_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chunks/{chunk_id}": {
         parameters: {
             query?: never;
@@ -1450,6 +1470,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Transfers
+         * @description List the jobs, newest first, optionally of one QA set.
+         */
+        get: operations["list_transfers_api_v1_transfers_get"];
+        put?: never;
+        /**
+         * Create Transfer
+         * @description Create a job proposing evidence chunks and start ranking them on the worker.
+         */
+        post: operations["create_transfer_api_v1_transfers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transfer_job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transfer
+         * @description Return a job with its progress, read live from the evidence.
+         */
+        get: operations["get_transfer_api_v1_transfers__transfer_job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transfer_job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Transfer
+         * @description Stop ranking; the candidates already written stay reviewable.
+         */
+        post: operations["cancel_transfer_api_v1_transfers__transfer_job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transfer_job_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Transfer
+         * @description Relaunch a job, ranking only the questions not ranked yet.
+         */
+        post: operations["resume_transfer_api_v1_transfers__transfer_job_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transfer_job_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Transfer Questions
+         * @description The review queue: questions waiting for a decision first, the near certain on top.
+         */
+        get: operations["list_transfer_questions_api_v1_transfers__transfer_job_id__questions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transfer_job_id}/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transfer Question
+         * @description A question opened for review, with its candidates best first.
+         *
+         *     The decision is not written here: it is the question's evidence, saved with
+         *     `PUT /questions/{question_id}/evidence` like any other annotation.
+         */
+        get: operations["get_transfer_question_api_v1_transfers__transfer_job_id__questions__question_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1507,6 +1654,44 @@ export interface components {
             files: string[];
             /** Corpus Id */
             corpus_id?: string | null;
+        };
+        /**
+         * CandidateRead
+         * @description A proposed chunk, its scores and band; a proposal, never evidence by itself.
+         */
+        CandidateRead: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string;
+            /** Rank */
+            rank: number;
+            /** Combined Score */
+            combined_score: number;
+            /** Semantic Score */
+            semantic_score: number | null;
+            /** Lexical Score */
+            lexical_score: number | null;
+            /** Positional Score */
+            positional_score: number | null;
+            confidence: components["schemas"]["ConfidenceBand"];
+            /** Preselected */
+            preselected: boolean;
+            suggested_relevance: components["schemas"]["RelevanceGrade"] | null;
         };
         /**
          * ChunkComparisonRead
@@ -1621,6 +1806,30 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * ChunkSearchHit
+         * @description A chunk whose text contains the searched string, with the document it comes from.
+         */
+        ChunkSearchHit: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string;
         };
         /**
          * ChunkingConfigurationCompose
@@ -1966,6 +2175,24 @@ export interface components {
             created_at: string;
             /** Versions */
             versions?: components["schemas"]["ComponentVersionRead"][];
+        };
+        /**
+         * ConfidenceBand
+         * @description How plausible a proposed chunk is, from its combined score.
+         * @enum {string}
+         */
+        ConfidenceBand: "high" | "medium" | "low";
+        /**
+         * ConfidenceThresholds
+         * @description Bands of the combined score and the lexical score above which a chunk is ticked.
+         */
+        ConfidenceThresholds: {
+            /** High */
+            high?: number | null;
+            /** Low */
+            low?: number | null;
+            /** Preselect */
+            preselect?: number | null;
         };
         /**
          * CorpusCreate
@@ -2556,6 +2783,23 @@ export interface components {
             chunks?: components["schemas"]["EvidenceChunkWrite"][];
             /** Annotator */
             annotator?: string | null;
+        };
+        /**
+         * ExcludedQuestionRead
+         * @description A question left out of a job because its candidates cannot be computed.
+         */
+        ExcludedQuestionRead: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /** Reason */
+            reason: string;
+            /** Missing Documents */
+            missing_documents: components["schemas"]["UncoveredDocumentRead"][];
         };
         /** ExecutionDetailRead */
         ExecutionDetailRead: {
@@ -3284,6 +3528,17 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** Page[ChunkSearchHit] */
+        Page_ChunkSearchHit_: {
+            /** Items */
+            items?: components["schemas"]["ChunkSearchHit"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[ChunkingConfigurationExpanded] */
         Page_ChunkingConfigurationExpanded_: {
             /** Items */
@@ -3427,6 +3682,17 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[QueueRowRead] */
+        Page_QueueRowRead_: {
+            /** Items */
+            items?: components["schemas"]["QueueRowRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[RetrievalProfileRead] */
         Page_RetrievalProfileRead_: {
             /** Items */
@@ -3442,6 +3708,17 @@ export interface components {
         Page_RunQuestionRead_: {
             /** Items */
             items?: components["schemas"]["RunQuestionRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[TransferRead] */
+        Page_TransferRead_: {
+            /** Items */
+            items?: components["schemas"]["TransferRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -3768,6 +4045,50 @@ export interface components {
             evidence_status?: ("not_reviewed" | "to_review" | "confirmed" | "not_found") | null;
         };
         /**
+         * QuestionReviewRead
+         * @description A question of a job opened for review.
+         */
+        QuestionReviewRead: {
+            /**
+             * Transfer Job Id
+             * Format: uuid
+             */
+            transfer_job_id: string;
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /** Text */
+            text: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "preselected" | "to_review" | "no_candidates" | "pending" | "failed" | "decided";
+            /** Evidence Status */
+            evidence_status: string;
+            /**
+             * Target Configuration Id
+             * Format: uuid
+             */
+            target_configuration_id: string;
+            /** Reference */
+            reference: components["schemas"]["ReferenceChunkRead"][];
+            /** Candidates */
+            candidates: components["schemas"]["CandidateRead"][];
+            /**
+             * Next Question Id
+             * @description The next question waiting for a decision, for a review in sequence.
+             */
+            next_question_id: string | null;
+        };
+        /**
          * QuestionUpdate
          * @description Changes to a question not frozen yet; an omitted field is left as it is.
          *
@@ -3802,6 +4123,60 @@ export interface components {
             chunk_first_relevant_rank?: number | null;
             /** Chunk Excluded Reason */
             chunk_excluded_reason?: string | null;
+        };
+        /**
+         * QueueRowRead
+         * @description A question of a job in the review queue.
+         */
+        QueueRowRead: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Text */
+            text: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "preselected" | "to_review" | "no_candidates" | "pending" | "failed" | "decided";
+            /** Evidence Status */
+            evidence_status: string;
+            /** Top Score */
+            top_score: number | null;
+            /**
+             * Plausible
+             * @description Candidates in the high or medium band.
+             */
+            plausible: number;
+            /** Preselected */
+            preselected: number;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * ReferenceChunkRead
+         * @description A chunk confirmed in the source configuration: what the candidates are matched to.
+         */
+        ReferenceChunkRead: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string;
+            relevance: components["schemas"]["RelevanceGrade"];
         };
         /**
          * RelevanceGrade
@@ -4163,6 +4538,18 @@ export interface components {
          */
         RuntimeType: "builtin" | "http";
         /**
+         * SignalWeights
+         * @description Weights of the three signals; the defaults apply to those left out.
+         */
+        SignalWeights: {
+            /** Semantic */
+            semantic?: number | null;
+            /** Lexical */
+            lexical?: number | null;
+            /** Positional */
+            positional?: number | null;
+        };
+        /**
          * SnapshotDeclaredRead
          * @description The snapshot a result was computed on: a metric is meaningless without it.
          */
@@ -4181,6 +4568,172 @@ export interface components {
             /** Corpus Id */
             corpus_id?: string | null;
         };
+        /**
+         * TransferCreate
+         * @description A job proposing evidence chunks of a QA set in a chunking configuration.
+         */
+        TransferCreate: {
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Target Configuration Id
+             * Format: uuid
+             */
+            target_configuration_id: string;
+            /**
+             * Source Configuration Id
+             * @description Where the evidence is already confirmed, to transfer it; absent, the job proposes chunks for questions that only have gold documents.
+             */
+            source_configuration_id?: string | null;
+            /**
+             * Embedding Profile Id
+             * @description Embedder of the semantic signal; defaults to the one of the newest ready index on the target configuration, and without any the signal is skipped.
+             */
+            embedding_profile_id?: string | null;
+            signal_weights?: components["schemas"]["SignalWeights"] | null;
+            confidence_thresholds?: components["schemas"]["ConfidenceThresholds"] | null;
+            /**
+             * Question Ids
+             * @description A subset of the set's questions.
+             */
+            question_ids?: string[] | null;
+            /**
+             * Exclude Uncovered
+             * @description Leave out the questions whose gold documents have no chunks in the target configuration, instead of refusing the job.
+             * @default false
+             */
+            exclude_uncovered: boolean;
+            /** Concurrency */
+            concurrency?: number | null;
+        };
+        /**
+         * TransferCreated
+         * @description A created job, with the questions excluded because they cannot be ranked.
+         */
+        TransferCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /** Source Configuration Id */
+            source_configuration_id: string | null;
+            /**
+             * Target Configuration Id
+             * Format: uuid
+             */
+            target_configuration_id: string;
+            /** Embedding Profile Id */
+            embedding_profile_id: string | null;
+            status: components["schemas"]["TransferStatus"];
+            /** Signal Weights */
+            signal_weights: {
+                [key: string]: number;
+            };
+            /** Confidence Thresholds */
+            confidence_thresholds: {
+                [key: string]: number;
+            };
+            progress: components["schemas"]["TransferProgressRead"];
+            /**
+             * Skipped
+             * @description Questions of the set not in the job, by reason.
+             */
+            skipped?: {
+                [key: string]: number;
+            };
+            /** Recall Ceiling */
+            recall_ceiling: number | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Excluded */
+            excluded: components["schemas"]["ExcludedQuestionRead"][];
+        };
+        /** TransferProgressRead */
+        TransferProgressRead: {
+            /** Total */
+            total: number;
+            /** Ranked */
+            ranked: number;
+            /** Failed */
+            failed: number;
+            /** Reviewed */
+            reviewed: number;
+            /** Confirmed */
+            confirmed: number;
+            /** Not Found */
+            not_found: number;
+        };
+        /**
+         * TransferRead
+         * @description A job with its live progress and the recall ceiling of its target configuration.
+         */
+        TransferRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /** Source Configuration Id */
+            source_configuration_id: string | null;
+            /**
+             * Target Configuration Id
+             * Format: uuid
+             */
+            target_configuration_id: string;
+            /** Embedding Profile Id */
+            embedding_profile_id: string | null;
+            status: components["schemas"]["TransferStatus"];
+            /** Signal Weights */
+            signal_weights: {
+                [key: string]: number;
+            };
+            /** Confidence Thresholds */
+            confidence_thresholds: {
+                [key: string]: number;
+            };
+            progress: components["schemas"]["TransferProgressRead"];
+            /**
+             * Skipped
+             * @description Questions of the set not in the job, by reason.
+             */
+            skipped?: {
+                [key: string]: number;
+            };
+            /** Recall Ceiling */
+            recall_ceiling: number | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * TransferStatus
+         * @description Lifecycle of a job proposing evidence chunks in a chunking configuration.
+         * @enum {string}
+         */
+        TransferStatus: "pending" | "running" | "completed" | "failed" | "cancelled";
         /** UncoveredDocumentRead */
         UncoveredDocumentRead: {
             /**
@@ -6033,6 +6586,41 @@ export interface operations {
             };
         };
     };
+    search_chunks_api_v1_chunks_search_get: {
+        parameters: {
+            query: {
+                chunking_configuration_id: string;
+                q: string;
+                corpus_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ChunkSearchHit_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_chunk_api_v1_chunks__chunk_id__get: {
         parameters: {
             query?: never;
@@ -7344,6 +7932,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuestionDrilldownRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_transfers_api_v1_transfers_get: {
+        parameters: {
+            query?: {
+                qa_set_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TransferRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_transfer_api_v1_transfers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_transfer_api_v1_transfers__transfer_job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_transfer_api_v1_transfers__transfer_job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_transfer_api_v1_transfers__transfer_job_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_transfer_questions_api_v1_transfers__transfer_job_id__questions_get: {
+        parameters: {
+            query?: {
+                state?: ("preselected" | "to_review" | "no_candidates" | "pending" | "failed" | "decided") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                transfer_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_QueueRowRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_transfer_question_api_v1_transfers__transfer_job_id__questions__question_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_job_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionReviewRead"];
                 };
             };
             /** @description Validation Error */

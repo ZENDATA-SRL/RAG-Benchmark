@@ -108,3 +108,12 @@ export type FileOutcome = "imported" | "skipped_duplicate" | "skipped_unsupporte
 
 export type DocumentStatus = "pending" | "fetching" | "stored" | "failed";
 export type ArtifactStatus = "pending" | "running" | "ready" | "failed";
+
+export type TransferCreate = components["schemas"]["TransferCreate"];
+export type TransferRead = components["schemas"]["TransferRead"];
+export type TransferCreated = components["schemas"]["TransferCreated"];
+export type QueueRowRead = components["schemas"]["QueueRowRead"];
+export type QueueState = QueueRowRead["state"];
+export type CandidateRead = components["schemas"]["CandidateRead"];
+export type QuestionReviewRead = components["schemas"]["QuestionReviewRead"];
+export type ChunkSearchHit = components["schemas"]["ChunkSearchHit"];

@@ -61,6 +61,13 @@ import type {
   VectorStoreProfileCreate,
   VectorStoreProfileCreated,
   VectorStoreProfileRead,
+  ChunkSearchHit,
+  QueueRowRead,
+  QueueState,
+  QuestionReviewRead,
+  TransferCreate,
+  TransferCreated,
+  TransferRead,
 } from "./types";
 
 export const corporaApi = {
@@ -186,6 +193,29 @@ export const inspectionApi = {
       configurations: configurationIds.join(","),
       limit: 200,
     }),
+  search: (configurationId: string, text: string, corpusId?: string) =>
+    api.get<Page<ChunkSearchHit>>("/api/v1/chunks/search", {
+      chunking_configuration_id: configurationId,
+      corpus_id: corpusId,
+      q: text,
+      limit: 50,
+    }),
+};
+
+export const transfersApi = {
+  create: (body: TransferCreate) => api.post<TransferCreated>("/api/v1/transfers", body),
+  list: (qaSetId?: string) =>
+    api.get<Page<TransferRead>>("/api/v1/transfers", { qa_set_id: qaSetId, limit: 50 }),
+  get: (id: string) => api.get<TransferRead>(`/api/v1/transfers/${id}`),
+  cancel: (id: string) => api.post<TransferRead>(`/api/v1/transfers/${id}/cancel`),
+  resume: (id: string) => api.post<TransferRead>(`/api/v1/transfers/${id}/resume`, {}),
+  questions: (id: string, state?: QueueState) =>
+    api.get<Page<QueueRowRead>>(`/api/v1/transfers/${id}/questions`, {
+      state,
+      limit: 200,
+    }),
+  question: (id: string, questionId: string) =>
+    api.get<QuestionReviewRead>(`/api/v1/transfers/${id}/questions/${questionId}`),
 };
 
 export const qaSetsApi = {

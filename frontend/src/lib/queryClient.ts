@@ -77,6 +77,13 @@ export const queryKeys = {
     ["experiments", experimentId, "runs", runId, "questions"] as const,
   runQuestion: (experimentId: string, runId: string, questionId: string) =>
     ["experiments", experimentId, "runs", runId, "questions", questionId] as const,
+  transfers: (qaSetId: string) => ["transfers", "list", qaSetId] as const,
+  transfer: (id: string) => ["transfers", id] as const,
+  transferQueue: (id: string, state: string) => ["transfers", id, "queue", state] as const,
+  transferQuestion: (id: string, questionId: string) =>
+    ["transfers", id, "questions", questionId] as const,
+  chunkSearch: (configurationId: string, text: string) =>
+    ["chunks", "search", configurationId, text] as const,
   chunks: (documentId: string, configurationId: string) =>
     ["chunks", documentId, configurationId] as const,
   parse: (documentId: string, profileId: string) => ["parse", documentId, profileId] as const,
