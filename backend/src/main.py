@@ -32,6 +32,7 @@ from src.qa_sets.router import router as qa_sets_router
 from src.retrieval.router import router as retrieval_router
 from src.settings import get_settings
 from src.sources.seed import seed_upload_source
+from src.transfers.router import router as transfers_router
 
 API_PREFIX = "/api/v1"
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(qa_sets_router, prefix=API_PREFIX)
     app.include_router(questions_router, prefix=API_PREFIX)
     app.include_router(experiments_router, prefix=API_PREFIX)
+    app.include_router(transfers_router, prefix=API_PREFIX)
 
     return app
 

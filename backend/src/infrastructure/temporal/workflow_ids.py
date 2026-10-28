@@ -12,6 +12,7 @@ from src.core.hashing import composition_hash
 MATERIALIZE_CHUNKS_WORKFLOW = "MaterializeChunksWorkflow"
 INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
 RUN_EXPERIMENT_WORKFLOW = "RunExperimentWorkflow"
+TRANSFER_DATASET_WORKFLOW = "TransferDatasetWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"
 EMBEDDING_TASK_QUEUE = "embedding"
 EXPERIMENTS_TASK_QUEUE = "experiments"
@@ -73,3 +74,8 @@ def run_variant_workflow_id(
 ) -> str:
     """Deterministic id of the `RunVariantWorkflow` child of one variant of a run."""
     return f"run-variant-{run_id}-{variant_id}"
+
+
+def transfer_dataset_workflow_id(transfer_job_id: uuid.UUID | str) -> str:
+    """Deterministic id of a `TransferDatasetWorkflow`, reused when the job is resumed."""
+    return f"transfer-dataset-{transfer_job_id}"

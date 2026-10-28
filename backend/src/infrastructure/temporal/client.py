@@ -78,7 +78,10 @@ class TemporalWorkflowClient(WorkflowClient):
         try:
             await handle.cancel()
         except RPCError as error:
-            if error.status in (RPCStatusCode.NOT_FOUND, RPCStatusCode.FAILED_PRECONDITION):
+            if error.status in (
+                RPCStatusCode.NOT_FOUND,
+                RPCStatusCode.FAILED_PRECONDITION,
+            ):
                 return False
             raise
         return True

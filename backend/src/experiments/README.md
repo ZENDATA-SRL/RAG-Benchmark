@@ -118,6 +118,12 @@ call is repeated), rewrites the aggregates and the record; `409 run_in_progress`
 is pending or running. Scoring it twice on the same evidence gives the same numbers and the
 same fingerprint.
 
+An experiment does not wait for the evidence to be complete: on a configuration whose
+evidence is half reviewed, for instance during a transfer, the chunk metrics count the
+confirmed questions and every other one is excluded with `evidence_not_reviewed` or
+`evidence_not_found`, so the results say on how much they rest. The wizard shows the
+evidence of each configuration of the chosen variants for the same reason.
+
 `seed.py` registers the metric definitions and the two deterministic evaluators
 (`document_level_retrieval`, `chunk_level_retrieval`) at startup and again, idempotently,
 before evaluating, so a worker never depends on the API having started.

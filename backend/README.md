@@ -50,12 +50,14 @@ was `created` or reused.
 | `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
 | `qa_sets/` | Question sets: authoring of questions, gold documents, expected answers, evidence chunks confirmed per chunking configuration, CSV/JSONL import and export, immutable snapshots |
 | `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document- and chunk-level metrics, re-evaluation, results grouped by chunking configuration |
+| `transfers/` | Suggested evidence chunks: jobs that rank the chunks of each question's gold documents in a configuration (from the question and answer, or from the evidence confirmed in another configuration) on Temporal, and their review queue |
 
 The pipeline modules depend on each other in one direction only:
 
 ```
 pipelines ← artifacts ← materializations
           ↖ indexes ← retrieval ← experiments → qa_sets
+                          retrieval ← transfers → qa_sets
 ```
 
 `retrieval` also reads `experiments.repository` to record the calls of an execution.
@@ -218,12 +220,22 @@ freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`
 
 Metrics, guards and the run lifecycle are described in [`src/experiments/README.md`](src/experiments/README.md).
 
+### `transfers/`
+
+| Route | Purpose |
+|---|---|
+| `POST /transfers`, `GET /transfers[/{id}]` | Create a job ranking the candidate chunks of a set's undecided questions in a target configuration (guard: questions whose gold documents have no chunks there are listed and excluded only explicitly), list and read with live progress and recall ceiling |
+| `POST /transfers/{id}/cancel`, `POST /transfers/{id}/resume` | Stop ranking; relaunch ranking only the questions left |
+| `GET /transfers/{id}/questions[?state=]`, `GET /transfers/{id}/questions/{question_id}` | The review queue, and one question with its candidates and the next one waiting; the decision is written with `PUT /questions/{id}/evidence` |
+
+Signals, bands and pre-selection are described in [`src/transfers/README.md`](src/transfers/README.md).
+
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
 `retrieval_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
 `chunks`, `index_builds`, `materialization_runs`, `qa_sets`, `questions`, `expected_answers`, `gold_documents`,
-`evidence_links`, `evidence_link_chunks`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
+`evidence_links`, `evidence_link_chunks`, `transfer_jobs`, `transfer_questions`, `transfer_candidates`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
 `retrieval_calls`, `retrieval_hits`, `metric_definitions`, `evaluators`, `evaluations`,
 `metric_aggregates`. Profiles and configurations are in
 `pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
@@ -258,6 +270,7 @@ the Temporal README.
 POST /qa-sets                         a question set (optionally with its origin corpus)
 POST /qa-sets/{id}/import             CSV/JSONL: question, answer, gold files, tags → summary of every row
 POST /qa-sets/{id}/questions          or write the questions one by one
+POST /transfers                       or have the worker rank the likely chunks first, then review them in a queue
 PUT  /questions/{id}/evidence         confirm the chunks that hold the answer, per chunking configuration
 POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (same questions, same snapshot)
 POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile)
