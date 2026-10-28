@@ -40,7 +40,6 @@ export function ConfigurationWizard() {
   const [chunkerId, setChunkerId] = useState<string | null>(null);
   const [chunkerVersionId, setChunkerVersionId] = useState<string | null>(null);
   const [chunkerParams, setChunkerParams] = useState<Record<string, unknown> | null>(null);
-  const [name, setName] = useState("");
   const [composed, setComposed] = useState<ChunkingConfigurationComposed | null>(null);
 
   const components = useQuery({
@@ -73,15 +72,12 @@ export function ConfigurationWizard() {
       delete rest.overlap;
       return configurationsApi.compose({
         parsing_component_version_id: parserVersion?.id ?? "",
-        parsing_profile_name: `${parser?.key ?? "parser"} ${parserVersion?.version ?? ""}`.trim(),
         parsing_params: effectiveParserParams,
         chunking_component_version_id: chunkerVersion?.id ?? "",
-        chunking_profile_name: `${chunker?.key ?? "chunker"}${chunkSize ?? ""}`,
         chunking_strategy: strategyOf(chunker),
         chunk_size: chunkSize,
         overlap,
         chunking_params: rest,
-        name: name.trim() || null,
       });
     },
     onSuccess: (result) => {
@@ -185,17 +181,9 @@ export function ConfigurationWizard() {
                 {typeof effectiveChunkerParams.chunk_size === "number" ? ` · size ${effectiveChunkerParams.chunk_size}` : ""}
                 {typeof effectiveChunkerParams.overlap === "number" ? ` · overlap ${effectiveChunkerParams.overlap}` : ""}
               </p>
-              <label className="block">
-                <span className="mb-1 block font-medium">Name (optional)</span>
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full rounded-md border border-line bg-paper px-3 py-1.5"
-                  placeholder="Shown if this pair is new"
-                />
-              </label>
               <p className="text-xs text-ink-muted">
-                The name is not part of identity. Asking twice with different names returns the same configuration.
+                Named after the parser and the chunker with their versions, chunk size and overlap.
+                Asking twice for the same pair returns the same configuration.
               </p>
             </div>
           ) : null}

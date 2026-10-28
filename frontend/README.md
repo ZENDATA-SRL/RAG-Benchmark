@@ -28,7 +28,8 @@ with the column names kept visible, instead of stretching the page.
 - **Corpus page → Freeze snapshot**: every stored document, or the selected ones. The
   corpus page lists its snapshots, each with a *Build index* shortcut.
 - **Indexes page** (`/indexes`): embedding and vector store profiles (forms generated from
-  the registry schema, like the configuration wizard), index builds with their status
+  the registry schema, like the configuration wizard; no name field, since the server names
+  profiles, configurations, index builds and variants after what they are), index builds with their status
   (polled while one is running), a *Start/Restart* action and a detail view with the chunk
   count and the vector store collection.
 
@@ -79,7 +80,8 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   server's message.
 - **Experiment wizard** (`features/experiments/`): corpus snapshot, QA set snapshot, then
   variants. Only `ready` index builds of the chosen corpus snapshot are offered, each crossed
-  with the chosen retrieval profiles; one variant can be the baseline. The coverage check runs
+  with the chosen retrieval profiles and listed by index build and retrieval profile until
+  the server names them; one variant can be the baseline. The coverage check runs
   as soon as both snapshots are chosen: if some questions have gold documents outside the
   corpus snapshot they are listed, and *Create* stays disabled until they are explicitly
   excluded from the metrics. `variants_outside_snapshot` and `gold_coverage_choice_required`

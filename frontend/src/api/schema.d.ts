@@ -1844,8 +1844,6 @@ export interface components {
              * Format: uuid
              */
             parsing_component_version_id: string;
-            /** Parsing Profile Name */
-            parsing_profile_name: string;
             /** Parsing Params */
             parsing_params?: {
                 [key: string]: unknown;
@@ -1855,8 +1853,6 @@ export interface components {
              * Format: uuid
              */
             chunking_component_version_id: string;
-            /** Chunking Profile Name */
-            chunking_profile_name: string;
             /** Chunking Strategy */
             chunking_strategy: string;
             /** Chunk Size */
@@ -1867,8 +1863,6 @@ export interface components {
             chunking_params?: {
                 [key: string]: unknown;
             };
-            /** Name */
-            name?: string | null;
         };
         /**
          * ChunkingConfigurationComposed
@@ -1929,8 +1923,6 @@ export interface components {
              * Format: uuid
              */
             chunking_profile_id: string;
-            /** Name */
-            name?: string | null;
         };
         /**
          * ChunkingConfigurationCreated
@@ -1986,8 +1978,6 @@ export interface components {
          *     every chunker has and the ones a listing has to show without opening a JSON blob.
          */
         ChunkingProfileCreate: {
-            /** Name */
-            name: string;
             /**
              * Component Version Id
              * Format: uuid
@@ -2570,8 +2560,6 @@ export interface components {
          * @description Payload creating an embedding profile.
          */
         EmbeddingProfileCreate: {
-            /** Name */
-            name: string;
             /**
              * Component Version Id
              * Format: uuid
@@ -3208,8 +3196,6 @@ export interface components {
              * Format: uuid
              */
             vector_store_profile_id: string;
-            /** Name */
-            name?: string | null;
             /** External Index Ref */
             external_index_ref?: string | null;
         };
@@ -3752,8 +3738,6 @@ export interface components {
          * @description Payload creating a parsing profile.
          */
         ParsingProfileCreate: {
-            /** Name */
-            name: string;
             /**
              * Component Version Id
              * Format: uuid
@@ -4217,8 +4201,6 @@ export interface components {
          *     Only `dense` is executable today; the other strategies are refused with a `422`.
          */
         RetrievalProfileCreate: {
-            /** Name */
-            name: string;
             /** Top K */
             top_k: number;
             /** @default dense */
@@ -4822,8 +4804,6 @@ export interface components {
          * @description A variant: an index build searched under a retrieval profile.
          */
         VariantCreate: {
-            /** Name */
-            name: string;
             /**
              * Index Build Id
              * Format: uuid
@@ -4929,8 +4909,6 @@ export interface components {
          * @description Payload creating a vector store profile.
          */
         VectorStoreProfileCreate: {
-            /** Name */
-            name: string;
             /**
              * Component Version Id
              * Format: uuid

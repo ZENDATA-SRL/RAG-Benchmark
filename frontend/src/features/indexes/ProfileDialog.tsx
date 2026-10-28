@@ -19,7 +19,6 @@ const titles: Record<ProfileKind, string> = {
 export function ProfileDialog({ kind, onClose }: { kind: ProfileKind; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [componentId, setComponentId] = useState<string | null>(null);
-  const [name, setName] = useState("");
   const [dimensions, setDimensions] = useState("");
   const [params, setParams] = useState<Record<string, unknown> | null>(null);
 
@@ -37,7 +36,7 @@ export function ProfileDialog({ kind, onClose }: { kind: ProfileKind; onClose: (
 
   const create = useMutation({
     mutationFn: async () => {
-      const common = { name: name.trim(), component_version_id: version?.id ?? "" };
+      const common = { component_version_id: version?.id ?? "" };
       if (kind === "embedder") {
         const result = await embeddingProfilesApi.create({
           ...common,
@@ -92,15 +91,6 @@ export function ProfileDialog({ kind, onClose }: { kind: ProfileKind; onClose: (
                 ))}
               </select>
             </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Name</span>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                maxLength={200}
-                className="w-full rounded-md border border-line bg-paper px-3 py-1.5"
-              />
-            </label>
             {kind === "embedder" ? (
               <label className="block text-sm">
                 <span className="mb-1 block font-medium">Dimensions (optional)</span>
@@ -124,8 +114,8 @@ export function ProfileDialog({ kind, onClose }: { kind: ProfileKind; onClose: (
           </div>
 
           <p className="text-xs text-ink-muted">
-            Profiles are deduplicated by their parameters, not by name: the same parameters return
-            the existing profile.
+            The profile is named after the component, its version and the parameters that matter
+            (model, dimensions, distance). The same parameters return the existing profile.
           </p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>
@@ -133,7 +123,7 @@ export function ProfileDialog({ kind, onClose }: { kind: ProfileKind; onClose: (
             </Button>
             <Button
               type="button"
-              disabled={!name.trim() || !version || create.isPending}
+              disabled={!version || create.isPending}
               onClick={() => create.mutate()}
             >
               Create

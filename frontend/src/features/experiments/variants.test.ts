@@ -32,15 +32,20 @@ describe("selectable builds", () => {
 
 describe("crossVariants", () => {
   it("crosses builds with profiles and marks one baseline", () => {
-    const variants = crossVariants([build("a", "s1", "ready")], PROFILES, "build-a · top10");
+    const variants = crossVariants([build("a", "s1", "ready")], PROFILES, "a:p2");
     expect(variants).toHaveLength(2);
-    expect(variants.map((item) => item.is_baseline)).toEqual([false, true]);
-    expect(variants[0]).toMatchObject({ index_build_id: "a", retrieval_profile_id: "p1" });
+    expect(variants.map((item) => item.variant.is_baseline)).toEqual([false, true]);
+    expect(variants[0].variant).toEqual({
+      index_build_id: "a",
+      retrieval_profile_id: "p1",
+      is_baseline: false,
+    });
+    expect(variants[0].label).toBe("build-a · top5");
   });
 
   it("has no baseline when none is chosen", () => {
     const variants = crossVariants([build("a", "s1", "ready")], PROFILES, null);
-    expect(variants.some((item) => item.is_baseline)).toBe(false);
+    expect(variants.some((item) => item.variant.is_baseline)).toBe(false);
   });
 });
 

@@ -43,7 +43,7 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
   const [qaSnapshotId, setQaSnapshotId] = useState("");
   const [buildIds, setBuildIds] = useState<string[]>([]);
   const [profileIds, setProfileIds] = useState<string[]>([]);
-  const [baselineName, setBaselineName] = useState<string | null>(null);
+  const [baselineKey, setBaselineKey] = useState<string | null>(null);
   const [repetitions, setRepetitions] = useState(1);
   const [excludeUncovered, setExcludeUncovered] = useState(false);
 
@@ -82,7 +82,7 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
   const chosenProfiles = (profiles.data?.items ?? []).filter((profile) =>
     profileIds.includes(profile.id),
   );
-  const variants = crossVariants(chosenBuilds, chosenProfiles, baselineName);
+  const variants = crossVariants(chosenBuilds, chosenProfiles, baselineKey);
   const uncovered = coverage.data?.uncovered_count ?? null;
 
   const create = useMutation({
@@ -94,7 +94,7 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
         qa_set_snapshot_id: qaSnapshotId,
         repetitions,
         uncovered_policy: uncovered ? "exclude" : null,
-        variants,
+        variants: variants.map((choice) => choice.variant),
       }),
     meta: { silent: true },
     onSuccess: async (created) => {
@@ -308,21 +308,21 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
         {variants.length > 0 ? (
           <fieldset className="text-sm" data-testid="variant-list">
             <legend className="mb-1 font-medium">Variants (baseline)</legend>
-            {variants.map((variant) => (
-              <label key={variant.name} className="flex items-center gap-2 py-0.5">
+            {variants.map((choice) => (
+              <label key={choice.key} className="flex items-center gap-2 py-0.5">
                 <input
                   type="radio"
                   name="baseline"
-                  checked={variant.is_baseline}
-                  onChange={() => setBaselineName(variant.name)}
+                  checked={choice.variant.is_baseline}
+                  onChange={() => setBaselineKey(choice.key)}
                 />
-                {variant.name}
+                {choice.label}
               </label>
             ))}
             <button
               type="button"
               className="mt-1 text-xs text-rust hover:underline"
-              onClick={() => setBaselineName(null)}
+              onClick={() => setBaselineKey(null)}
             >
               No baseline
             </button>

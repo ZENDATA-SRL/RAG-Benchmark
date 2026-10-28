@@ -17,13 +17,11 @@ const SNIPPET_CHARS = 280;
 
 function NewProfileForm({ first, onCreated }: { first: boolean; onCreated: (id: string) => void }) {
   const queryClient = useQueryClient();
-  const [name, setName] = useState("");
   const [fields, setFields] = useState<Record<string, unknown>>(() => defaultsFromSchema(schema));
 
   const create = useMutation({
     mutationFn: () =>
       retrievalProfilesApi.create({
-        name: name.trim(),
         strategy: fields.strategy as RetrievalStrategy,
         top_k: Number(fields.top_k),
         score_threshold: typeof fields.score_threshold === "number" ? fields.score_threshold : null,
@@ -46,20 +44,11 @@ function NewProfileForm({ first, onCreated }: { first: boolean; onCreated: (id: 
             : "How many chunks to return, and how good they must be."}
         </p>
       </div>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Name</span>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={200}
-          className="w-full rounded-md border border-line bg-paper-raised px-3 py-1.5"
-        />
-      </label>
       <SchemaForm schema={schema} formData={fields} onChange={setFields} />
       <div className="flex justify-end">
         <Button
           type="button"
-          disabled={!name.trim() || !fields.top_k || !fields.strategy || create.isPending}
+          disabled={!fields.top_k || !fields.strategy || create.isPending}
           onClick={() => create.mutate()}
         >
           Create profile

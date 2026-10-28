@@ -5731,12 +5731,6 @@
             "format": "uuid",
             "title": "Parsing Component Version Id"
           },
-          "parsing_profile_name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Parsing Profile Name"
-          },
           "parsing_params": {
             "additionalProperties": true,
             "type": "object",
@@ -5746,12 +5740,6 @@
             "type": "string",
             "format": "uuid",
             "title": "Chunking Component Version Id"
-          },
-          "chunking_profile_name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Chunking Profile Name"
           },
           "chunking_strategy": {
             "type": "string",
@@ -5787,27 +5775,12 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Chunking Params"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
           }
         },
         "type": "object",
         "required": [
           "parsing_component_version_id",
-          "parsing_profile_name",
           "chunking_component_version_id",
-          "chunking_profile_name",
           "chunking_strategy"
         ],
         "title": "ChunkingConfigurationCompose",
@@ -5909,19 +5882,6 @@
             "type": "string",
             "format": "uuid",
             "title": "Chunking Profile Id"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
           }
         },
         "type": "object",
@@ -6014,12 +5974,6 @@
       },
       "ChunkingProfileCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "component_version_id": {
             "type": "string",
             "format": "uuid",
@@ -6063,7 +6017,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "component_version_id",
           "strategy"
         ],
@@ -7171,12 +7124,6 @@
       },
       "EmbeddingProfileCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "component_version_id": {
             "type": "string",
             "format": "uuid",
@@ -7208,7 +7155,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "component_version_id",
           "modality"
         ],
@@ -8607,19 +8553,6 @@
             "format": "uuid",
             "title": "Vector Store Profile Id"
           },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
           "external_index_ref": {
             "anyOf": [
               {
@@ -9919,12 +9852,6 @@
       },
       "ParsingProfileCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "component_version_id": {
             "type": "string",
             "format": "uuid",
@@ -9938,7 +9865,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "component_version_id"
         ],
         "title": "ParsingProfileCreate",
@@ -10890,12 +10816,6 @@
       },
       "RetrievalProfileCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "top_k": {
             "type": "integer",
             "maximum": 200.0,
@@ -10920,7 +10840,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "top_k"
         ],
         "title": "RetrievalProfileCreate",
@@ -12333,12 +12252,6 @@
       },
       "VariantCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "index_build_id": {
             "type": "string",
             "format": "uuid",
@@ -12357,7 +12270,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "index_build_id",
           "retrieval_profile_id"
         ],
@@ -12523,12 +12435,6 @@
       },
       "VectorStoreProfileCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "component_version_id": {
             "type": "string",
             "format": "uuid",
@@ -12542,7 +12448,6 @@
         },
         "type": "object",
         "required": [
-          "name",
           "component_version_id"
         ],
         "title": "VectorStoreProfileCreate",

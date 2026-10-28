@@ -40,7 +40,6 @@ export function IndexBuildDialog({
   const [configurationId, setConfigurationId] = useState("");
   const [embeddingId, setEmbeddingId] = useState("");
   const [vectorStoreId, setVectorStoreId] = useState("");
-  const [name, setName] = useState("");
   const [startNow, setStartNow] = useState(true);
 
   const corpora = useQuery({ queryKey: queryKeys.corpora, queryFn: corporaApi.list });
@@ -76,7 +75,6 @@ export function IndexBuildDialog({
         chunking_configuration_id: configuration,
         embedding_profile_id: embedding,
         vector_store_profile_id: vectorStore,
-        name: name.trim() || null,
       });
       const launch = startNow ? await indexBuildsApi.start(result.index_build.id) : null;
       return { result, launch };
@@ -189,15 +187,6 @@ export function IndexBuildDialog({
                 </option>
               ))}
             </select>
-          </Field>
-          <Field label="Name (optional)">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={200}
-              placeholder="Derived from snapshot, configuration and embedder"
-              className={selectClass}
-            />
           </Field>
         </div>
 
