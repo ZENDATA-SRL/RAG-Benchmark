@@ -84,7 +84,6 @@ class RetrievalProfileRead(BaseModel):
 class ParsingProfileCreate(BaseModel):
     """Payload creating a parsing profile."""
 
-    name: str = Field(min_length=1, max_length=200)
     component_version_id: uuid.UUID
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -96,7 +95,6 @@ class ChunkingProfileCreate(BaseModel):
     every chunker has and the ones a listing has to show without opening a JSON blob.
     """
 
-    name: str = Field(min_length=1, max_length=200)
     component_version_id: uuid.UUID
     strategy: str = Field(min_length=1, max_length=100)
     chunk_size: int | None = Field(default=None, ge=1)
@@ -107,7 +105,6 @@ class ChunkingProfileCreate(BaseModel):
 class EmbeddingProfileCreate(BaseModel):
     """Payload creating an embedding profile."""
 
-    name: str = Field(min_length=1, max_length=200)
     component_version_id: uuid.UUID
     modality: str = Field(min_length=1, max_length=100)
     dimensions: int | None = Field(default=None, ge=1)
@@ -117,7 +114,6 @@ class EmbeddingProfileCreate(BaseModel):
 class VectorStoreProfileCreate(BaseModel):
     """Payload creating a vector store profile."""
 
-    name: str = Field(min_length=1, max_length=200)
     component_version_id: uuid.UUID
     index_params: dict[str, Any] = Field(default_factory=dict)
 
@@ -128,7 +124,6 @@ class RetrievalProfileCreate(BaseModel):
     Only `dense` is executable today; the other strategies are refused with a `422`.
     """
 
-    name: str = Field(min_length=1, max_length=200)
     top_k: int = Field(ge=1, le=200)
     strategy: RetrievalStrategy = RetrievalStrategy.DENSE
     score_threshold: float | None = None
@@ -137,10 +132,9 @@ class RetrievalProfileCreate(BaseModel):
 class DeduplicatedRead(BaseModel):
     """Base for responses that must confess a get-or-create.
 
-    `created` is not decoration: the profile tables deduplicate on the hash of the
-    behaviour and exclude the name from it, so asking for a profile that already
-    exists under another name returns the original row. Saying so is the only way the user
-    can understand why the name they typed is not the one they got back.
+    `created` is not decoration: the tables deduplicate on the hash of the behaviour, so
+    asking again for what already exists returns the original row, and saying so is
+    what tells the user nothing new was built.
     """
 
     created: bool
@@ -211,7 +205,6 @@ class ChunkingConfigurationCreate(BaseModel):
 
     parsing_profile_id: uuid.UUID
     chunking_profile_id: uuid.UUID
-    name: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class ChunkingConfigurationCreated(DeduplicatedRead):
@@ -228,17 +221,13 @@ class ChunkingConfigurationCompose(BaseModel):
     """
 
     parsing_component_version_id: uuid.UUID
-    parsing_profile_name: str = Field(min_length=1, max_length=200)
     parsing_params: dict[str, Any] = Field(default_factory=dict)
 
     chunking_component_version_id: uuid.UUID
-    chunking_profile_name: str = Field(min_length=1, max_length=200)
     chunking_strategy: str = Field(min_length=1, max_length=100)
     chunk_size: int | None = Field(default=None, ge=1)
     overlap: int | None = Field(default=None, ge=0)
     chunking_params: dict[str, Any] = Field(default_factory=dict)
-
-    name: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class ChunkingConfigurationComposed(BaseModel):

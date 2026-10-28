@@ -29,7 +29,6 @@ async def create_index_build(
         chunking_configuration_id=payload.chunking_configuration_id,
         embedding_profile_id=payload.embedding_profile_id,
         vector_store_profile_id=payload.vector_store_profile_id,
-        name=payload.name,
         external_index_ref=payload.external_index_ref,
     )
     return IndexBuildCreated(

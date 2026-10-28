@@ -40,7 +40,6 @@ class IndexBuildCreate(BaseModel):
     chunking_configuration_id: uuid.UUID
     embedding_profile_id: uuid.UUID
     vector_store_profile_id: uuid.UUID
-    name: str | None = Field(default=None, min_length=1, max_length=200)
     external_index_ref: str | None = Field(default=None, min_length=1, max_length=200)
 
 

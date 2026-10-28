@@ -13,6 +13,12 @@ launch.
 The snapshot is part of the identity because the search space is a property of the index.
 Repeating the same choice of snapshot and profiles returns the existing build.
 
+The name is derived on creation: corpus and snapshot label, then the configuration,
+embedding and vector store profile names, e.g.
+`Contracts v1 · pypdf@1 → recursive@1 1000/200 · openai@1 text-embedding-3-small · qdrant@1 cosine`.
+The corpus is named because snapshot labels restart in each corpus; a name already taken
+gets a short suffix of the chain fingerprint.
+
 The chunks of a build are not stored as a set: they are the chunks of the build's chunking
 configuration for the documents in its snapshot. `IndexBuildRepository.list_chunks` and
 `count_chunks` express that join, and are what the worker reads to embed.

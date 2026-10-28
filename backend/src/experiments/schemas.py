@@ -19,7 +19,6 @@ from src.infrastructure.database.enums import (
 class VariantCreate(BaseModel):
     """A variant: an index build searched under a retrieval profile."""
 
-    name: str = Field(min_length=1, max_length=200)
     index_build_id: uuid.UUID
     retrieval_profile_id: uuid.UUID
     is_baseline: bool = False

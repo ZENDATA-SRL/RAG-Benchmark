@@ -12,8 +12,23 @@ built from them. Nothing here is executed or materialised; the modules that do t
 | `RetrievalProfile` | `config_hash` = canonical JSON of `top_k`, `strategy`, `score_threshold`; no component version of its own |
 | `ChunkingConfiguration` | Parsing profile + chunking profile; the unit of comparability of chunk-level gold |
 
-The profile name is excluded from every hash: two profiles that behave the same are one
-row, whatever the user called them.
+## Names (`naming.py`)
+
+Names are derived on creation from what a row is, never typed by the user, so a name says
+what is being worked on. The name is not part of any hash.
+
+| Entity | Name |
+|---|---|
+| Parsing profile | component and version: `pypdf@1` |
+| Chunking profile | component, version, chunk size / overlap (schema defaults when omitted): `recursive@1 1000/200` |
+| Embedding profile | component, version, `model_name`, dimensions when set: `openai@1 text-embedding-3-small 1536d` |
+| Vector store profile | component, version, distance `space`: `qdrant@1 cosine` |
+| Retrieval profile | strategy, `top_k`, score threshold when set: `dense top-10 ≥0.3` |
+| Chunking configuration | parsing → chunking: `pypdf@1 → recursive@1 1000/200` |
+
+When another row of the same table already reads the same (two profiles differing only in
+a parameter the name does not show), the new one gets ` #` and the first six characters
+of its content hash. `indexes` and `experiments` compose their names from these.
 
 ## Services (`service.py`)
 
@@ -42,6 +57,8 @@ row, whatever the user called them.
 | `POST/GET /retrieval-profiles`, `GET …/{id}` | Retrieval profiles: strategy, `top_k`, `score_threshold` |
 | `POST/GET /chunking-configurations`, `GET …/{id}` | Configurations, with profiles inlined |
 | `POST /chunking-configurations/compose` | Both profiles and the configuration in one call |
+
+No create payload takes a name: it is derived (see above).
 
 Every create endpoint is idempotent and answers `created: true|false`; when a row is reused,
 `detail` carries `REUSED_DETAIL` from `constants.py`, which `indexes` uses too.

@@ -47,6 +47,10 @@ class ProfileRepository(Generic[ProfileT]):
         stmt = select(self.model).where(self.model.config_hash == config_hash)
         return await self.session.scalar(stmt)
 
+    async def name_taken(self, name: str) -> bool:
+        stmt = select(self.model.id).where(self.model.name == name).limit(1)
+        return await self.session.scalar(stmt) is not None
+
     async def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[ProfileT]:
         stmt = select(self.model).order_by(self.model.name).limit(limit).offset(offset)
         result = await self.session.scalars(stmt)
@@ -80,6 +84,14 @@ class ChunkingConfigurationRepository:
             ChunkingConfiguration.config_hash == config_hash
         )
         return await self.session.scalar(stmt)
+
+    async def name_taken(self, name: str) -> bool:
+        stmt = (
+            select(ChunkingConfiguration.id)
+            .where(ChunkingConfiguration.name == name)
+            .limit(1)
+        )
+        return await self.session.scalar(stmt) is not None
 
     async def get_by_profiles(
         self, parsing_profile_id: uuid.UUID, chunking_profile_id: uuid.UUID

@@ -73,14 +73,12 @@ async def _build(session, scenario: Scenario, *, dimensions: int) -> tuple[str, 
     """An index build over every ready document; returns its id and embedding profile id."""
     profiles = ProfileService(session)
     embedding, _ = await profiles.get_or_create_embedding_profile(
-        name="fake",
         component_version_id=await _version_id(
             session, ComponentType.EMBEDDER, openai_embedder.KEY
         ),
         dimensions=dimensions,
     )
     vector_store_profile, _ = await profiles.get_or_create_vector_store_profile(
-        name="chroma",
         component_version_id=await _version_id(
             session, ComponentType.VECTOR_STORE, chroma.KEY
         ),

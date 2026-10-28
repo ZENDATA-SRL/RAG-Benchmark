@@ -123,7 +123,6 @@ async def world(client, session, fake_engine) -> World:
         )
     await _write_texts(session, scenario, target, TARGET_TEXTS)
     embedding, _ = await ProfileService(session).get_or_create_embedding_profile(
-        name="fake",
         component_version_id=await version_id(
             session, ComponentType.EMBEDDER, openai_embedder.KEY
         ),

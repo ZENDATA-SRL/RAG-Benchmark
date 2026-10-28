@@ -212,11 +212,7 @@ def create_profiles(
         "POST",
         "/parsing-profiles",
         expect=201,
-        json={
-            "name": "pypdf smoke",
-            "component_version_id": parser_version,
-            "params": {},
-        },
+        json={"component_version_id": parser_version, "params": {}},
     )
     # Not asserted as `created: true`: the profile is keyed on the parameters and shared by
     # every corpus, so a second run of this script legitimately finds the row already there.
@@ -225,18 +221,13 @@ def create_profiles(
         f"({'created' if first['created'] else 'already existed'})"
     )
 
-    # Same parameters, different name: the hash excludes the name, so the original
-    # row comes back and the response must say so, or the user cannot explain the mismatch.
+    # Same parameters again: the original row comes back and the response says so.
     again = request(
         client,
         "POST",
         "/parsing-profiles",
         expect=201,
-        json={
-            "name": "a completely different name",
-            "component_version_id": parser_version,
-            "params": {},
-        },
+        json={"component_version_id": parser_version, "params": {}},
     )
     check(
         again["created"] is False,
@@ -247,8 +238,8 @@ def create_profiles(
         "the reused profile has the same id",
     )
     check(
-        again["profile"]["name"] == first["profile"]["name"],
-        f"the name returned is the original one ({again['profile']['name']!r})",
+        again["profile"]["name"].startswith("pypdf@"),
+        f"the name is derived from the component ({again['profile']['name']!r})",
     )
 
     rejected = request(
@@ -257,7 +248,6 @@ def create_profiles(
         "/parsing-profiles",
         expect=422,
         json={
-            "name": "invalid",
             "component_version_id": parser_version,
             "params": {"extract_images": "yes please"},
         },
@@ -284,9 +274,7 @@ def compose_configuration(
         expect=201,
         json={
             "parsing_component_version_id": parser_version,
-            "parsing_profile_name": "pypdf smoke",
             "chunking_component_version_id": chunker_version,
-            "chunking_profile_name": f"recursive {chunk_size}",
             "chunking_strategy": recursive.STRATEGY,
             "chunk_size": chunk_size,
             "overlap": OVERLAP,
@@ -645,7 +633,6 @@ def check_retrieval(
         "POST",
         "/embedding-profiles",
         json={
-            "name": f"smoke {embedder}",
             "component_version_id": versions[("embedder", embedder)],
             "modality": "text",
             "params": {},
@@ -657,7 +644,6 @@ def check_retrieval(
         "POST",
         "/vector-store-profiles",
         json={
-            "name": f"smoke {vector_store}",
             "component_version_id": versions[("vector_store", vector_store)],
             "index_params": {"space": "cosine"},
         },
@@ -699,14 +685,14 @@ def check_retrieval(
         client,
         "POST",
         "/retrieval-profiles",
-        json={"name": "smoke top3", "top_k": 3},
+        json={"top_k": 3},
         expect=201,
     )["profile"]
     refused = request(
         client,
         "POST",
         "/retrieval-profiles",
-        json={"name": "smoke hybrid", "top_k": 3, "strategy": "hybrid"},
+        json={"top_k": 3, "strategy": "hybrid"},
         expect=422,
     )
     check(
@@ -818,7 +804,7 @@ def check_experiment(
         client,
         "POST",
         "/retrieval-profiles",
-        json={"name": "smoke top5", "top_k": 5},
+        json={"top_k": 5},
         expect=201,
     )["profile"]
     experiment = request(
@@ -832,13 +818,11 @@ def check_experiment(
             "qa_set_snapshot_id": qa_snapshot["id"],
             "variants": [
                 {
-                    "name": "top-3",
                     "index_build_id": context["index_build_id"],
                     "retrieval_profile_id": context["retrieval_profile_id"],
                     "is_baseline": True,
                 },
                 {
-                    "name": "top-5",
                     "index_build_id": context["index_build_id"],
                     "retrieval_profile_id": wide["id"],
                 },
@@ -1048,7 +1032,7 @@ def run(base_url: str, *, embedder: str | None, vector_store: str) -> None:
                 recall = {m["key"]: m for m in variant["metrics"]}["recall@5"]
                 total = recall["n_effective"] + recall["n_excluded"]
                 print(
-                    f"      {variant['name']:<8} {recall['mean']:.2f} "
+                    f"      {variant['name']}: {recall['mean']:.2f} "
                     f"({recall['n_effective']} of {total})"
                 )
 

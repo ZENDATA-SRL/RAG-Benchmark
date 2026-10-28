@@ -10,7 +10,7 @@ the Q&A type is modelled and refused.
 | Entity | Role |
 |---|---|
 | `Experiment` | Corpus snapshot, QA snapshot, repetitions, `uncovered_policy`. The snapshot is repeated here although derivable from the variants: it is the guard that makes "every variant searches the same documents" checkable |
-| `Variant` | Index build x retrieval profile; one is the baseline (the first, if none is marked) |
+| `Variant` | Index build x retrieval profile; one is the baseline (the first, if none is marked). Named after what it searches and how: configuration · embedder · vector store · retrieval profile, without the snapshot all variants share |
 | `Run` | One execution, with `config_snapshot` (experiment, snapshots, variants, index builds and profiles **copied by value**, and the evidence the chunk metrics were scored on), the denormalised `progress` the UI polls, and `error` |
 | `Execution` | Question x variant x repetition, unique per run: the unit of idempotency and resume |
 | `RetrievalCall`, `RetrievalHit` | One call of the retrieval tool and the chunks it returned, with rank, score, stage, `relevant_document` and `relevant_chunk` |

@@ -41,13 +41,11 @@ async def indexed_build(
     """An index build over some documents (the ready ones by default), chunks in Chroma."""
     profiles = ProfileService(session)
     embedding, _ = await profiles.get_or_create_embedding_profile(
-        name="fake",
         component_version_id=await version_id(
             session, ComponentType.EMBEDDER, openai_embedder.KEY
         ),
     )
     store_profile, _ = await profiles.get_or_create_vector_store_profile(
-        name="chroma",
         component_version_id=await version_id(
             session, ComponentType.VECTOR_STORE, chroma.KEY
         ),

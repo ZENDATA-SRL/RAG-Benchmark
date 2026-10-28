@@ -7,8 +7,8 @@ from src.infrastructure.database.enums import RetrievalStrategy
 # the user is left wondering where the name they typed went. Shared by every module whose
 # rows are deduplicated by configuration (profiles, chunking configurations, index builds).
 REUSED_DETAIL = (
-    "an identical configuration already existed and was reused; the name you supplied was "
-    "not applied, because profiles are deduplicated by their parameters and not by name"
+    "an identical configuration already existed and was reused, since profiles are "
+    "deduplicated by their parameters"
 )
 
 # Retrieval strategies the engine executes today. The enum lists the others so profiles can

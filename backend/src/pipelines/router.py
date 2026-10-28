@@ -59,7 +59,6 @@ async def create_parsing_profile(
 ) -> ParsingProfileCreated:
     """Create a parsing profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_parsing_profile(
-        name=payload.name,
         component_version_id=payload.component_version_id,
         params=payload.params,
     )
@@ -105,7 +104,6 @@ async def create_chunking_profile(
 ) -> ChunkingProfileCreated:
     """Create a chunking profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_chunking_profile(
-        name=payload.name,
         component_version_id=payload.component_version_id,
         strategy=payload.strategy,
         chunk_size=payload.chunk_size,
@@ -154,7 +152,6 @@ async def create_embedding_profile(
 ) -> EmbeddingProfileCreated:
     """Create an embedding profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_embedding_profile(
-        name=payload.name,
         component_version_id=payload.component_version_id,
         modality=payload.modality,
         dimensions=payload.dimensions,
@@ -202,7 +199,6 @@ async def create_vector_store_profile(
 ) -> VectorStoreProfileCreated:
     """Create a vector store profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_vector_store_profile(
-        name=payload.name,
         component_version_id=payload.component_version_id,
         index_params=payload.index_params,
     )
@@ -250,7 +246,6 @@ async def create_retrieval_profile(
 ) -> RetrievalProfileCreated:
     """Create a retrieval profile, or return the identical one that already exists."""
     profile, created = await ProfileService(session).get_or_create_retrieval_profile(
-        name=payload.name,
         top_k=payload.top_k,
         strategy=payload.strategy,
         score_threshold=payload.score_threshold,
@@ -314,7 +309,6 @@ async def create_chunking_configuration(
     configuration, created = await service.get_or_create(
         parsing_profile_id=payload.parsing_profile_id,
         chunking_profile_id=payload.chunking_profile_id,
-        name=payload.name,
     )
     return ChunkingConfigurationCreated(
         configuration=_expanded(await service.expand(configuration)),
@@ -335,14 +329,11 @@ async def compose_chunking_configuration(
     composed = await ChunkingConfigurationService(session).compose(
         parsing_component_version_id=payload.parsing_component_version_id,
         parsing_params=payload.parsing_params,
-        parsing_profile_name=payload.parsing_profile_name,
         chunking_component_version_id=payload.chunking_component_version_id,
         chunking_strategy=payload.chunking_strategy,
         chunk_size=payload.chunk_size,
         overlap=payload.overlap,
         chunking_params=payload.chunking_params,
-        chunking_profile_name=payload.chunking_profile_name,
-        name=payload.name,
     )
     return ChunkingConfigurationComposed(
         configuration=_expanded(composed.expanded),

@@ -61,9 +61,7 @@ async def _chunk_text(session, document) -> str:
 
 
 async def _profile(client, top_k: int) -> str:
-    response = await client.post(
-        "/api/v1/retrieval-profiles", json={"name": f"top{top_k}", "top_k": top_k}
-    )
+    response = await client.post("/api/v1/retrieval-profiles", json={"top_k": top_k})
     assert response.status_code == 201, response.text
     return response.json()["profile"]["id"]
 
@@ -114,13 +112,11 @@ def _body(world: World, **overrides) -> dict:
         "uncovered_policy": "exclude",
         "variants": [
             {
-                "name": "top-1",
                 "index_build_id": str(world.build.id),
                 "retrieval_profile_id": world.profile_small,
                 "is_baseline": True,
             },
             {
-                "name": "top-6",
                 "index_build_id": str(world.build.id),
                 "retrieval_profile_id": world.profile_large,
             },
@@ -134,6 +130,11 @@ async def _create(client, world: World, **overrides) -> dict:
     response = await client.post(EXPERIMENTS, json=_body(world, **overrides))
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def _retrieval(name: str) -> str:
+    """The retrieval profile a derived variant name ends with, such as `dense top-1`."""
+    return name.rsplit(" · ", 1)[-1]
 
 
 def _variants(results: dict) -> list[dict]:
@@ -173,7 +174,9 @@ async def test_variants_on_another_snapshot_are_refused(
     assert response.status_code == 422
     error = response.json()
     assert error["code"] == "variants_outside_snapshot"
-    assert [item["name"] for item in error["details"]["variants"]] == ["top-6"]
+    assert [_retrieval(item["name"]) for item in error["details"]["variants"]] == [
+        "dense top-6"
+    ]
 
 
 async def test_uncovered_questions_need_an_explicit_choice(client, world) -> None:
@@ -223,9 +226,11 @@ async def test_the_first_variant_is_the_baseline_when_none_is_marked(
     created = await client.post(EXPERIMENTS, json=body)
 
     baselines = [
-        item["name"] for item in created.json()["variants"] if item["is_baseline"]
+        _retrieval(item["name"])
+        for item in created.json()["variants"]
+        if item["is_baseline"]
     ]
-    assert baselines == ["top-1"]
+    assert baselines == ["dense top-1"]
 
 
 async def test_only_retrieval_experiments_exist_for_now(client, world) -> None:
@@ -241,7 +246,13 @@ async def test_the_detail_shows_variants_and_coverage(client, world) -> None:
     detail = (await client.get(f"{EXPERIMENTS}/{created['id']}")).json()
 
     assert detail["uncovered_policy"] == "exclude"
-    assert [item["name"] for item in detail["variants"]] == ["top-1", "top-6"]
+    configuration = world.scenario.configuration.name
+    # Named after what each variant searches and how, not after the snapshot they share.
+    assert [item["name"] for item in detail["variants"]] == [
+        f"{configuration} · openai@1 text-embedding-3-small · chromadb@1 cosine"
+        f" · dense top-{top_k}"
+        for top_k in (1, 6)
+    ]
     assert detail["variants"][0]["top_k"] == 1
     assert detail["coverage"]["uncovered_count"] == 1
     listing = (await client.get(EXPERIMENTS)).json()
@@ -354,13 +365,13 @@ async def test_results_count_every_question_and_name_the_snapshot(
             )
             assert metric["n_effective"] == 2
             assert metric["n_excluded"] == 2
-    by_name = {variant["name"]: variant for variant in _variants(results)}
-    large = {metric["key"]: metric for metric in by_name["top-6"]["metrics"]}
+    by_name = {_retrieval(variant["name"]): variant for variant in _variants(results)}
+    large = {metric["key"]: metric for metric in by_name["dense top-6"]["metrics"]}
     # The query is the text of a chunk of the gold document, so it comes back first.
     assert large["mrr"]["mean"] == 1.0
     assert large["recall@5"]["mean"] == 1.0
     assert large["hit_rate@1"]["mean"] == 1.0
-    assert by_name["top-1"]["is_baseline"] is True
+    assert by_name["dense top-1"]["is_baseline"] is True
 
 
 async def test_tag_slices_aggregate_over_the_questions_with_that_tag(
@@ -431,9 +442,9 @@ async def test_the_drilldown_shows_each_variant_hits_and_why_they_count(
     assert response.status_code == 200, response.text
     body = response.json()
     assert [gold["filename"] for gold in body["gold_documents"]] == ["ready-0.pdf"]
-    by_name = {variant["name"]: variant for variant in body["variants"]}
-    assert len(by_name["top-1"]["executions"][0]["hits"]) == 1
-    large_hits = by_name["top-6"]["executions"][0]["hits"]
+    by_name = {_retrieval(variant["name"]): variant for variant in body["variants"]}
+    assert len(by_name["dense top-1"]["executions"][0]["hits"]) == 1
+    large_hits = by_name["dense top-6"]["executions"][0]["hits"]
     assert len(large_hits) == 6
     assert large_hits[0]["filename"] == "ready-0.pdf"
     assert large_hits[0]["relevant_document"] is True
@@ -786,7 +797,9 @@ async def _annotate(client, session, world: World) -> None:
 
 
 def _metrics(results: dict, variant: str) -> dict[str, dict]:
-    chosen = next(item for item in _variants(results) if item["name"] == variant)
+    chosen = next(
+        item for item in _variants(results) if _retrieval(item["name"]) == variant
+    )
     return {metric["key"]: metric for metric in chosen["metrics"]}
 
 
@@ -810,7 +823,7 @@ async def test_a_run_scored_before_annotation_gains_chunk_metrics_when_reevaluat
     before = (await client.get(f"{base}/{run['id']}/results")).json()
     calls = await _calls(session, run["id"])
 
-    chunk_recall = _metrics(before, "top-6")["chunk_recall@5"]
+    chunk_recall = _metrics(before, "dense top-6")["chunk_recall@5"]
     assert (chunk_recall["n_effective"], chunk_recall["excluded_reasons"]) == (
         0,
         {"not_answerable": 1, "evidence_not_reviewed": 3},
@@ -823,7 +836,7 @@ async def test_a_run_scored_before_annotation_gains_chunk_metrics_when_reevaluat
     assert evaluated.status_code == 200, evaluated.text
     after = (await client.get(f"{base}/{run['id']}/results")).json()
 
-    large = _metrics(after, "top-6")
+    large = _metrics(after, "dense top-6")
     # The query is the text of the sufficient chunk, so it comes back first.
     assert (large["chunk_mrr"]["mean"], large["chunk_mrr"]["n_effective"]) == (1.0, 1)
     # The question with no evidence in this configuration is excluded, never a zero.
@@ -845,7 +858,7 @@ async def test_a_run_scored_before_annotation_gains_chunk_metrics_when_reevaluat
     assert group["recall_ceiling"] == 0.5
     assert after["chunk_gold"]["hash"] != before["chunk_gold"]["hash"]
     # Re-scoring reads the stored hits: documents unchanged, no new retrieval.
-    for variant in ("top-1", "top-6"):
+    for variant in ("dense top-1", "dense top-6"):
         for key, metric in _metrics(before, variant).items():
             if metric["level"] == "document":
                 assert _metrics(after, variant)[key] == metric
@@ -895,7 +908,7 @@ async def test_repetitions_are_averaged_per_question_before_the_statistics(
 
     results = (await client.get(f"{base}/{run['id']}/results")).json()
 
-    recall = _metrics(results, "top-6")["recall@5"]
+    recall = _metrics(results, "dense top-6")["recall@5"]
     # Twelve executions per variant, but four questions: two count and two do not.
     assert (recall["n_effective"], recall["n_excluded"]) == (2, 2)
     assert recall["excluded_reasons"] == {
@@ -919,12 +932,10 @@ async def test_variants_on_two_chunking_configurations_are_two_groups(
     )
     body_variants = [
         {
-            "name": "small chunks",
             "index_build_id": str(other_build.id),
             "retrieval_profile_id": world.profile_large,
         },
         {
-            "name": "large chunks",
             "index_build_id": str(world.build.id),
             "retrieval_profile_id": world.profile_large,
             "is_baseline": True,
@@ -938,13 +949,15 @@ async def test_variants_on_two_chunking_configurations_are_two_groups(
 
     groups = {group["chunking_configuration_id"]: group for group in results["groups"]}
     assert {
-        configuration: [variant["name"] for variant in group["variants"]]
+        configuration: [
+            variant["name"].split(" · ")[0] for variant in group["variants"]
+        ]
         for configuration, group in groups.items()
     } == {
-        str(other.id): ["small chunks"],
-        str(world.build.chunking_configuration_id): ["large chunks"],
+        str(other.id): [other.name],
+        str(world.build.chunking_configuration_id): [world.scenario.configuration.name],
     }
-    assert groups[str(other.id)]["chunking"] == "chunk300"
+    assert groups[str(other.id)]["chunking"] == "recursive@1 300/50"
     cross = results["cross_group_metrics"]
     assert "recall@5" in cross["keys"]
     assert not any(key.startswith("chunk_") for key in cross["keys"])
@@ -965,8 +978,8 @@ async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved
     body = (await client.get(f"{base}/{run['id']}/questions/{question_id}")).json()
 
     assert body["qa_set_id"]
-    by_name = {variant["name"]: variant for variant in body["variants"]}
-    small = by_name["top-1"]
+    by_name = {_retrieval(variant["name"]): variant for variant in body["variants"]}
+    small = by_name["dense top-1"]
     assert small["evidence_status"] == "confirmed"
     [hit] = small["executions"][0]["hits"]
     assert (hit["relevant_chunk"], hit["relevance"]) == (True, "sufficient")
@@ -975,7 +988,7 @@ async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved
         ("sufficient", True),
         ("supporting", False),
     }
-    large_hits = by_name["top-6"]["executions"][0]["hits"]
+    large_hits = by_name["dense top-6"]["executions"][0]["hits"]
     assert large_hits[0]["relevant_chunk"] is True
 
     rows = (await client.get(f"{base}/{run['id']}/questions")).json()["items"]

@@ -10,7 +10,12 @@ from src.components.registry_seed import seed_builtin_components
 from src.components.repository import ComponentRepository, ComponentVersionRepository
 from src.infrastructure.database.enums import ComponentType
 from src.infrastructure.storage.base import parse_key
-from tests.pipeline_factory import build_scenario, make_configuration, make_document, materialise
+from tests.pipeline_factory import (
+    build_scenario,
+    make_configuration,
+    make_document,
+    materialise,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -39,9 +44,7 @@ async def _compose(client, session, *, chunk_size: int = 500) -> dict:
         f"{CONFIGURATIONS}/compose",
         json={
             "parsing_component_version_id": parser_version,
-            "parsing_profile_name": "pypdf default",
             "chunking_component_version_id": chunker_version,
-            "chunking_profile_name": f"recursive{chunk_size}",
             "chunking_strategy": recursive.STRATEGY,
             "chunk_size": chunk_size,
             "overlap": 50,
@@ -56,28 +59,43 @@ async def _compose(client, session, *, chunk_size: int = 500) -> dict:
 # --------------------------------------------------------------------------------------
 
 
-async def test_creating_the_same_profile_under_two_names_returns_one_row(
-    client, session
-) -> None:
+async def test_creating_the_same_profile_twice_returns_one_row(client, session) -> None:
     """Dedup is on the parameters, and the response admits it."""
     parser_version, _ = await _version_ids(session)
+    payload = {"component_version_id": parser_version, "params": {}}
 
-    first = await client.post(
-        PARSING_PROFILES,
-        json={"name": "first name", "component_version_id": parser_version, "params": {}},
-    )
-    second = await client.post(
-        PARSING_PROFILES,
-        json={"name": "other name", "component_version_id": parser_version, "params": {}},
-    )
+    first = await client.post(PARSING_PROFILES, json=payload)
+    second = await client.post(PARSING_PROFILES, json=payload)
 
     assert (first.status_code, second.status_code) == (201, 201)
     assert first.json()["created"] is True
     assert second.json()["created"] is False
     assert first.json()["profile"]["id"] == second.json()["profile"]["id"]
-    # The name asked for is not the one returned, so the response explains why.
-    assert second.json()["profile"]["name"] == "first name"
+    assert first.json()["profile"]["name"] == "pypdf@1"
     assert second.json()["detail"]
+
+
+async def test_profiles_that_would_read_the_same_get_a_hash_suffix(
+    client, session
+) -> None:
+    """A parameter the name does not show must not leave two profiles indistinguishable."""
+    parser_version, _ = await _version_ids(session)
+
+    plain = await client.post(
+        PARSING_PROFILES,
+        json={"component_version_id": parser_version, "params": {}},
+    )
+    images = await client.post(
+        PARSING_PROFILES,
+        json={
+            "component_version_id": parser_version,
+            "params": {"extract_images": True},
+        },
+    )
+
+    assert plain.json()["profile"]["name"] == "pypdf@1"
+    other = images.json()["profile"]
+    assert other["name"] == f"pypdf@1 #{other['config_hash'][:6]}"
 
 
 async def test_params_outside_the_schema_are_refused_with_the_field_path(
@@ -134,7 +152,11 @@ async def test_profiles_are_listed_and_readable_by_id(client, session) -> None:
     created = (
         await client.post(
             PARSING_PROFILES,
-            json={"name": "pypdf", "component_version_id": parser_version, "params": {}},
+            json={
+                "name": "pypdf",
+                "component_version_id": parser_version,
+                "params": {},
+            },
         )
     ).json()["profile"]
 
@@ -167,8 +189,10 @@ async def test_compose_creates_both_profiles_and_the_configuration_at_once(
     assert body["created"] is True
     assert body["parsing_profile_created"] is True
     assert body["chunking_profile_created"] is True
-    assert body["configuration"]["parsing_profile"]["name"] == "pypdf default"
-    assert body["configuration"]["chunking_profile"]["chunk_size"] == 500
+    configuration = body["configuration"]
+    assert configuration["parsing_profile"]["name"] == "pypdf@1"
+    assert configuration["chunking_profile"]["name"] == "recursive@1 500/50"
+    assert configuration["name"] == "pypdf@1 → recursive@1 500/50"
 
 
 async def test_composing_twice_reuses_every_row(client, session) -> None:
@@ -194,7 +218,9 @@ async def test_configurations_are_listed_with_their_profiles_expanded(
     assert item["chunking_profile"]["strategy"] == recursive.STRATEGY
 
 
-async def test_creating_a_configuration_from_existing_profile_ids(client, session) -> None:
+async def test_creating_a_configuration_from_existing_profile_ids(
+    client, session
+) -> None:
     parsing_profile, configuration = await make_configuration(session)
 
     response = await client.post(
@@ -208,7 +234,9 @@ async def test_creating_a_configuration_from_existing_profile_ids(client, sessio
     assert response.status_code == 201
     assert response.json()["created"] is False
     assert response.json()["configuration"]["id"] == str(configuration.id)
-    assert response.json()["configuration"]["parsing_profile"]["id"] == str(parsing_profile.id)
+    assert response.json()["configuration"]["parsing_profile"]["id"] == str(
+        parsing_profile.id
+    )
 
 
 async def test_configuration_from_an_unknown_profile_is_a_404(client, session) -> None:
@@ -245,7 +273,9 @@ async def test_coverage_of_a_half_materialised_corpus_sums_to_the_corpus_size(
     assert body["is_complete"] is False
 
 
-async def test_coverage_of_a_fully_materialised_corpus_is_complete(client, session) -> None:
+async def test_coverage_of_a_fully_materialised_corpus_is_complete(
+    client, session
+) -> None:
     scenario = await build_scenario(session, ready=3)
 
     body = (
@@ -279,7 +309,9 @@ async def test_coverage_of_an_empty_corpus_is_not_complete(client, session) -> N
 # --------------------------------------------------------------------------------------
 
 
-async def test_chunks_are_returned_in_ordinal_order_and_paginated(client, session) -> None:
+async def test_chunks_are_returned_in_ordinal_order_and_paginated(
+    client, session
+) -> None:
     scenario = await build_scenario(session, ready=1, chunks_per_document=5)
     document_id = scenario.ready[0].id
 
@@ -347,7 +379,9 @@ async def test_comparing_two_configurations_returns_both_sides(client, session) 
     assert [len(side["chunks"]) for side in response.json()["sides"]] == [3, 6]
 
 
-async def test_comparing_a_malformed_configuration_list_is_a_422(client, session) -> None:
+async def test_comparing_a_malformed_configuration_list_is_a_422(
+    client, session
+) -> None:
     scenario = await build_scenario(session, ready=1)
 
     response = await client.get(
@@ -378,7 +412,9 @@ async def test_chunk_state_is_read_from_the_artefact_not_the_document(
     assert response.json()["error"] == "boom"
 
 
-async def test_a_never_materialised_pair_is_a_404_not_an_empty_list(client, session) -> None:
+async def test_a_never_materialised_pair_is_a_404_not_an_empty_list(
+    client, session
+) -> None:
     """An empty page would claim the document was chunked into nothing, which is a lie."""
     scenario = await build_scenario(session, ready=1)
     other = await make_document(session)

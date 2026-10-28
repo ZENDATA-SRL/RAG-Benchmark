@@ -34,6 +34,10 @@ class IndexBuildRepository:
         )
         return await self.session.scalar(stmt)
 
+    async def name_taken(self, name: str) -> bool:
+        stmt = select(IndexBuild.id).where(IndexBuild.name == name).limit(1)
+        return await self.session.scalar(stmt) is not None
+
     async def get_by_workflow_id(self, workflow_id: str) -> IndexBuild | None:
         stmt = select(IndexBuild).where(IndexBuild.workflow_id == workflow_id)
         return await self.session.scalar(stmt)

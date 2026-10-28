@@ -56,10 +56,9 @@ async def _configuration(session):
     )
 
     parsing_profile, _ = await profiles.get_or_create_parsing_profile(
-        name="parse", component_version_id=parser_version.id
+        component_version_id=parser_version.id
     )
     chunking_profile, _ = await profiles.get_or_create_chunking_profile(
-        name="chunk",
         component_version_id=chunker_version.id,
         strategy=recursive.STRATEGY,
         chunk_size=500,

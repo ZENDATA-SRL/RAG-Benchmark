@@ -43,8 +43,9 @@ from src.infrastructure.temporal.workflow_ids import (
     RUN_EXPERIMENT_WORKFLOW,
     run_experiment_workflow_id,
 )
+from src.pipelines import naming
 from src.pipelines.models import RetrievalProfile
-from src.pipelines.service import ProfileService
+from src.pipelines.service import ChunkingConfigurationService, ProfileService
 from src.qa_sets.exceptions import QASetSnapshotNotFoundError
 from src.qa_sets.repository import QASetSnapshotRepository
 from src.retrieval.exceptions import IndexBuildNotReadyError
@@ -61,7 +62,6 @@ EXCLUDE_UNCOVERED = "exclude"
 class VariantInput:
     """A variant as requested: an index build searched under a retrieval profile."""
 
-    name: str
     index_build_id: uuid.UUID
     retrieval_profile_id: uuid.UUID
     is_baseline: bool = False
@@ -114,6 +114,7 @@ class ExperimentService:
         self.qa_snapshots = QASetSnapshotRepository(session)
         self.builds = IndexBuildService(session)
         self.profiles = ProfileService(session)
+        self.configurations = ChunkingConfigurationService(session)
 
     async def coverage(
         self, corpus_snapshot_id: uuid.UUID, qa_set_snapshot_id: uuid.UUID
@@ -157,7 +158,9 @@ class ExperimentService:
         which is what doing nothing would do, would blame the retriever for an answer that
         was never in the search space.
 
-        At most one variant is the baseline; when none is marked, the first one is.
+        At most one variant is the baseline; when none is marked, the first one is. A
+        variant is named after what it searches and how: chunking configuration,
+        embedder, vector store and retrieval profile.
 
         Raises:
             UnsupportedOperationError: If the type is not `retrieval`.
@@ -176,22 +179,29 @@ class ExperimentService:
             )
         coverage = await self.coverage(corpus_snapshot_id, qa_set_snapshot_id)
 
-        baselines = [variant.name for variant in variants if variant.is_baseline]
-        if len(baselines) > 1:
-            raise MultipleBaselinesError(baselines)
-
+        names = []
         outside = []
         for variant in variants:
             build = await self.builds.get(variant.index_build_id)
-            await self.profiles.get_retrieval_profile(variant.retrieval_profile_id)
+            profile = await self.profiles.get_retrieval_profile(
+                variant.retrieval_profile_id
+            )
+            names.append(await self._variant_name(build, profile))
             if build.corpus_snapshot_id != corpus_snapshot_id:
                 outside.append(
                     {
-                        "name": variant.name,
+                        "name": names[-1],
                         "index_build_id": str(build.id),
                         "index_build_snapshot_id": str(build.corpus_snapshot_id),
                     }
                 )
+        baselines = [
+            name
+            for name, variant in zip(names, variants, strict=True)
+            if variant.is_baseline
+        ]
+        if len(baselines) > 1:
+            raise MultipleBaselinesError(baselines)
         if outside:
             raise VariantsOutsideSnapshotError(corpus_snapshot_id, outside)
 
@@ -225,7 +235,7 @@ class ExperimentService:
             self.experiments.add_variant(
                 Variant(
                     experiment_id=experiment.id,
-                    name=variant.name,
+                    name=names[index],
                     index_build_id=variant.index_build_id,
                     retrieval_profile_id=variant.retrieval_profile_id,
                     is_baseline=variant.is_baseline or (not baselines and index == 0),
@@ -299,6 +309,18 @@ class ExperimentService:
             await self.experiments.variant_counts(ids),
             await self.experiments.snapshot_origins(ids),
             await self.experiments.count(),
+        )
+
+    async def _variant_name(self, build: IndexBuild, profile: RetrievalProfile) -> str:
+        configuration = await self.configurations.get(build.chunking_configuration_id)
+        embedding = await self.profiles.get_embedding_profile(
+            build.embedding_profile_id
+        )
+        vector_store = await self.profiles.get_vector_store_profile(
+            build.vector_store_profile_id
+        )
+        return naming.variant_name(
+            configuration.name, embedding.name, vector_store.name, profile.name
         )
 
 

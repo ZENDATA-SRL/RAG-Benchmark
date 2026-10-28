@@ -119,7 +119,6 @@ async def create_experiment(
         repetitions=payload.repetitions,
         variants=[
             VariantInput(
-                name=variant.name,
                 index_build_id=variant.index_build_id,
                 retrieval_profile_id=variant.retrieval_profile_id,
                 is_baseline=variant.is_baseline,

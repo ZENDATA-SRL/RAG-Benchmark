@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.get_or_create import get_or_create_reporting
 from src.core.hashing import chain_fingerprint
-from src.corpora.repository import CorpusSnapshotRepository
+from src.corpora.repository import CorpusRepository, CorpusSnapshotRepository
 from src.indexes.exceptions import IndexBuildNotFoundError
 from src.indexes.models import IndexBuild
 from src.indexes.repository import IndexBuildRepository
@@ -19,6 +19,7 @@ from src.infrastructure.temporal.workflow_ids import (
     INDEX_CORPUS_WORKFLOW,
     index_corpus_workflow_id,
 )
+from src.pipelines import naming
 from src.pipelines.exceptions import ProfileNotFoundError
 from src.pipelines.models import EmbeddingProfile, VectorStoreProfile
 from src.pipelines.repository import ChunkingConfigurationRepository, ProfileRepository
@@ -31,6 +32,7 @@ class IndexBuildService:
         self.session = session
         self.builds = IndexBuildRepository(session)
         self.snapshots = CorpusSnapshotRepository(session)
+        self.corpora = CorpusRepository(session)
         self.configurations = ChunkingConfigurationRepository(session)
         self.embedding_profiles = ProfileRepository(session, EmbeddingProfile)
         self.vector_store_profiles = ProfileRepository(session, VectorStoreProfile)
@@ -80,7 +82,6 @@ class IndexBuildService:
         chunking_configuration_id: uuid.UUID,
         embedding_profile_id: uuid.UUID,
         vector_store_profile_id: uuid.UUID,
-        name: str | None = None,
         external_index_ref: str | None = None,
     ) -> IndexBuild:
         """Return the index build for a whole population chain, creating it once."""
@@ -89,7 +90,6 @@ class IndexBuildService:
             chunking_configuration_id=chunking_configuration_id,
             embedding_profile_id=embedding_profile_id,
             vector_store_profile_id=vector_store_profile_id,
-            name=name,
             external_index_ref=external_index_ref,
         )
         return build
@@ -101,7 +101,6 @@ class IndexBuildService:
         chunking_configuration_id: uuid.UUID,
         embedding_profile_id: uuid.UUID,
         vector_store_profile_id: uuid.UUID,
-        name: str | None = None,
         external_index_ref: str | None = None,
     ) -> tuple[IndexBuild, bool]:
         """Return an index build and whether this call created it.
@@ -137,12 +136,21 @@ class IndexBuildService:
             embedding.config_hash,
             vector_store.config_hash,
         )
-        label = name or f"{snapshot.label} · {configuration.name} · {embedding.name}"
+        corpus = await self.corpora.get_by_id(snapshot.corpus_id)
+        label = naming.index_build_name(
+            corpus.name,
+            snapshot.label,
+            configuration.name,
+            embedding.name,
+            vector_store.name,
+        )
 
         async def create() -> IndexBuild:
             build = self.builds.add(
                 IndexBuild(
-                    name=label,
+                    name=naming.disambiguated(
+                        label, fingerprint, taken=await self.builds.name_taken(label)
+                    ),
                     corpus_snapshot_id=corpus_snapshot_id,
                     chunking_configuration_id=chunking_configuration_id,
                     embedding_profile_id=embedding_profile_id,

@@ -7,11 +7,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.components.models import ComponentVersion
+from src.components.models import Component, ComponentVersion
 from src.components.service import ComponentService
 from src.core.get_or_create import get_or_create_reporting
 from src.core.hashing import combined_config_hash, config_hash, hash_json
 from src.infrastructure.database.enums import RetrievalStrategy
+from src.pipelines import naming
 from src.pipelines.constants import SUPPORTED_RETRIEVAL_STRATEGIES
 from src.pipelines.exceptions import (
     ChunkingConfigurationNotFoundError,
@@ -42,7 +43,6 @@ class ProfileService:
     async def get_or_create_parsing_profile(
         self,
         *,
-        name: str,
         component_version_id: uuid.UUID,
         params: dict[str, Any] | None = None,
     ) -> tuple[ParsingProfile, bool]:
@@ -56,17 +56,17 @@ class ProfileService:
             ComponentVersionNotFoundError: If the component version does not exist.
         """
         await self.components.validate_params(component_version_id, params or {})
+        component, _schema = await self._component(component_version_id)
         return await self._get_or_create(
             ParsingProfile,
             component_version_id=component_version_id,
-            name=name,
+            name=naming.parsing_profile_name(component),
             columns={"params": params or {}},
         )
 
     async def get_or_create_chunking_profile(
         self,
         *,
-        name: str,
         component_version_id: uuid.UUID,
         strategy: str,
         chunk_size: int | None = None,
@@ -89,14 +89,19 @@ class ProfileService:
             InvalidComponentParamsError: If the parameters violate the version's schema.
         """
         await self._assert_document_scope(component_version_id)
-        await self.components.validate_params(
-            component_version_id,
-            _effective_chunker_params(params, chunk_size=chunk_size, overlap=overlap),
+        effective = _effective_chunker_params(
+            params, chunk_size=chunk_size, overlap=overlap
         )
+        await self.components.validate_params(component_version_id, effective)
+        component, schema = await self._component(component_version_id)
         return await self._get_or_create(
             ChunkingProfile,
             component_version_id=component_version_id,
-            name=name,
+            name=naming.chunking_profile_name(
+                component,
+                chunk_size=naming.schema_value(effective, schema, "chunk_size"),
+                overlap=naming.schema_value(effective, schema, "overlap"),
+            ),
             columns={
                 "strategy": strategy,
                 "chunk_size": chunk_size,
@@ -108,7 +113,6 @@ class ProfileService:
     async def get_or_create_embedding_profile(
         self,
         *,
-        name: str,
         component_version_id: uuid.UUID,
         modality: str = "text",
         dimensions: int | None = None,
@@ -124,10 +128,15 @@ class ProfileService:
             ComponentVersionNotFoundError: If the component version does not exist.
         """
         await self.components.validate_params(component_version_id, params or {})
+        component, schema = await self._component(component_version_id)
         return await self._get_or_create(
             EmbeddingProfile,
             component_version_id=component_version_id,
-            name=name,
+            name=naming.embedding_profile_name(
+                component,
+                model=naming.schema_value(params or {}, schema, "model_name"),
+                dimensions=dimensions,
+            ),
             columns={
                 "modality": modality,
                 "dimensions": dimensions,
@@ -138,7 +147,6 @@ class ProfileService:
     async def get_or_create_vector_store_profile(
         self,
         *,
-        name: str,
         component_version_id: uuid.UUID,
         index_params: dict[str, Any] | None = None,
     ) -> tuple[VectorStoreProfile, bool]:
@@ -152,10 +160,14 @@ class ProfileService:
             ComponentVersionNotFoundError: If the component version does not exist.
         """
         await self.components.validate_params(component_version_id, index_params or {})
+        component, schema = await self._component(component_version_id)
         return await self._get_or_create(
             VectorStoreProfile,
             component_version_id=component_version_id,
-            name=name,
+            name=naming.vector_store_profile_name(
+                component,
+                space=naming.schema_value(index_params or {}, schema, "space"),
+            ),
             columns={"index_params": index_params or {}},
         )
 
@@ -252,7 +264,6 @@ class ProfileService:
     async def get_or_create_retrieval_profile(
         self,
         *,
-        name: str,
         top_k: int,
         strategy: RetrievalStrategy = RetrievalStrategy.DENSE,
         score_threshold: float | None = None,
@@ -263,7 +274,6 @@ class ProfileService:
         hash covers its columns directly.
 
         Args:
-            name: Readable label, excluded from the hash.
             top_k: Number of results returned.
             strategy: Only `dense` is executable today.
             score_threshold: Hits scoring below it are dropped.
@@ -285,7 +295,14 @@ class ProfileService:
         digest = hash_json({**columns, "strategy": strategy.value})
         repository = ProfileRepository(self.session, RetrievalProfile)
 
+        base = naming.retrieval_profile_name(
+            strategy.value, top_k=top_k, score_threshold=score_threshold
+        )
+
         async def create() -> RetrievalProfile:
+            name = naming.disambiguated(
+                base, digest, taken=await repository.name_taken(base)
+            )
             profile = repository.add(
                 RetrievalProfile(name=name, config_hash=digest, **columns)
             )
@@ -332,10 +349,9 @@ class ProfileService:
 
         The hash covers the component version and **every** behavioural column, including
         the ones promoted out of `params` such as strategy, chunk size, overlap and
-        modality. `name` is deliberately excluded: two profiles that behave identically
-        must share one row even if the user labelled them differently, otherwise the cache
-        would be bypassed by a rename. The returned flag is what lets the caller say so,
-        instead of leaving the user to wonder where their name went.
+        modality. `name` is derived from the behaviour and only written on creation; it
+        gains a short hash suffix when another profile already reads the same, for instance
+        two embedders differing only in a parameter the name does not show.
         """
         digest = config_hash(component_version_id, columns)
         repository = ProfileRepository(self.session, model)
@@ -343,7 +359,9 @@ class ProfileService:
         async def create() -> Any:
             profile = repository.add(
                 model(
-                    name=name,
+                    name=naming.disambiguated(
+                        name, digest, taken=await repository.name_taken(name)
+                    ),
                     component_version_id=component_version_id,
                     config_hash=digest,
                     **columns,
@@ -356,6 +374,16 @@ class ProfileService:
             self.session,
             lookup=lambda: repository.get_by_config_hash(digest),
             create=create,
+        )
+
+    async def _component(self, component_version_id: uuid.UUID) -> tuple[str, dict]:
+        """The label of a component version (`pypdf@1`) and its parameter schema."""
+        version = await self.session.get(ComponentVersion, component_version_id)
+        if version is None:
+            raise ProfileNotFoundError("component version", component_version_id)
+        component = await self.session.get(Component, version.component_id)
+        return naming.component_label(component.key, version.version), (
+            version.params_schema or {}
         )
 
     async def _assert_document_scope(self, component_version_id: uuid.UUID) -> None:
@@ -423,14 +451,12 @@ class ChunkingConfigurationService:
         *,
         parsing_profile_id: uuid.UUID,
         chunking_profile_id: uuid.UUID,
-        name: str | None = None,
     ) -> tuple[ChunkingConfiguration, bool]:
         """Return the configuration for a profile pair, creating it once.
 
         Args:
             parsing_profile_id: Parsing profile of the pair.
             chunking_profile_id: Chunking profile of the pair.
-            name: Readable label; defaults to `<parsing> + <chunking>`.
 
         Returns:
             The configuration for the pair and whether this call created it.
@@ -446,12 +472,16 @@ class ChunkingConfigurationService:
             raise ProfileNotFoundError("chunking", chunking_profile_id)
 
         digest = combined_config_hash(parsing.config_hash, chunking.config_hash)
-        label = name or f"{parsing.name} + {chunking.name}"
+        label = naming.chunking_configuration_name(parsing.name, chunking.name)
 
         async def create() -> ChunkingConfiguration:
             configuration = self.configurations.add(
                 ChunkingConfiguration(
-                    name=label,
+                    name=naming.disambiguated(
+                        label,
+                        digest,
+                        taken=await self.configurations.name_taken(label),
+                    ),
                     parsing_profile_id=parsing_profile_id,
                     chunking_profile_id=chunking_profile_id,
                     config_hash=digest,
@@ -517,14 +547,11 @@ class ChunkingConfigurationService:
         *,
         parsing_component_version_id: uuid.UUID,
         parsing_params: dict[str, Any] | None = None,
-        parsing_profile_name: str,
         chunking_component_version_id: uuid.UUID,
         chunking_strategy: str,
         chunk_size: int | None = None,
         overlap: int | None = None,
         chunking_params: dict[str, Any] | None = None,
-        chunking_profile_name: str,
-        name: str | None = None,
     ) -> ComposedConfiguration:
         """Create both profiles and their configuration in one act.
 
@@ -538,12 +565,10 @@ class ChunkingConfigurationService:
         """
         profiles = ProfileService(self.session)
         parsing, parsing_created = await profiles.get_or_create_parsing_profile(
-            name=parsing_profile_name,
             component_version_id=parsing_component_version_id,
             params=parsing_params,
         )
         chunking, chunking_created = await profiles.get_or_create_chunking_profile(
-            name=chunking_profile_name,
             component_version_id=chunking_component_version_id,
             strategy=chunking_strategy,
             chunk_size=chunk_size,
@@ -553,7 +578,6 @@ class ChunkingConfigurationService:
         configuration, configuration_created = await self.get_or_create(
             parsing_profile_id=parsing.id,
             chunking_profile_id=chunking.id,
-            name=name,
         )
         return ComposedConfiguration(
             expanded=ExpandedConfiguration(
