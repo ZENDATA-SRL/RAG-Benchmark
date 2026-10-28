@@ -54,6 +54,17 @@ class ChunkRead(BaseModel):
     text_normalized: str | None = None
 
 
+class ChunkSearchHit(BaseModel):
+    """A chunk whose text contains the searched string, with the document it comes from."""
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    filename: str
+    ordinal: int
+    page: int | None
+    text: str
+
+
 class ChunkResultRead(BaseModel):
     """The state of a chunking artefact.
 

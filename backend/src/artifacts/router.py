@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 
@@ -11,12 +12,13 @@ from src.artifacts.schemas import (
     ChunkingConfigurationCoverage,
     ChunkRead,
     ChunkResultRead,
+    ChunkSearchHit,
     DocumentChunksRead,
     DocumentParseRead,
     ParsePageRead,
 )
 from src.artifacts.service import CoverageService, InspectionService
-from src.core.pagination import MAX_LIMIT
+from src.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
 from src.dependencies import SessionDep, StorageDep
 
 # Coverage is served under the configuration it describes, but it is read from the
@@ -119,6 +121,41 @@ async def get_chunk_result(
         document_id=document_id, chunking_configuration_id=chunking_configuration_id
     )
     return ChunkResultRead.model_validate(chunk_result)
+
+
+# Declared before `/chunks/{chunk_id}`, which would otherwise take `search` for an id.
+@chunks_router.get("/chunks/search", response_model=Page[ChunkSearchHit])
+async def search_chunks(
+    session: SessionDep,
+    storage: StorageDep,
+    chunking_configuration_id: Annotated[uuid.UUID, Query()],
+    q: Annotated[str, Query(min_length=2, max_length=500)],
+    corpus_id: Annotated[uuid.UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Page[ChunkSearchHit]:
+    """Find the chunks of a configuration containing a text, optionally in one corpus."""
+    rows, total = await InspectionService(session, storage).search_chunks(
+        q,
+        chunking_configuration_id=chunking_configuration_id,
+        corpus_id=corpus_id,
+        limit=limit,
+        offset=offset,
+    )
+    items = []
+    for chunk, document_id, filename in rows:
+        page = chunk.chunk_metadata.get("page")
+        items.append(
+            ChunkSearchHit(
+                chunk_id=chunk.id,
+                document_id=document_id,
+                filename=filename,
+                ordinal=chunk.ordinal,
+                page=page if isinstance(page, int) else None,
+                text=chunk.text,
+            )
+        )
+    return Page[ChunkSearchHit].build(items, total=total, limit=limit, offset=offset)
 
 
 @chunks_router.get("/chunks/{chunk_id}", response_model=ChunkRead)

@@ -41,6 +41,7 @@ is built from a parse of the parsing profile its configuration declares.
 | `GET /documents/{id}/chunks?chunking_configuration_id=` | Chunks of a document, with the state of their chunk result |
 | `GET /documents/{id}/chunks/compare?configurations=a,b` | The same document under several configurations, side by side |
 | `GET /chunk-results?document_id=&chunking_configuration_id=` | State of one chunking artefact |
+| `GET /chunks/search?chunking_configuration_id=&q=[&corpus_id=]` | Chunks of a configuration containing some words in sequence, whatever whitespace separates them (parsers break lines and pad words differently); paged |
 | `GET /chunks/{id}` | One chunk |
 | `GET /documents/{id}/parse?parsing_profile_id=` | Per-page parse text, to tell a bad parse from a bad chunking |
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Iterable, Sequence
 
@@ -7,6 +8,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.artifacts.models import Chunk, ChunkResult, ParsingResult
+from src.corpora.models import CorpusDocument
+from src.documents.models import Document
 from src.infrastructure.database.enums import ArtifactStatus
 
 
@@ -173,6 +176,57 @@ class ChunkRepository:
 
     async def get_by_id(self, chunk_id: uuid.UUID) -> Chunk | None:
         return await self.session.get(Chunk, chunk_id)
+
+    async def search(
+        self,
+        text: str,
+        *,
+        chunking_configuration_id: uuid.UUID,
+        corpus_id: uuid.UUID | None,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[tuple[Chunk, uuid.UUID, str]], int]:
+        """Chunks of a configuration whose text contains some words, ignoring case.
+
+        The words must follow each other, but any run of whitespace may separate them:
+        parsers break lines and pad words with spaces differently, and a passage copied
+        from the document would otherwise not be found. A plain scan, with the words
+        escaped: it serves a person looking for a passage the proposals missed, a few times
+        per question, and an index is only worth a migration if that ever gets slow.
+        """
+        words = text.split()
+        if not words:
+            return [], 0
+        pattern = r"\s+".join(re.escape(word) for word in words)
+        conditions = [
+            ChunkResult.chunking_configuration_id == chunking_configuration_id,
+            Chunk.text.op("~*")(pattern),
+        ]
+        if corpus_id is not None:
+            conditions.append(
+                ChunkResult.document_id.in_(
+                    select(CorpusDocument.document_id).where(
+                        CorpusDocument.corpus_id == corpus_id
+                    )
+                )
+            )
+        base = (
+            select(Chunk, Document.id, Document.filename)
+            .join(ChunkResult, ChunkResult.id == Chunk.chunk_result_id)
+            .join(Document, Document.id == ChunkResult.document_id)
+            .where(*conditions)
+        )
+        total = await self.session.scalar(
+            select(func.count()).select_from(base.subquery())
+        )
+        rows = (
+            await self.session.execute(
+                base.order_by(Document.filename, Document.id, Chunk.ordinal)
+                .limit(limit)
+                .offset(offset)
+            )
+        ).all()
+        return [tuple(row) for row in rows], total or 0
 
     async def list_by_chunk_result(
         self, chunk_result_id: uuid.UUID, *, limit: int = 100, offset: int = 0

@@ -355,6 +355,30 @@ class InspectionService:
             raise ChunkNotFoundError(chunk_id)
         return chunk
 
+    async def search_chunks(
+        self,
+        text: str,
+        *,
+        chunking_configuration_id: uuid.UUID,
+        corpus_id: uuid.UUID | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[tuple[Chunk, uuid.UUID, str]], int]:
+        """Chunks of a configuration containing a text, with their document and file name.
+
+        Raises:
+            ChunkingConfigurationNotFoundError: If the configuration does not exist.
+        """
+        if await self.configurations.get_by_id(chunking_configuration_id) is None:
+            raise ChunkingConfigurationNotFoundError(chunking_configuration_id)
+        return await self.chunks.search(
+            text,
+            chunking_configuration_id=chunking_configuration_id,
+            corpus_id=corpus_id,
+            limit=limit,
+            offset=offset,
+        )
+
     async def parse_pages(
         self,
         *,
