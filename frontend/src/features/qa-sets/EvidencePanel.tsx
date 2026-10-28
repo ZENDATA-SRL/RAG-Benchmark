@@ -31,6 +31,7 @@ export function EvidencePanel({
   onOpen,
   onSave,
   saving,
+  queueMode = false,
 }: {
   status: EvidenceStatus;
   confirmedBy?: string | null;
@@ -43,14 +44,20 @@ export function EvidencePanel({
   onOpen: (chunk: DraftChunk) => void;
   onSave: (decision: EvidenceDecision) => void;
   saving: boolean;
+  /** In a review queue a decision also moves on to the next question. */
+  queueMode?: boolean;
 }) {
   const decisions: {
     decision: EvidenceDecision;
     label: string;
     variant: "primary" | "secondary";
   }[] = [
-    { decision: "confirmed", label: "Confirm", variant: "primary" },
-    { decision: "not_found", label: "Not found", variant: "secondary" },
+    { decision: "confirmed", label: queueMode ? "Confirm & next" : "Confirm", variant: "primary" },
+    {
+      decision: "not_found",
+      label: queueMode ? "Not found & next" : "Not found",
+      variant: "secondary",
+    },
     { decision: "to_review", label: "Save draft", variant: "secondary" },
   ];
   const reasons = decisions

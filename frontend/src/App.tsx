@@ -15,6 +15,7 @@ import { IndexesPage } from "@/features/indexes/IndexesPage";
 import { AnnotationPage } from "@/features/qa-sets/AnnotationPage";
 import { QaSetDetailPage } from "@/features/qa-sets/QaSetDetailPage";
 import { QaSetsPage } from "@/features/qa-sets/QaSetsPage";
+import { TransferPage } from "@/features/transfers/TransferPage";
 
 export function App() {
   return (
@@ -36,6 +37,7 @@ export function App() {
           path="/qa-sets/:qaSetId/questions/:questionId/annotate"
           element={<AnnotationPage />}
         />
+        <Route path="/transfers/:transferId" element={<TransferPage />} />
         <Route path="/experiments" element={<ExperimentsPage />} />
         <Route path="/experiments/:experimentId" element={<ExperimentDetailPage />} />
         <Route path="/experiments/:experimentId/runs/:runId" element={<RunPage />} />

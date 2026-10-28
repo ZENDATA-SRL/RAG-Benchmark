@@ -13,8 +13,9 @@ queries against it.
 | `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text, sized to the window so the PDF and the chunk list scroll in their own panes; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
 | `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
 | `/indexes` | Embedding and vector store profiles, index builds, and the query panel of a ready build |
-| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts |
-| `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting |
+| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts, *Suggest chunks* and the set's suggestion jobs |
+| `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting. With `?transfer=` it is the review queue of a suggestion job |
+| `/transfers/:transferId` | A suggestion job: ranking progress, reviewed and confirmed counts, recall ceiling, its weights and thresholds, the questions by state, *Start review* |
 | `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with the snapshots each one uses, and the wizard that creates one; an experiment's corpus and QA set, variants, runs and the *Launch run* action |
 | `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down |
 | `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
@@ -59,6 +60,19 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   why they are disabled (no chunk to confirm, chunks on a not-found, no annotator name). The
   annotator's name is remembered in the browser. The chunk rows come from the same
   `ChunkNavigator` the chunk viewer uses, through its `renderChunkActions` prop.
+- **Suggested chunks** (`features/transfers/`): *Suggest chunks* on the set page starts a job
+  under the chosen configuration, from the question and its answer or from the evidence
+  confirmed in another configuration, with the embedder and, folded away, the weights and
+  thresholds; questions whose documents have no chunks there are listed and can be left
+  out. The job page polls the ranking and lists the questions by state. *Start review* opens
+  the annotation page in queue mode: a *Candidates* tab lists every chunk of the gold
+  documents best first, with band, combined and per-signal scores and the grade toggles
+  (texts flowed onto one line, as some extractions break after every word); pre-selected
+  candidates come ticked but unsaved; *Document* shows the chunk viewer with each
+  candidate's rank and score; *Search* finds chunks by their words when nothing is plausible.
+  With a source, the chunks confirmed there are shown above. Keys: `j`/`k` or `↑`/`↓` move,
+  `s`/`p`/`x` grade, `Enter` confirms and goes to the next question waiting, `n` records not
+  found and goes on; at the end of the queue the job page opens again.
   The import summary counts imported, already present, unresolved, ambiguous and invalid rows
   and lists every row that was left out with its reason. *Freeze* creates the snapshot an
   experiment uses; if the questions did not change, the existing snapshot is shown with the
@@ -109,7 +123,11 @@ browser-facing variable is `VITE_API_BASE_URL` (empty = same origin).
 Playwright (`npm run test:e2e`) walks the empty-state path and opens the QA set and experiment pages, and skips if the API
 is not on `:8000`. `annotation-flow.spec.ts` writes a question, confirms one evidence chunk
 and checks the counts; it needs a corpus with a materialised document and leaves an empty
-"e2e annotation" QA set behind, because sets cannot be deleted. Install the browser once with `npx playwright install chromium`.
+"e2e annotation" QA set behind, because sets cannot be deleted. `suggestion-flow.spec.ts`
+starts a suggestion job for one question, reviews it from the keyboard and checks that the
+evidence is confirmed; it also needs a worker serving the transfer workflow (it calls the
+embedder of the newest index on that configuration, if any) and leaves an "e2e suggestion"
+set behind. Install the browser once with `npx playwright install chromium`.
 
 ## Docker
 

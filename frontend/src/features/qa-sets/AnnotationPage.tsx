@@ -8,8 +8,9 @@ import {
   inspectionApi,
   qaSetsApi,
   questionsApi,
+  transfersApi,
 } from "@/api/resources";
-import type { EvidenceRead, QuestionRead, RelevanceGrade } from "@/api/types";
+import type { EvidenceRead, QuestionRead, QuestionReviewRead, RelevanceGrade } from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -18,7 +19,11 @@ import { toast } from "@/lib/toast";
 
 import { ChunkViewer, toNavigable } from "../chunks/ChunkViewer";
 import type { NavigableChunk } from "../chunks/types";
+import { CandidateList } from "../transfers/CandidateList";
+import { ChunkSearch } from "../transfers/ChunkSearch";
+import { candidateChunk, formatScore, initialDraft } from "../transfers/queue";
 import {
+  blockedReason,
   draftFromEvidence,
   evidencePayload,
   loadAnnotator,
@@ -30,6 +35,7 @@ import {
   type EvidenceDecision,
 } from "./evidence";
 import { EvidencePanel, EvidenceStatusBadge } from "./EvidencePanel";
+import { RelevanceToggle } from "./RelevanceToggle";
 
 /** Keys that mark the selected chunk; ignored while typing in a field. */
 const RELEVANCE_KEYS: Record<string, RelevanceGrade | null> = {
@@ -43,6 +49,8 @@ export function AnnotationPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const configurationId = params.get("configuration") ?? "";
+  // Set when the page reviews the questions of a suggestion job one after the other.
+  const transferId = params.get("transfer") ?? "";
 
   const configurations = useQuery({
     queryKey: queryKeys.configurations,
@@ -62,11 +70,29 @@ export function AnnotationPage() {
     queryFn: () => questionsApi.evidence(questionId, configurationId),
     enabled: Boolean(configurationId),
   });
+  const review = useQuery({
+    queryKey: queryKeys.transferQuestion(transferId, questionId),
+    queryFn: () => transfersApi.question(transferId, questionId),
+    enabled: Boolean(transferId),
+  });
 
   const configuration = configurations.data?.items.find((item) => item.id === configurationId);
   const next = nextToReview(qaSet.data?.questions.items ?? [], questionId);
   const goTo = (id: string) =>
-    navigate(`/qa-sets/${qaSetId}/questions/${id}/annotate?configuration=${configurationId}`);
+    navigate(
+      `/qa-sets/${qaSetId}/questions/${id}/annotate?configuration=${configurationId}${
+        transferId ? `&transfer=${transferId}` : ""
+      }`,
+    );
+  const afterDecision = () => {
+    const nextInQueue = review.data?.next_question_id;
+    if (nextInQueue) {
+      goTo(nextInQueue);
+    } else {
+      toast.success("Queue done: every question of the job is decided.");
+      navigate(`/transfers/${transferId}`);
+    }
+  };
 
   return (
     <div>
@@ -106,7 +132,23 @@ export function AnnotationPage() {
               ))}
             </select>
           </label>
-          {configurationId ? (
+          {transferId ? (
+            <span className="flex items-center gap-3">
+              <Link to={`/transfers/${transferId}`} className="text-rust hover:underline">
+                ← Queue
+              </Link>
+              {review.data?.next_question_id ? (
+                <button
+                  type="button"
+                  className="text-rust hover:underline"
+                  onClick={() => goTo(review.data!.next_question_id!)}
+                  data-testid="skip-question"
+                >
+                  Skip →
+                </button>
+              ) : null}
+            </span>
+          ) : configurationId ? (
             next ? (
               <button
                 type="button"
@@ -123,6 +165,21 @@ export function AnnotationPage() {
         </div>
       </div>
 
+      {review.data && review.data.reference.length > 0 ? (
+        <details className="mb-4 rounded-lg border border-line bg-paper-raised p-3 text-sm" open>
+          <summary className="cursor-pointer text-xs text-ink-muted">
+            Confirmed in the source configuration ({review.data.reference.length})
+          </summary>
+          <ul className="mt-2 space-y-2" data-testid="reference-chunks">
+            {review.data.reference.map((chunk) => (
+              <li key={chunk.chunk_id} className="whitespace-pre-wrap text-xs leading-5">
+                <Badge>{chunk.relevance}</Badge> {chunk.text}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {!configurationId ? (
         <EmptyState
           title="Choose a chunking configuration"
@@ -133,10 +190,12 @@ export function AnnotationPage() {
           title="This question is not answerable"
           body="It is flagged as having no answer in the documents, so there is no evidence to review."
         />
-      ) : question.data && evidence.data ? (
+      ) : question.data && evidence.data && (!transferId || review.data) ? (
         <Workbench
           // Remounted per question and configuration, so the draft starts from what is saved.
-          key={`${questionId}:${configurationId}`}
+          key={`${questionId}:${configurationId}:${transferId}`}
+          review={review.data}
+          onDecided={transferId ? afterDecision : undefined}
           qaSetId={qaSetId}
           originCorpusId={qaSet.data?.origin_corpus_id ?? null}
           question={question.data}
@@ -194,7 +253,11 @@ function Workbench({
   parsingProfileId,
   documentId,
   onDocument,
+  review,
+  onDecided,
 }: {
+  review?: QuestionReviewRead;
+  onDecided?: () => void;
   qaSetId: string;
   originCorpusId: string | null;
   question: QuestionRead;
@@ -206,7 +269,16 @@ function Workbench({
 }) {
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(evidence);
-  const [draft, setDraft] = useState<DraftChunk[]>(() => draftFromEvidence(evidence));
+  // In a review queue the pre-selected candidates start ticked, never confirmed.
+  const [draft, setDraft] = useState<DraftChunk[]>(() =>
+    review ? initialDraft(evidence, review.candidates) : draftFromEvidence(evidence),
+  );
+  const [pane, setPane] = useState<"candidates" | "document" | "search">(
+    review ? "candidates" : "document",
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const candidates = review?.candidates ?? [];
+  const candidateById = new Map(candidates.map((candidate) => [candidate.chunk_id, candidate]));
   const [annotator, setAnnotator] = useState(loadAnnotator);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -269,19 +341,8 @@ function Workbench({
       ),
     );
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      if (!(event.key in RELEVANCE_KEYS) || !selectedId) return;
-      const chunk = navigable.find((item) => item.id === selectedId);
-      if (!chunk) return;
-      event.preventDefault();
-      mark(chunk, RELEVANCE_KEYS[event.key]);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+  const pick = (chunk: Omit<DraftChunk, "relevance">, relevance: RelevanceGrade | null) =>
+    setDraft((current) => setRelevance(current, chunk, relevance));
 
   const save = useMutation({
     mutationFn: (decision: EvidenceDecision) =>
@@ -289,7 +350,7 @@ function Workbench({
         question.id,
         evidencePayload(configurationId, decision, draft, annotator),
       ),
-    onSuccess: async (result) => {
+    onSuccess: async (result, decision) => {
       setSaved(result);
       setDraft(draftFromEvidence(result));
       saveAnnotator(annotator);
@@ -300,7 +361,52 @@ function Workbench({
       queryClient.setQueryData(queryKeys.evidence(question.id, configurationId), result);
       await queryClient.invalidateQueries({ queryKey: queryKeys.qaSetScope(qaSetId) });
       await queryClient.invalidateQueries({ queryKey: ["questions", question.id] });
+      if (review) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.transfer(review.transfer_job_id),
+        });
+        if (decision !== "to_review") onDecided?.();
+      }
     },
+  });
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName)) return;
+      if (review) {
+        // Queue keys: decide and move on without the mouse.
+        const decision =
+          event.key === "Enter" ? "confirmed" : event.key === "n" ? "not_found" : null;
+        if (decision) {
+          event.preventDefault();
+          if (!save.isPending && blockedReason(decision, draft, annotator) === null) {
+            save.mutate(decision);
+          }
+          return;
+        }
+      }
+      if (review && pane === "candidates") {
+        if (event.key === "ArrowDown" || event.key === "j") {
+          event.preventDefault();
+          setCandidateIndex((index) => Math.min(index + 1, candidates.length - 1));
+        } else if (event.key === "ArrowUp" || event.key === "k") {
+          event.preventDefault();
+          setCandidateIndex((index) => Math.max(index - 1, 0));
+        } else if (event.key in RELEVANCE_KEYS && candidates[candidateIndex]) {
+          event.preventDefault();
+          pick(candidateChunk(candidates[candidateIndex]), RELEVANCE_KEYS[event.key]);
+        }
+        return;
+      }
+      if (!(event.key in RELEVANCE_KEYS) || !selectedId) return;
+      const chunk = navigable.find((item) => item.id === selectedId);
+      if (!chunk) return;
+      event.preventDefault();
+      mark(chunk, RELEVANCE_KEYS[event.key]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   });
 
   return (
@@ -336,6 +442,12 @@ function Workbench({
           <p className="text-[11px] text-ink-muted">
             ★ gold document · keys on the selected chunk: <kbd>s</kbd> sufficient, <kbd>p</kbd>{" "}
             supporting, <kbd>x</kbd> remove, <kbd>↑</kbd>/<kbd>↓</kbd> move
+            {review ? (
+              <>
+                {" "}
+                · <kbd>Enter</kbd> confirm &amp; next, <kbd>n</kbd> not found &amp; next
+              </>
+            ) : null}
           </p>
         </div>
         <EvidencePanel
@@ -355,77 +467,103 @@ function Workbench({
           }}
           onSave={(decision) => save.mutate(decision)}
           saving={save.isPending}
+          queueMode={Boolean(review)}
         />
       </aside>
 
-      {!activeDocumentId ? (
-        <EmptyState
-          title="No document to open"
-          body="The question has no gold document and the set has no origin corpus to browse."
-        />
-      ) : chunks.isError ? (
-        <EmptyState
-          title="Chunks are not ready"
-          body="This document is not materialised under the chosen configuration. Materialise the configuration on the corpus first."
-        />
-      ) : chunks.isLoading ? (
-        <TableSkeleton />
-      ) : (
-        <ChunkViewer
-          documentId={activeDocumentId}
-          chunks={navigable}
-          selectedId={selectedId ?? navigable[0]?.id ?? null}
-          onSelect={setSelectedId}
-          parsingProfileId={parsingProfileId}
-          renderChunkActions={(chunk) => (
-            <RelevanceToggle
-              ordinal={chunk.ordinal}
-              value={grades.get(chunk.id) ?? null}
-              onChange={(relevance) => mark(chunk, relevance)}
+      <div className="flex min-w-0 flex-col gap-2">
+        {review ? (
+          <div className="flex gap-2 text-sm" role="tablist">
+            {(
+              [
+                ["candidates", `Candidates (${candidates.length})`],
+                ["document", "Document"],
+                ["search", "Search"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={pane === value}
+                onClick={() => setPane(value)}
+                className={`rounded-full border px-3 py-1 ${
+                  pane === value ? "border-rust text-rust" : "border-line text-ink-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {review && pane === "candidates" ? (
+          <div className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-line bg-paper">
+            <CandidateList
+              candidates={candidates}
+              grades={grades}
+              selectedIndex={candidateIndex}
+              onSelect={setCandidateIndex}
+              onMark={(candidate, relevance) => pick(candidateChunk(candidate), relevance)}
+              onOpen={(candidate) => {
+                onDocument(candidate.document_id);
+                setSelectedId(candidate.chunk_id);
+                setPane("document");
+              }}
             />
-          )}
-        />
-      )}
+          </div>
+        ) : review && pane === "search" ? (
+          <div className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-line bg-paper">
+            <ChunkSearch
+              configurationId={configurationId}
+              corpusId={originCorpusId}
+              grades={grades}
+              onMark={(hit, relevance) => pick(hit, relevance)}
+              onOpen={(hit) => {
+                onDocument(hit.document_id);
+                setSelectedId(hit.chunk_id);
+                setPane("document");
+              }}
+            />
+          </div>
+        ) : !activeDocumentId ? (
+          <EmptyState
+            title="No document to open"
+            body="The question has no gold document and the set has no origin corpus to browse."
+          />
+        ) : chunks.isError ? (
+          <EmptyState
+            title="Chunks are not ready"
+            body="This document is not materialised under the chosen configuration. Materialise the configuration on the corpus first."
+          />
+        ) : chunks.isLoading ? (
+          <TableSkeleton />
+        ) : (
+          <ChunkViewer
+            documentId={activeDocumentId}
+            chunks={navigable}
+            selectedId={selectedId ?? navigable[0]?.id ?? null}
+            onSelect={setSelectedId}
+            parsingProfileId={parsingProfileId}
+            renderChunkActions={(chunk) => {
+              const candidate = candidateById.get(chunk.id);
+              return (
+                <span className="flex items-center gap-2">
+                  {candidate ? (
+                    <Badge tone={candidate.confidence === "high" ? "good" : "info"}>
+                      {`#${candidate.rank} · ${formatScore(candidate.combined_score)}`}
+                    </Badge>
+                  ) : null}
+                  <RelevanceToggle
+                    ordinal={chunk.ordinal}
+                    value={grades.get(chunk.id) ?? null}
+                    onChange={(relevance) => mark(chunk, relevance)}
+                  />
+                </span>
+              );
+            }}
+          />
+        )}
+      </div>
     </div>
-  );
-}
-
-function RelevanceToggle({
-  ordinal,
-  value,
-  onChange,
-}: {
-  ordinal: number;
-  value: RelevanceGrade | null;
-  onChange: (relevance: RelevanceGrade | null) => void;
-}) {
-  const options: { grade: RelevanceGrade; label: string }[] = [
-    { grade: "sufficient", label: "sufficient" },
-    { grade: "supporting", label: "supporting" },
-  ];
-  return (
-    <span className="flex gap-1">
-      {options.map(({ grade, label }) => (
-        <button
-          key={grade}
-          type="button"
-          aria-pressed={value === grade}
-          aria-label={`Mark chunk ${ordinal} as ${label}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onChange(value === grade ? null : grade);
-          }}
-          className={`rounded-full border px-2 py-0.5 ${
-            value === grade
-              ? grade === "sufficient"
-                ? "border-teal bg-teal/15 text-teal"
-                : "border-amber bg-amber/20 text-ink"
-              : "border-line text-ink-muted hover:border-ink/30"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </span>
   );
 }

@@ -13,6 +13,8 @@ import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
+import { TransferDialog } from "../transfers/TransferDialog";
+import { TransferJobs } from "../transfers/TransferJobs";
 import { filterQuestions, type StatusFilter } from "./evidence";
 import { EvidenceStatusBadge } from "./EvidencePanel";
 import { ImportDialog } from "./ImportDialog";
@@ -96,6 +98,7 @@ export function QaSetDetailPage() {
   const [deleting, setDeleting] = useState<QuestionRead | null>(null);
   const [frozen, setFrozen] = useState<QASetSnapshotCreated | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [suggesting, setSuggesting] = useState(false);
 
   const qaSet = useQuery({
     queryKey: queryKeys.qaSet(qaSetId, configurationId),
@@ -227,7 +230,24 @@ export function QaSetDetailPage() {
           </span>
         )}
         {coverage.data ? <CoverageBar coverage={coverage.data} /> : null}
+        {configurationId && questions.length > 0 ? (
+          <Button
+            variant="secondary"
+            onClick={() => setSuggesting(true)}
+            title="Rank the chunks of each question's gold documents, to review the likely ones first"
+          >
+            Suggest chunks
+          </Button>
+        ) : null}
       </div>
+      <TransferJobs qaSetId={qaSetId} />
+      {suggesting ? (
+        <TransferDialog
+          qaSetId={qaSetId}
+          targetConfigurationId={configurationId}
+          onClose={() => setSuggesting(false)}
+        />
+      ) : null}
 
       {qaSet.isLoading ? <TableSkeleton /> : null}
       {qaSet.isSuccess && questions.length === 0 ? (
