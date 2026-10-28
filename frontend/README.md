@@ -83,7 +83,9 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   as soon as both snapshots are chosen: if some questions have gold documents outside the
   corpus snapshot they are listed, and *Create* stays disabled until they are explicitly
   excluded from the metrics. `variants_outside_snapshot` and `gold_coverage_choice_required`
-  are shown inline.
+  are shown inline. Once index builds are chosen, the chunk-level evidence of each of their
+  configurations is shown (confirmed, not found, still to review): informative only, since
+  chunk metrics count the confirmed questions and exclude the rest with their reason.
 - **Run page**: progress is polled while the run is active (cancel while running, resume
   when something is left). Results are grouped by the chunking configuration the variants
   search: each group states its parser and chunker, how far its evidence was reviewed and the

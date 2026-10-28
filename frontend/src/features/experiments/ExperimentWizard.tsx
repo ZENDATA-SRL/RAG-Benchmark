@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { queryKeys } from "@/lib/queryClient";
 
+import { ChunkGoldCoverage } from "./ChunkGoldCoverage";
 import { experimentErrorMessage } from "./errors";
 import { canCreateExperiment, crossVariants, selectableBuilds } from "./variants";
 
@@ -293,6 +294,15 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
               ))}
             </fieldset>
           </div>
+        ) : null}
+
+        {chosenBuilds.length > 0 && qaSetId ? (
+          <ChunkGoldCoverage
+            qaSetId={qaSetId}
+            configurationIds={[
+              ...new Set(chosenBuilds.map((build) => build.chunking_configuration_id)),
+            ]}
+          />
         ) : null}
 
         {variants.length > 0 ? (
