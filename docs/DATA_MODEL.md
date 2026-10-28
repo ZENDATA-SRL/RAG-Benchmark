@@ -214,7 +214,7 @@ I profili di parsing/chunking/embedding/vector store/risposta referenziano una *
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: componente@versione, es. `pypdf@1`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `component_version_id` | UUID | FK → component_versions, NOT NULL | |
 | `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo schema del componente |
 | `config_hash` | TEXT | NOT NULL | hash(component_version + params) |
@@ -227,7 +227,7 @@ Include la politica di filtro header/footer/indice (RF-P03) e la politica sulle 
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: componente@versione chunk_size/overlap, es. `recursive@1 1000/200`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `component_version_id` | UUID | FK → component_versions, NOT NULL | |
 | `strategy` | TEXT | NOT NULL | fixed / recursive / semantic ... |
 | `chunk_size` | INTEGER | | |
@@ -242,7 +242,7 @@ Supporto a modelli testuali, di immagine e multi-vettore (RF-P04).
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: componente@versione, modello, dimensioni, es. `openai@1 text-embedding-3-small 1536d`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `component_version_id` | UUID | FK → component_versions, NOT NULL | |
 | `modality` | TEXT | NOT NULL DEFAULT 'text' | text / image / multi_vector |
 | `dimensions` | INTEGER | | dimensione del vettore |
@@ -256,7 +256,7 @@ Pinecone / Qdrant / pgvector con parametri d'indice (RF-P05).
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: componente@versione e distanza, es. `qdrant@1 cosine`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `component_version_id` | UUID | FK → component_versions, NOT NULL | |
 | `index_params` | JSONB | NOT NULL DEFAULT '{}' | metrica, dimensione, HNSW... |
 | `config_hash` | TEXT | NOT NULL UNIQUE | |
@@ -268,7 +268,7 @@ Configurazione di retrieval completa (RF-P06). Referenziato dalle varianti, non 
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: strategia, top-k, soglia, es. `dense top-10 ≥0.3`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `top_k` | INTEGER | NOT NULL | |
 | `pre_rerank_k` | INTEGER | | candidati pre-rerank |
 | `strategy` | retrieval_strategy | NOT NULL | dense / sparse / hybrid / multi_vector; oggi è eseguibile solo `dense` |
@@ -329,7 +329,7 @@ La **"configurazione di chunking"** di §3.1, materializzata: la coppia (profilo
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | etichetta leggibile, es. `docling + recursive512` |
+| `name` | TEXT | NOT NULL | derivato dai profili, es. `pypdf@1 → recursive@1 1000/200`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `parsing_profile_id` | UUID | FK → parsing_profiles, NOT NULL | |
 | `chunking_profile_id` | UUID | FK → chunking_profiles, NOT NULL | |
 | `config_hash` | TEXT | NOT NULL UNIQUE | hash(parsing.config_hash + chunking.config_hash) |
@@ -386,7 +386,7 @@ La **configurazione di popolamento del vector DB**: snapshot × configurazione d
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | es. `Cyber · docling+rec512 · emb-3-large · Qdrant` |
+| `name` | TEXT | NOT NULL | derivato: corpus e snapshot, configurazione, embedder, vector store, es. `Cyber v1 · pypdf@1 → recursive@1 512/64 · openai@1 text-embedding-3-large · qdrant@1 cosine`; suffisso ` #` + 6 caratteri dell'hash se già usato |
 | `corpus_snapshot_id` | UUID | FK → corpus_snapshots, NOT NULL | lo spazio di ricerca |
 | `chunking_configuration_id` | UUID | FK → chunking_configurations, NOT NULL | |
 | `embedding_profile_id` | UUID | FK → embedding_profiles, NOT NULL | |
@@ -678,7 +678,7 @@ Indice × profilo di retrieval × profilo di risposta (RF-E02). Per esperimenti 
 |---|---|---|---|
 | `id` | UUID | PK | |
 | `experiment_id` | UUID | FK → experiments, NOT NULL | |
-| `name` | TEXT | NOT NULL | |
+| `name` | TEXT | NOT NULL | derivato: configurazione · embedder · vector store · retrieval profile |
 | `index_build_id` | UUID | FK → index_builds, NOT NULL | |
 | `retrieval_profile_id` | UUID | FK → retrieval_profiles, NOT NULL | |
 | `answer_profile_id` | UUID | FK → answer_profiles, NULL | NULL se retrieval puro; i `params` sono la `config` passata al sistema. Finché `answer_profiles` non esiste la colonna c'è ma senza vincolo di FK |
