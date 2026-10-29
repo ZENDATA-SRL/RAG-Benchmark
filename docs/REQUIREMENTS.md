@@ -304,10 +304,13 @@ Il segnale semantico è ciò che recupera le tabelle, dove il matching lessicale
 |---|---|
 | RF-O01 | Registrare **ogni chiamata** al tool di retrieval come entità distinta, con indice progressivo e query effettiva |
 | RF-O02 | Registrare per ogni chiamata gli hit con rank, score e stadio (denso, sparso, fuso, reranked, finale) |
-| RF-O03 | Distinguere tre insiemi: **recuperato** (unione di tutte le chiamate), **in contesto** (passato all'LLM), **citato** (dichiarato dall'agente) |
-| RF-O04 | Calcolare le metriche di retrieval su un ambito configurabile fra i tre |
+| RF-O03 | Distinguere due insiemi: **recuperato** (unione di tutte le chiamate) e **citato** (dichiarato dal sistema di risposta, anche se mai recuperato) |
+| RF-O04 | Calcolare le metriche di retrieval su un ambito configurabile fra i due |
+| RF-O05 | Rendere visibili le **ripetizioni** fra chiamate: lo stesso chunk restituito da più chiamate di un'esecuzione si conta e si mostra, non si nasconde nell'insieme |
 
-**Motivazione RF-O01/O03.** Un agente agentico effettua più chiamate con query riformulate. Le tre nozioni rispondono a domande diverse: *l'indice conteneva l'evidenza?* (recuperato), *l'agente ha sprecato contesto?* (in contesto), *l'attribuzione è corretta?* (citato). Un fallimento con recall pari a 1 è un problema di generazione; con recall pari a 0 è un problema di retrieval. Senza questa separazione non si sa dove intervenire. Vedere le riformulazioni successive è inoltre uno degli strumenti di debug più utili sugli agenti.
+**Motivazione RF-O01/O03.** Un agente agentico effettua più chiamate con query riformulate. I due insiemi rispondono a domande diverse: *l'indice conteneva e ha restituito l'evidenza?* (recuperato), *l'attribuzione è corretta?* (citato). Un fallimento con recall pari a 1 è un problema di generazione; con recall pari a 0 è un problema di retrieval. Senza questa separazione non si sa dove intervenire. Vedere le riformulazioni successive è inoltre uno degli strumenti di debug più utili sugli agenti.
+
+**Motivazione RF-O05.** Un agente che riformula la query e riottiene gli stessi chunk spreca chiamate e contesto senza recuperare nulla di nuovo. Deduplicando l'insieme lo spreco sparirebbe dai numeri; contando le ripetizioni diventa una misura dell'efficienza del sistema, ed è visibile nel drill-down chiamata per chiamata.
 
 ### 4.9 Valutazione
 
@@ -591,11 +594,12 @@ La UI applica il vincolo come raggruppamento (RT-U02).
 | nDCG@k | limitato | sì (usa la rilevanza graduata) |
 | rank del primo rilevante | sì | sì |
 
-Per gli esperimenti Q&A le metriche si calcolano sull'ambito indicato nell'esperimento:
+**Esecuzioni con più chiamate.** Le metriche con cutoff e rank (`@k`, MRR, rank del primo rilevante) si calcolano sulla **prima chiamata**: N chiamate danno N liste con rank 1..k e score di query diverse, non confrontabili fra loro. Sull'unione delle chiamate si calcolano solo metriche d'insieme senza cutoff (recall e precision dell'insieme, ai due livelli), sui chunk **distinti**, sempre accompagnate dalla dimensione dell'insieme e dal numero di chiamate (§7.3): dieci ricerche da cinque coprono fino a cinquanta chunk e battono un top-5 senza essere un retriever migliore. Si registra anche in quale chiamata arriva la prima evidenza. Con una sola chiamata, come nel puro retrieval, i due modi coincidono.
+
+Per gli esperimenti Q&A le metriche d'insieme si calcolano sull'ambito indicato nell'esperimento:
 
 - **recuperato** — unione degli hit di tutte le chiamate. *L'indice conteneva e ha restituito l'evidenza?*
-- **in contesto** — ciò che è stato effettivamente passato all'LLM. *L'agente ha sprecato contesto?*
-- **citato** — ciò che l'agente dichiara di aver usato. *L'attribuzione è corretta?*
+- **citato** — ciò che il sistema dichiara di aver usato. *L'attribuzione è corretta?* Un sistema che non dichiara citazioni ha questo ambito escluso con motivo, mai valutato 0.
 
 ### 7.2 Risposta
 
@@ -610,7 +614,7 @@ Per gli esperimenti Q&A le metriche si calcolano sull'ambito indicato nell'esper
 
 ### 7.3 Efficienza
 
-Latenza totale e per fase (p50, p95), time-to-first-token, numero di chiamate al retrieval, numero di tool call.
+Latenza totale e per fase (p50, p95), time-to-first-token, numero di tool call; per il retrieval: numero di chiamate, hit totali, chunk distinti e quota di hit ripetuti (hit che non hanno portato un chunk nuovo rispetto alle chiamate precedenti, RF-O05).
 
 ### 7.4 Robustezza
 

@@ -45,7 +45,7 @@ CREATE TYPE experiment_type     AS ENUM ('retrieval', 'qa');
 CREATE TYPE execution_status    AS ENUM ('pending', 'running', 'succeeded', 'failed', 'skipped');
 CREATE TYPE retrieval_stage     AS ENUM ('dense', 'sparse', 'fused', 'reranked', 'final');
 CREATE TYPE retrieval_strategy  AS ENUM ('dense', 'sparse', 'hybrid', 'multi_vector');
-CREATE TYPE retrieval_scope     AS ENUM ('retrieved', 'in_context', 'cited');
+CREATE TYPE retrieval_scope     AS ENUM ('retrieved', 'cited');
 CREATE TYPE metric_family       AS ENUM ('retrieval', 'answer', 'efficiency', 'robustness');
 CREATE TYPE metric_level        AS ENUM ('document', 'chunk');
 CREATE TYPE evaluator_kind      AS ENUM ('deterministic', 'llm_judge', 'human');
@@ -663,7 +663,7 @@ Tipo (retrieval o Q&A), snapshot di corpus e QA set, ripetizioni, ambito di calc
 | `corpus_snapshot_id` | UUID | FK → corpus_snapshots, NOT NULL | guardia: tutte le varianti devono usare indici su questo snapshot |
 | `qa_set_snapshot_id` | UUID | FK → qa_set_snapshots, NOT NULL | |
 | `repetitions` | INTEGER | NOT NULL DEFAULT 1 | ripetizioni per domanda |
-| `retrieval_scope` | retrieval_scope | NOT NULL DEFAULT 'retrieved' | ambito metriche (RF-O04) |
+| `retrieval_scope` | retrieval_scope | NOT NULL DEFAULT 'retrieved' | ambito delle metriche d'insieme (RF-O04): `retrieved` o `cited`; il puro retrieval usa solo `retrieved` |
 | `uncovered_policy` | TEXT | | `exclude` se alla creazione c'erano domande con gold fuori snapshot e l'utente ha scelto di escluderle; NULL altrimenti |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
@@ -727,6 +727,7 @@ Una domanda × variante × ripetizione. **Unità di idempotenza e resume** (RF-E
 | `answer_payload_uri` | TEXT | | payload grezzo su object storage (RT-P02) |
 | `usage` | JSONB | | model, tokens_in, tokens_out |
 | `timings` | JSONB | | total_ms, per fase |
+| `cited_chunk_ids` | UUID[] | | chunk citati dal sistema di risposta; NULL = il sistema non dichiara citazioni, array vuoto = non ha citato nulla. Può contenere chunk mai recuperati |
 | `langfuse_trace_id` | TEXT | | trace Langfuse (RT-L02) |
 | `error` | TEXT | | motivo se failed |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
@@ -748,7 +749,7 @@ Una invocazione del tool di retrieval; un agente agentico ne produce N per esecu
 | | | UNIQUE (execution_id, call_index) | |
 
 ### `retrieval_hits`
-Un chunk restituito, con rank, score, stadio e i flag di rilevanza ai due livelli (RF-O02, RF-O03).
+Un chunk restituito da una chiamata, con rank, score, stadio e i flag di rilevanza ai due livelli (RF-O02). È il **log grezzo**: lo stesso chunk restituito da più chiamate di un'esecuzione compare più volte, ed è da queste ripetizioni che si misura l'efficienza delle chiamate (RF-O05).
 
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
@@ -758,11 +759,13 @@ Un chunk restituito, con rank, score, stadio e i flag di rilevanza ai due livell
 | `rank` | INTEGER | NOT NULL | |
 | `score` | DOUBLE PRECISION | | |
 | `stage` | retrieval_stage | NOT NULL | dense/sparse/fused/reranked/final |
-| `in_context` | BOOLEAN | NOT NULL DEFAULT false | passato all'LLM (RF-O03) |
-| `cited` | BOOLEAN | NOT NULL DEFAULT false | dichiarato dall'agente |
 | `relevant_document` | BOOLEAN | | flag calcolato a livello documento |
 | `relevant_chunk` | BOOLEAN | | flag calcolato a livello chunk (se legame) |
 | | | INDEX (retrieval_call_id, stage, rank) | |
+
+> **Gli insiemi di un'esecuzione non sono materializzati.** Il recuperato è l'insieme dei chunk distinti degli hit `final` di tutte le chiamate, il citato è `executions.cited_chunk_ids`: entrambi si calcolano dagli hit e dalla risposta in valutazione e nel drill-down, che per un'esecuzione sono decine di righe. Le citazioni stanno sull'esecuzione e non sull'hit perché sono una proprietà del chunk nell'esecuzione, e un chunk citato ma mai recuperato non avrebbe un hit su cui stare. Una tabella per esecuzione × chunk si aggiunge solo se servirà interrogare gli insiemi in SQL fra run diversi, come proiezione di questi dati.
+
+> **Più chiamate per esecuzione.** Le metriche con cutoff e rank (`@k`, MRR, primo rilevante) usano gli hit della prima chiamata (`call_index = 0`); le metriche d'insieme usano i chunk distinti dell'ambito dell'esperimento; le metriche di efficienza (chiamate, hit totali, chunk distinti, quota di hit ripetuti) usano tutti gli hit, ripetizioni comprese.
 
 ### `metric_definitions`
 Chiave, famiglia, livello, direzione, aggregazione (§6.7, §7).
@@ -802,7 +805,7 @@ Il punteggio su una singola esecuzione, con flag di esclusione e motivo (RF-V06,
 | `evaluator_id` | UUID | FK → evaluators, NOT NULL | |
 | `score` | DOUBLE PRECISION | | valore della metrica |
 | `excluded` | BOOLEAN | NOT NULL DEFAULT false | escluso dal denominatore |
-| `exclusion_reason` | TEXT | | `evidence_not_found` (RF-V06) / `gold_document_not_in_snapshot` (RF-E09) |
+| `exclusion_reason` | TEXT | | `evidence_not_found` (RF-V06) / `gold_document_not_in_snapshot` (RF-E09) / `scope_not_declared` (ambito `cited` su un'esecuzione senza citazioni dichiarate) |
 | `langfuse_score_id` | TEXT | | copia da Langfuse via webhook (RT-L03) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (execution_id, metric_definition_id, evaluator_id) | |
