@@ -142,6 +142,7 @@ services:
       AWS_CONFIG_FILE: /aws/config
       AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
       AWS_PROFILE: ${WORKER_AWS_PROFILE:-default}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-proj-1234567890}
     volumes:
       - ${AWS_CONFIG_DIR:-~/.aws}:/aws:ro
     extra_hosts:

@@ -230,9 +230,6 @@ frontend/yarn-error.log*
 frontend/.pnpm-debug.log*
 
 
-# UV stuff
-uv*
-
 # Sprint folder
 sprint/*
 

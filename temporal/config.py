@@ -9,19 +9,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from src.infrastructure.temporal import data_converter
 from src.settings import Settings, get_settings
-from temporalio.converter import DataConverter
-
-
-def worker_data_converter() -> DataConverter:
-    """The data converter every client and worker shares.
-
-    Defined once in `src.infrastructure.temporal` because the API is a Temporal client too:
-    the payload size limit must hold on both sides of the queue.
-    """
-    return data_converter()
-
 
 # A dedicated engine for the worker process: activities run their own transaction outside
 # any HTTP request, so they must not share the pool `get_session` opens for the API. Built

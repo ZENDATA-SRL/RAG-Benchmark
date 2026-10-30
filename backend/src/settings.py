@@ -40,7 +40,6 @@ class Settings(BaseSettings):
 
     temporal_host: str = "localhost:7233"
     temporal_namespace: str = "default"
-    temporal_task_queue: str = "rag-bench"
 
     chroma_host: str = "localhost"
     chroma_port: int = 8001
