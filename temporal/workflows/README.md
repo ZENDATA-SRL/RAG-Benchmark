@@ -13,6 +13,7 @@ Deterministic orchestration only: no I/O, no randomness, no imports of heavy lib
 
 | `RunExperimentWorkflow` | `RunExperimentInput` (run id, concurrency) | `open_experiment_run`, one child `RunVariantWorkflow` per variant in sequence, `finish_experiment_run`. Any activity or child failing for good calls `fail_experiment_run` before the workflow fails |
 | `RunVariantWorkflow` | `RunVariantInput` (run id, variant id, concurrency, cursor and counters) | Loop of `list_unfinished_executions` (100 ids after the cursor) → `retrieve_question` per execution under a semaphore → `record_run_progress`. `continue_as_new` after 5 pages. An execution whose activity fails after its retries is marked with `mark_execution_failed` and the run continues |
+| `EvaluateRunWorkflow` | `EvaluateRunInput` (run id, offset, whether it was opened) | `open_run_evaluation` (once, not again after `continue_as_new`), then `evaluate_executions` on batches of 200 by offset (heartbeat every execution, 30 s timeout) until a batch comes back short, then `finish_run_evaluation`. `continue_as_new` after 50 batches. A batch is one transaction: interrupted, it is redone whole and the batches before it are not. Failing for good calls `fail_run_evaluation` before the workflow fails |
 
 ## Ids and idempotency
 
@@ -32,7 +33,8 @@ succeed.
 Parse 30 min with a 2 min heartbeat timeout, chunk 15 min, embed batch 15 min, collection
 and upsert 5 min, reads 30 s,
 `MaterializeChunksWorkflow` child 2 h inside indexing. Retries: 3 attempts, and
-`PermanentParsingError` is non-retryable. Experiments: `retrieve_question` 2 min with up to 4
+`ProfileNotFoundError` (a missing document, profile or configuration) is non-retryable. A
+`PermanentParsingError` is recorded by the parse activity and returned, never raised. Experiments: `retrieve_question` 2 min with up to 4
 attempts and exponential backoff (2 s, doubling, capped at 30 s) because the query
 embeddings are rate limited; run bookkeeping 60 s; closing a run 10 min; a variant child 6 h.
 Transfers: `rank_transfer_question` 5 min (it embeds a question's whole pool) with the same

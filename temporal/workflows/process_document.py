@@ -19,11 +19,13 @@ _PARSE_HEARTBEAT_TIMEOUT = timedelta(minutes=2)
 _CHUNK_TIMEOUT = timedelta(minutes=15)
 _READ_TIMEOUT = timedelta(seconds=30)
 
-# A parse that failed permanently (corrupt/encrypted/scanned) never succeeds on retry; the
-# activity records it and returns, but this makes the intent explicit for any path that
-# raises instead of returning.
+# Attempts are bounded like the other workflows. A parse that fails permanently (corrupt,
+# encrypted, scanned) is recorded and returned by the activity, so it never reaches this
+# policy; a missing document, profile or configuration raises and would fail identically on
+# every attempt, so it is not retried.
 _RETRY_POLICY = RetryPolicy(
-    non_retryable_error_types=["PermanentParsingError"],
+    maximum_attempts=3,
+    non_retryable_error_types=["ProfileNotFoundError"],
 )
 
 

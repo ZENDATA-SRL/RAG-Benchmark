@@ -43,8 +43,8 @@ async def parse_document(document_id: str, parsing_profile_id: str) -> ParseResu
 
     A `PermanentParsingError` (corrupt, encrypted, or no extractable text) marks the
     artefact `failed` and returns normally, so the parent workflow can carry on with the
-    other documents. It is re-raised as a non-retryable error only after being recorded, so
-    Temporal does not retry a failure that will never change.
+    other documents. Returning instead of raising means Temporal does not retry a failure
+    that will never change.
     """
     doc_id = uuid.UUID(document_id)
     profile_id = uuid.UUID(parsing_profile_id)
