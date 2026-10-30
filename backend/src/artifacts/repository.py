@@ -31,19 +31,6 @@ class ParsingResultRepository:
         stmt = select(ParsingResult).where(ParsingResult.cache_key == cache_key)
         return await self.session.scalar(stmt)
 
-    async def list_by_documents(
-        self, document_ids: Sequence[uuid.UUID], parsing_profile_id: uuid.UUID
-    ) -> Sequence[ParsingResult]:
-        """Batch lookup of the parses of many documents under one profile."""
-        if not document_ids:
-            return []
-        stmt = select(ParsingResult).where(
-            ParsingResult.document_id.in_(document_ids),
-            ParsingResult.parsing_profile_id == parsing_profile_id,
-        )
-        result = await self.session.scalars(stmt)
-        return result.all()
-
     async def get_by_document_and_profile(
         self, document_id: uuid.UUID, parsing_profile_id: uuid.UUID
     ) -> ParsingResult | None:

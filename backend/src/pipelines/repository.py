@@ -93,16 +93,6 @@ class ChunkingConfigurationRepository:
         )
         return await self.session.scalar(stmt) is not None
 
-    async def get_by_profiles(
-        self, parsing_profile_id: uuid.UUID, chunking_profile_id: uuid.UUID
-    ) -> ChunkingConfiguration | None:
-        """Look up the configuration for a (parsing, chunking) profile pair."""
-        stmt = select(ChunkingConfiguration).where(
-            ChunkingConfiguration.parsing_profile_id == parsing_profile_id,
-            ChunkingConfiguration.chunking_profile_id == chunking_profile_id,
-        )
-        return await self.session.scalar(stmt)
-
     async def list(
         self, *, limit: int = 50, offset: int = 0
     ) -> Sequence[ChunkingConfiguration]:
