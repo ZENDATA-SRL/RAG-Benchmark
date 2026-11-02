@@ -10,3 +10,8 @@ export function runStatusTone(status: string): "good" | "bad" | "warn" | "neutra
 export function isRunActive(run: Pick<RunRead, "status">): boolean {
   return run.status === "running" || run.status === "pending";
 }
+
+/** A re-evaluation runs on the worker after the run ended: the page polls until it closes. */
+export function isEvaluating(run: Pick<RunRead, "progress">): boolean {
+  return run.progress.evaluation?.status === "running";
+}

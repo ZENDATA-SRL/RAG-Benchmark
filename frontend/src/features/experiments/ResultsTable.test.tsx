@@ -11,6 +11,7 @@ afterEach(cleanup);
 function metric(key: string, mean: number, overrides: Partial<MetricResultRead> = {}) {
   return {
     key,
+    family: "retrieval",
     level: key.startsWith("chunk_") ? "chunk" : "document",
     direction: "higher_is_better",
     mean,
@@ -39,6 +40,7 @@ function variant(name: string): VariantResultRead {
 const RESULTS: RunResultsRead = {
   run_id: "run",
   experiment_id: "experiment",
+  experiment_type: "retrieval",
   status: "succeeded",
   repetitions: 1,
   question_count: 50,
@@ -89,6 +91,9 @@ describe("ResultsTable", () => {
     expect(small).toHaveTextContent("recall ceiling 0.81");
     expect(screen.getByTestId("result-group-large")).toHaveTextContent("re-evaluate");
     expect(screen.getByRole("columnheader", { name: "chunk_recall@5" })).toBeInTheDocument();
+    // A retrieval run has the ranked metrics only.
+    expect(screen.queryByTestId("result-sections")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "set_recall" })).not.toBeInTheDocument();
     const cell = within(screen.getByTestId("result-row-small-a")).getByText("0.64 (38/50)");
     expect(cell).toHaveAttribute("title", "evidence not found: 9\nevidence not reviewed: 3");
   });
@@ -113,5 +118,55 @@ describe("ResultsTable", () => {
     expect(screen.getByTestId("cross-group-reason")).toHaveTextContent(
       "only compare within one chunking configuration",
     );
+  });
+});
+
+describe("ResultsTable on a Q&A run", () => {
+  const qa: RunResultsRead = {
+    ...RESULTS,
+    experiment_type: "qa",
+    groups: RESULTS.groups.map((group) => ({
+      ...group,
+      variants: group.variants.map((item) => ({
+        ...item,
+        metrics: [
+          ...item.metrics,
+          metric("set_recall", 0.9),
+          metric("retrieved_set_size", 7.5, { family: "efficiency", level: null }),
+          metric("duplicate_hit_rate", 0.25, { family: "efficiency", level: null }),
+        ],
+      })),
+    })),
+  };
+
+  it("adds the set and call sections, with the set size next to the set recall", () => {
+    render(<ResultsTable results={qa} cutoff={5} />);
+
+    const sections = screen.getByTestId("result-sections");
+    expect(sections).toHaveTextContent("Ranked, first call");
+    expect(sections).toHaveTextContent("Set");
+    expect(sections).toHaveTextContent("Calls");
+    const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
+    const at = headers.indexOf("set_recall");
+    expect(headers.slice(at, at + 3)).toEqual([
+      "set_recall",
+      "retrieved_set_size",
+      "duplicate_hit_rate",
+    ]);
+    expect(within(screen.getByTestId("result-row-small-a")).getByText("0.25 (38/50)")).toBeTruthy();
+  });
+
+  it("drops the chunk-level set columns across chunking configurations", async () => {
+    const user = userEvent.setup();
+    render(<ResultsTable results={qa} cutoff={5} />);
+
+    await user.click(screen.getByLabelText("Select small-a"));
+    await user.click(screen.getByLabelText("Select large-a"));
+    await user.click(screen.getByRole("button", { name: "Compare selected (2)" }));
+
+    expect(screen.getByRole("columnheader", { name: "set_recall" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "chunk_set_recall" }),
+    ).not.toBeInTheDocument();
   });
 });

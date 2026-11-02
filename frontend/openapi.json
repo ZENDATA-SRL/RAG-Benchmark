@@ -4533,7 +4533,7 @@
           "experiments"
         ],
         "summary": "Evaluate Run",
-        "description": "Re-score a finished run from its stored hits, on the evidence as it is now.",
+        "description": "Start re-scoring a finished run on the evidence as it is now; poll the run to follow it.",
         "operationId": "evaluate_run_api_v1_experiments__experiment_id__runs__run_id__evaluate_post",
         "parameters": [
           {
@@ -4558,12 +4558,12 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunDetail"
+                  "$ref": "#/components/schemas/RunRead"
                 }
               }
             }
@@ -5382,6 +5382,36 @@
           "files"
         ],
         "title": "Body_upload_documents_api_v1_documents_upload_post"
+      },
+      "CallDetailRead": {
+        "properties": {
+          "call_index": {
+            "type": "integer",
+            "title": "Call Index"
+          },
+          "query_text": {
+            "type": "string",
+            "title": "Query Text"
+          },
+          "hit_count": {
+            "type": "integer",
+            "title": "Hit Count"
+          },
+          "new_chunk_count": {
+            "type": "integer",
+            "title": "New Chunk Count",
+            "description": "Chunks this call returned that no earlier call of the execution had."
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_index",
+          "query_text",
+          "hit_count",
+          "new_chunk_count"
+        ],
+        "title": "CallDetailRead",
+        "description": "One retrieval call of an execution, and how much it brought that was new."
       },
       "CandidateRead": {
         "properties": {
@@ -7248,6 +7278,51 @@
         "title": "EmbeddingProfileRead",
         "description": "An embedding profile as exposed by the API."
       },
+      "EvaluationProgressRead": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "evaluated": {
+            "type": "integer",
+            "title": "Evaluated",
+            "default": 0
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt",
+            "default": 1
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "EvaluationProgressRead",
+        "description": "The latest re-evaluation of a run: its state and how many executions it scored."
+      },
       "EvidenceChunkRead": {
         "properties": {
           "chunk_id": {
@@ -7646,12 +7721,25 @@
             ],
             "title": "Timings"
           },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/CallDetailRead"
+            },
+            "type": "array",
+            "title": "Calls"
+          },
+          "citations_declared": {
+            "type": "boolean",
+            "title": "Citations Declared",
+            "default": false
+          },
           "hits": {
             "items": {
               "$ref": "#/components/schemas/HitDetailRead"
             },
             "type": "array",
-            "title": "Hits"
+            "title": "Hits",
+            "description": "Distinct chunks in order of first retrieval, then the chunks cited and never retrieved."
           }
         },
         "type": "object",
@@ -8216,7 +8304,14 @@
       "HitDetailRead": {
         "properties": {
           "rank": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Rank"
           },
           "score": {
@@ -8330,6 +8425,30 @@
               }
             ],
             "description": "Grade of the chunk when it is an evidence chunk."
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/HitOccurrenceRead"
+            },
+            "type": "array",
+            "title": "Occurrences"
+          },
+          "retrieved": {
+            "type": "boolean",
+            "title": "Retrieved",
+            "default": true
+          },
+          "cited": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cited",
+            "description": "Empty when the answer system declares no citations."
           }
         },
         "type": "object",
@@ -8345,7 +8464,38 @@
           "relevant_document"
         ],
         "title": "HitDetailRead",
-        "description": "A retrieved chunk with the document it comes from and whether it counted as relevant."
+        "description": "A distinct chunk of an execution, with every time it was returned and why it counts.\n\n`rank` and `score` are those of its first occurrence. A chunk cited by the answer\nsystem and never retrieved has `retrieved = false` and no occurrence."
+      },
+      "HitOccurrenceRead": {
+        "properties": {
+          "call_index": {
+            "type": "integer",
+            "title": "Call Index"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_index",
+          "rank",
+          "score"
+        ],
+        "title": "HitOccurrenceRead",
+        "description": "One time a chunk was returned: by which call, at which rank."
       },
       "ImportSummaryRead": {
         "properties": {
@@ -9164,6 +9314,16 @@
         "title": "MaterializationRead",
         "description": "A materialisation run as exposed by the API.\n\nDenormalised on purpose: the UI polls this every couple of seconds and must not\nmake Temporal answer each refresh. The authoritative state stays in Temporal."
       },
+      "MetricFamily": {
+        "type": "string",
+        "enum": [
+          "retrieval",
+          "answer",
+          "efficiency",
+          "robustness"
+        ],
+        "title": "MetricFamily"
+      },
       "MetricLevel": {
         "type": "string",
         "enum": [
@@ -9178,8 +9338,19 @@
             "type": "string",
             "title": "Key"
           },
+          "family": {
+            "$ref": "#/components/schemas/MetricFamily"
+          },
           "level": {
-            "$ref": "#/components/schemas/MetricLevel"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Empty for the call metrics, which read no gold."
           },
           "direction": {
             "type": "string",
@@ -9249,6 +9420,7 @@
         "type": "object",
         "required": [
           "key",
+          "family",
           "level",
           "direction",
           "mean",
@@ -9962,6 +10134,17 @@
             "type": "integer",
             "title": "Pending",
             "default": 0
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationProgressRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent until the run is re-evaluated."
           }
         },
         "type": "object",
@@ -10929,11 +11112,10 @@
         "type": "string",
         "enum": [
           "retrieved",
-          "in_context",
           "cited"
         ],
         "title": "RetrievalScope",
-        "description": "Which chunks a metric is computed on: what was retrieved, put in context or cited."
+        "description": "Which chunks the set metrics of a Q&A experiment are computed on.\n\n`retrieved` is every chunk the calls returned, `cited` what the answer system says it\nused. The PostgreSQL type still has `in_context`, since a value cannot be dropped from\nan ENUM without recreating it, but nothing writes it: what an external system put in\nits context is not observable, and for a builtin one it is what was retrieved."
       },
       "RetrievalStrategy": {
         "type": "string",
@@ -11505,6 +11687,10 @@
             "format": "uuid",
             "title": "Experiment Id"
           },
+          "experiment_type": {
+            "$ref": "#/components/schemas/ExperimentType",
+            "description": "Decides the metrics: `retrieval` has the ranked ones only, `qa` also the set and call metrics."
+          },
           "status": {
             "$ref": "#/components/schemas/ExecutionStatus"
           },
@@ -11555,6 +11741,7 @@
         "required": [
           "run_id",
           "experiment_id",
+          "experiment_type",
           "status",
           "repetitions",
           "question_count",

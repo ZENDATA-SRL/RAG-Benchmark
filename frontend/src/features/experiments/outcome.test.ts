@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { annotationUrl, describeChunkOutcome, describeOutcome, excerpt } from "./outcome";
+import {
+  annotationUrl,
+  describeChunkOutcome,
+  describeOccurrences,
+  describeOutcome,
+  excerpt,
+} from "./outcome";
 
 describe("describeOutcome", () => {
   it("describes rank, miss, exclusion and failure", () => {
@@ -45,5 +51,17 @@ describe("annotationUrl", () => {
     expect(annotationUrl("set", "q", "cfg", "doc")).toBe(
       "/qa-sets/set/questions/q/annotate?configuration=cfg&document=doc",
     );
+  });
+});
+
+describe("describeOccurrences", () => {
+  it("says nothing for a chunk retrieved once and lists every call of a repeated one", () => {
+    expect(describeOccurrences([{ call_index: 1, rank: 1 }])).toBe("");
+    expect(
+      describeOccurrences([
+        { call_index: 1, rank: 1 },
+        { call_index: 2, rank: 3 },
+      ]),
+    ).toBe("×2 · call 1 rank 1, call 2 rank 3");
   });
 });

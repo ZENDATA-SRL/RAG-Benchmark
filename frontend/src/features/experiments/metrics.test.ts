@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MetricResultRead, ResultGroupRead, VariantResultRead } from "@/api/types";
 
 import {
+  callMetricKeys,
   chunkMetricKeys,
   describeCoverage,
   excludedDetail,
@@ -12,10 +13,12 @@ import {
   groupsOf,
   metricKeys,
   sampleSize,
+  setMetricKeys,
 } from "./metrics";
 
 const METRIC: MetricResultRead = {
   key: "recall@5",
+  family: "retrieval",
   level: "document",
   direction: "higher_is_better",
   mean: 0.7834,
@@ -112,5 +115,21 @@ describe("chunk-level results", () => {
     expect(describeCoverage(null)).toMatch(/re-evaluate/);
     expect(formatCeiling(0.8163)).toBe("0.82");
     expect(formatCeiling(null)).toBe("—");
+  });
+});
+
+describe("Q&A columns", () => {
+  it("keeps the set size and the repeated hits next to the set recall", () => {
+    expect(setMetricKeys(true).slice(0, 3)).toEqual([
+      "set_recall",
+      "retrieved_set_size",
+      "duplicate_hit_rate",
+    ]);
+  });
+
+  it("drops the chunk-level columns when they do not compare", () => {
+    expect(setMetricKeys(false).some((key) => key.startsWith("chunk_"))).toBe(false);
+    expect(callMetricKeys(false)).not.toContain("chunk_first_relevant_call_index");
+    expect(callMetricKeys(true)).toContain("chunk_first_relevant_call_index");
   });
 });

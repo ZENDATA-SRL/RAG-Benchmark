@@ -1,4 +1,4 @@
-import type { QuestionVariantOutcomeRead } from "@/api/types";
+import type { HitOccurrenceRead, QuestionVariantOutcomeRead } from "@/api/types";
 
 /** One cell of the questions table: where the first gold document ranked, or why there is none. */
 export function describeOutcome(
@@ -43,6 +43,17 @@ export function describeChunkOutcome(
     outcome.chunk_first_relevant_rank === undefined
     ? "not found"
     : `rank ${outcome.chunk_first_relevant_rank}`;
+}
+
+/** Every time a chunk came back, as `×2 · call 1 rank 1, call 2 rank 3`; empty when once. */
+export function describeOccurrences(
+  occurrences: Pick<HitOccurrenceRead, "call_index" | "rank">[],
+): string {
+  if (occurrences.length < 2) return "";
+  const where = occurrences
+    .map((occurrence) => `call ${occurrence.call_index} rank ${occurrence.rank}`)
+    .join(", ");
+  return `×${occurrences.length} · ${where}`;
 }
 
 /** Start of a hit text, short enough to compare variants side by side. */

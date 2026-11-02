@@ -291,7 +291,7 @@ export const experimentsApi = {
   resumeRun: (id: string, runId: string) =>
     api.post<RunAccepted>(`/api/v1/experiments/${id}/runs/${runId}/resume`, {}),
   evaluateRun: (id: string, runId: string) =>
-    api.post<RunDetail>(`/api/v1/experiments/${id}/runs/${runId}/evaluate`, {}),
+    api.post<RunRead>(`/api/v1/experiments/${id}/runs/${runId}/evaluate`, {}),
   results: (id: string, runId: string, tag?: string) =>
     api.get<RunResultsRead>(`/api/v1/experiments/${id}/runs/${runId}/results`, { tag }),
   resultsCsvUrl: (id: string, runId: string) =>

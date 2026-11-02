@@ -97,12 +97,19 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   hover, so excluded questions are never hidden, together with the corpus and QA set snapshot
   the numbers were computed on. Selecting variants and *Compare selected* shows only those;
   when they come from different groups the chunk-level columns are dropped and the reason is
-  shown. *Re-evaluate* scores the run again on the evidence as it is now, and the date and
-  fingerprint of the evidence used are shown above the table. A CSV download and the questions
-  table (document and chunk outcome per variant) are below; clicking a question opens the hits
-  of every variant side by side, with badges on hits from a gold document and on evidence
-  chunks, the evidence status of each variant's configuration, and the evidence chunks it did
-  not retrieve, each linking to the annotation page.
+  shown. A Q&A run adds two sections after the ranked columns (which are then those of each
+  execution's first call): *Set*, with the set recall next to the set size and the share of
+  repeated hits, and *Calls*; a retrieval run shows neither. *Re-evaluate* scores the run
+  again on the worker on the evidence as it is now, with a progress bar while it runs and the
+  results reloaded when it ends; the date and fingerprint of the evidence used are shown
+  above the table. A CSV download and the questions table (document and chunk outcome per
+  variant) are below; clicking a question opens the chunks of every variant side by side,
+  with badges on chunks from a gold document, on evidence chunks and on cited ones, the
+  evidence status of each variant's configuration, and the evidence chunks it did not
+  retrieve, each linking to the annotation page. An execution that searched more than once
+  lists its calls (query, hits, chunks new to that call), a chunk returned by several calls
+  shows each call and rank (`×2 · call 1 rank 1, call 2 rank 2`), and chunks cited without
+  being retrieved come last.
 
 ## Stack
 

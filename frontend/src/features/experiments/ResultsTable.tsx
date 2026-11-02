@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { TableFrame } from "@/components/ui/TableFrame";
 
 import {
+  callMetricKeys,
   chunkMetricKeys,
   describeCoverage,
   excludedDetail,
@@ -14,6 +15,7 @@ import {
   formatMetric,
   groupsOf,
   metricKeys,
+  setMetricKeys,
 } from "./metrics";
 
 function SnapshotDeclared({ label, detail }: { label: string; detail: string }) {
@@ -43,20 +45,38 @@ function GroupHeader({ group, span }: { group: ResultGroupRead; span: number }) 
   );
 }
 
+/** A header cell spanning the columns of one family of metrics, shown on Q&A runs only. */
+function SectionHeader({ label, span, tone }: { label: string; span: number; tone?: string }) {
+  if (span === 0) return null;
+  return (
+    <th colSpan={span} className={`px-4 pt-2 font-semibold ${tone ?? ""}`}>
+      {label}
+    </th>
+  );
+}
+
 /**
  * Rows are variants, grouped by the chunking configuration they search: chunk-level metrics
  * only compare within a group. Selecting variants of different groups keeps the
  * document-level columns and says why the chunk-level ones are gone.
+ *
+ * A retrieval run shows the ranked metrics only. A Q&A run adds the metrics on the set of
+ * chunks its executions gathered and on their calls, in sections of their own: there the
+ * ranked metrics are those of each execution's first call.
  */
 export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cutoff: number }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comparing, setComparing] = useState(false);
   const corpus = results.corpus_snapshot;
-  const qa = results.qa_set_snapshot;
+  const qaSnapshot = results.qa_set_snapshot;
   const crossGroup = comparing && groupsOf(results.groups, selected).length > 1;
+  const qa = results.experiment_type === "qa";
   const documentKeys = metricKeys(cutoff);
   const chunkKeys = crossGroup ? [] : chunkMetricKeys(cutoff);
-  const span = 2 + documentKeys.length + chunkKeys.length;
+  const setKeys = qa ? setMetricKeys(!crossGroup) : [];
+  const callKeys = qa ? callMetricKeys(!crossGroup) : [];
+  const valueKeys = [...documentKeys, ...chunkKeys, ...setKeys, ...callKeys];
+  const span = 2 + valueKeys.length;
   const groups = results.groups
     .map((group) => ({
       ...group,
@@ -83,7 +103,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
         />
         <SnapshotDeclared
           label="QA set snapshot"
-          detail={`${qa.label}${qa.question_count != null ? ` · ${qa.question_count} questions` : ""}`}
+          detail={`${qaSnapshot.label}${qaSnapshot.question_count != null ? ` · ${qaSnapshot.question_count} questions` : ""}`}
         />
       </div>
       {selected.size > 0 ? (
@@ -120,6 +140,17 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
       <TableFrame>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs text-ink-muted">
+            {qa ? (
+              <tr data-testid="result-sections">
+                <th colSpan={2} />
+                <SectionHeader
+                  label="Ranked, first call"
+                  span={documentKeys.length + chunkKeys.length}
+                />
+                <SectionHeader label="Set" span={setKeys.length} tone="bg-amber/5" />
+                <SectionHeader label="Calls" span={callKeys.length} tone="bg-ink/5" />
+              </tr>
+            ) : null}
             <tr>
               <th className="w-8 px-2 py-2" />
               <th className="px-4 py-2 font-medium">Variant</th>
@@ -130,6 +161,16 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
               ))}
               {chunkKeys.map((key) => (
                 <th key={key} className="bg-teal/5 px-4 py-2 font-medium">
+                  {key}
+                </th>
+              ))}
+              {setKeys.map((key) => (
+                <th key={key} className="bg-amber/5 px-4 py-2 font-medium">
+                  {key}
+                </th>
+              ))}
+              {callKeys.map((key) => (
+                <th key={key} className="bg-ink/5 px-4 py-2 font-medium">
                   {key}
                 </th>
               ))}
@@ -156,7 +197,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
                     {variant.name}{" "}
                     {variant.is_baseline ? <Badge tone="info">baseline</Badge> : null}
                   </td>
-                  {[...documentKeys, ...chunkKeys].map((key) => {
+                  {valueKeys.map((key) => {
                     const metric = findMetric(variant, key);
                     return (
                       <td
@@ -179,6 +220,9 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
         value for why questions were excluded. Chunk-level values count only the questions whose
         evidence was confirmed under that configuration: not reviewed and not found are excluded,
         never scored zero.
+        {qa
+          ? " Set metrics count each distinct chunk once; read them next to the set size and the share of repeated hits."
+          : null}
       </p>
     </div>
   );

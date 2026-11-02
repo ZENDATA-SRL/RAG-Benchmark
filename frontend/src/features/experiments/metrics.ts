@@ -30,6 +30,31 @@ export function chunkMetricKeys(cutoff: number): string[] {
   ];
 }
 
+/**
+ * Columns of a Q&A run computed on the distinct chunks of the experiment's scope. The size of
+ * the set and its share of repeated hits sit right after the set recall: ten searches of
+ * five reach up to fifty chunks and beat a top-5 without being a better retriever.
+ */
+export function setMetricKeys(includeChunk: boolean): string[] {
+  return [
+    "set_recall",
+    "retrieved_set_size",
+    "duplicate_hit_rate",
+    "set_precision",
+    ...(includeChunk ? ["chunk_set_recall", "chunk_set_precision"] : []),
+  ];
+}
+
+/** Columns of a Q&A run about its calls: how many, how many hits, when the first evidence came. */
+export function callMetricKeys(includeChunk: boolean): string[] {
+  return [
+    "retrieval_call_count",
+    "retrieved_hit_count",
+    "first_relevant_call_index",
+    ...(includeChunk ? ["chunk_first_relevant_call_index"] : []),
+  ];
+}
+
 export function findMetric(
   variant: Pick<VariantResultRead, "metrics">,
   key: string,

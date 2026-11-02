@@ -94,6 +94,8 @@ export type RunQuestionRead = components["schemas"]["RunQuestionRead"];
 export type QuestionDrilldownRead = components["schemas"]["QuestionDrilldownRead"];
 export type VariantDrilldownRead = components["schemas"]["VariantDrilldownRead"];
 export type HitDetailRead = components["schemas"]["HitDetailRead"];
+export type HitOccurrenceRead = components["schemas"]["HitOccurrenceRead"];
+export type CallDetailRead = components["schemas"]["CallDetailRead"];
 export type GoldChunkRead = components["schemas"]["GoldChunkRead"];
 export type QuestionVariantOutcomeRead = components["schemas"]["QuestionVariantOutcomeRead"];
 

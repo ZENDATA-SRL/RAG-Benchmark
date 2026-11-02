@@ -2,23 +2,48 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
-import type { EvidenceStatus, HitDetailRead, VariantDrilldownRead } from "@/api/types";
+import type {
+  CallDetailRead,
+  EvidenceStatus,
+  HitDetailRead,
+  VariantDrilldownRead,
+} from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EvidenceStatusBadge } from "@/features/qa-sets/EvidencePanel";
 import { queryKeys } from "@/lib/queryClient";
 
-import { annotationUrl, excerpt } from "./outcome";
+import { annotationUrl, describeOccurrences, excerpt } from "./outcome";
 
+/**
+ * A distinct chunk of an execution. One retrieved by several calls says so with every call
+ * and rank, since repeated hits are wasted calls; one cited and never retrieved has no rank.
+ */
 function Hit({ hit }: { hit: HitDetailRead }) {
+  const repeated = describeOccurrences(hit.occurrences ?? []);
   return (
-    <li className="rounded-md border border-line bg-paper px-3 py-2 text-xs" data-testid="hit">
+    <li
+      className={`rounded-md border px-3 py-2 text-xs ${hit.retrieved ? "border-line bg-paper" : "border-dashed border-amber bg-paper"}`}
+      data-testid="hit"
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono">#{hit.rank}</span>
-        <span className="font-mono text-ink-muted">
-          {hit.score === null ? "—" : hit.score.toFixed(3)}
-        </span>
+        {hit.retrieved ? (
+          <>
+            <span className="font-mono">#{hit.rank}</span>
+            <span className="font-mono text-ink-muted">
+              {hit.score === null ? "—" : hit.score.toFixed(3)}
+            </span>
+          </>
+        ) : (
+          <Badge tone="warn">cited, never retrieved</Badge>
+        )}
+        {repeated ? (
+          <span className="font-mono text-amber" data-testid="hit-repeated">
+            {repeated}
+          </span>
+        ) : null}
+        {hit.retrieved && hit.cited ? <Badge tone="info">cited</Badge> : null}
         {hit.relevant_document ? <Badge tone="good">gold document</Badge> : null}
         {hit.relevant_chunk ? (
           <Badge tone="good">{`evidence${hit.relevance ? ` · ${hit.relevance}` : ""}`}</Badge>
@@ -30,6 +55,26 @@ function Hit({ hit }: { hit: HitDetailRead }) {
       </p>
       <p className="mt-1 text-ink-muted">{excerpt(hit.text)}</p>
     </li>
+  );
+}
+
+/** The calls of an execution in order, shown only when it searched more than once. */
+function Calls({ calls }: { calls: CallDetailRead[] }) {
+  if (calls.length < 2) return null;
+  return (
+    <ol className="mb-2 space-y-1 text-xs" data-testid="calls">
+      {calls.map((call) => (
+        <li key={call.call_index} className="flex gap-2">
+          <span className="font-mono text-ink-muted">call {call.call_index}</span>
+          <span className="min-w-0 flex-1 truncate" title={call.query_text}>
+            {call.query_text}
+          </span>
+          <span className="font-mono whitespace-nowrap text-ink-muted">
+            {call.hit_count} hits · {call.new_chunk_count} new
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -163,9 +208,10 @@ export function QuestionDrilldown({
                       {execution.error ? (
                         <p className="text-xs text-danger">{execution.error}</p>
                       ) : null}
+                      <Calls calls={execution.calls ?? []} />
                       <ul className="space-y-2">
-                        {execution.hits.map((hit) => (
-                          <Hit key={`${hit.rank}-${hit.chunk_id}`} hit={hit} />
+                        {execution.hits.map((hit, index) => (
+                          <Hit key={`${index}-${hit.chunk_id}`} hit={hit} />
                         ))}
                       </ul>
                     </div>

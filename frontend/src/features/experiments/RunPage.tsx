@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
 import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatDate } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/queryClient";
@@ -14,7 +15,7 @@ import { describeChunkOutcome, describeOutcome } from "./outcome";
 import { QuestionDrilldown } from "./QuestionDrilldown";
 import { ResultsTable } from "./ResultsTable";
 import { RunProgressPanel } from "./RunProgressPanel";
-import { isRunActive } from "./status";
+import { isEvaluating, isRunActive } from "./status";
 
 const POLL_MS = 2000;
 
@@ -29,9 +30,13 @@ export function RunPage() {
     queryKey: queryKeys.run(experimentId, runId),
     queryFn: () => experimentsApi.run(experimentId, runId),
     refetchInterval: (current) =>
-      current.state.data && !isRunActive(current.state.data) ? false : POLL_MS,
+      current.state.data && !isRunActive(current.state.data) && !isEvaluating(current.state.data)
+        ? false
+        : POLL_MS,
   });
   const active = run.data ? isRunActive(run.data) : true;
+  const evaluation = run.data?.progress.evaluation ?? null;
+  const evaluating = evaluation?.status === "running";
   const results = useQuery({
     queryKey: queryKeys.runResults(experimentId, runId, tag),
     queryFn: () => experimentsApi.results(experimentId, runId, tag || undefined),
@@ -45,8 +50,10 @@ export function RunPage() {
     meta: { silent: true },
   });
 
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.run(experimentId, runId) });
+  const refresh = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.run(experimentId, runId) }),
+    [queryClient, experimentId, runId],
+  );
   const cancel = useMutation({
     mutationFn: () => experimentsApi.cancelRun(experimentId, runId),
     onSuccess: refresh,
@@ -59,15 +66,27 @@ export function RunPage() {
     },
   });
 
-  // Scores the stored hits again on the evidence as it is now; no retrieval is repeated.
+  // Scores the stored hits again on the evidence as it is now, on the worker; no retrieval
+  // is repeated. The run is polled until the re-evaluation closes.
   const evaluate = useMutation({
     mutationFn: () => experimentsApi.evaluateRun(experimentId, runId),
-    onSuccess: async () => {
-      // The run key prefixes its results, questions and drill-downs: all of them change.
-      await refresh();
-      toast.success("Run re-evaluated on the current evidence.");
-    },
+    onSuccess: refresh,
   });
+
+  // When a re-evaluation closes, everything read from the run changes: the run key prefixes
+  // its results, questions and drill-downs, so one invalidation reloads them all.
+  const previousEvaluation = useRef(evaluation?.status);
+  useEffect(() => {
+    const before = previousEvaluation.current;
+    previousEvaluation.current = evaluation?.status;
+    if (before !== "running" || !evaluation || evaluation.status === "running") return;
+    if (evaluation.status === "succeeded") {
+      toast.success("Run re-evaluated on the current evidence.");
+    } else {
+      toast.error(`Re-evaluation failed: ${evaluation.error ?? "unknown error"}`);
+    }
+    void refresh();
+  }, [evaluation, refresh]);
 
   const variants = allVariants(results.data?.groups ?? []);
   const variantNames = new Map(variants.map((v) => [v.variant_id, v.name]));
@@ -140,7 +159,7 @@ export function RunPage() {
             </a>
             <Button
               variant="secondary"
-              disabled={active || evaluate.isPending}
+              disabled={active || evaluating || evaluate.isPending}
               onClick={() => evaluate.mutate()}
               title="Score the stored hits again on the evidence as it is now"
             >
@@ -148,6 +167,14 @@ export function RunPage() {
             </Button>
           </div>
         </div>
+        {evaluating && evaluation ? (
+          <ProgressBar
+            className="mb-2"
+            value={evaluation.evaluated}
+            max={evaluation.total || 1}
+            label="Re-evaluating"
+          />
+        ) : null}
         <p className="mb-2 text-xs text-ink-muted" data-testid="chunk-gold">
           {chunkGold
             ? `Chunk metrics on the evidence of ${formatDate(chunkGold.evaluated_at)} · fingerprint ${chunkGold.hash.slice(0, 8)}`

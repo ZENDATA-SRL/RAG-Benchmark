@@ -1381,7 +1381,7 @@ export interface paths {
         put?: never;
         /**
          * Evaluate Run
-         * @description Re-score a finished run from its stored hits, on the evidence as it is now.
+         * @description Start re-scoring a finished run on the evidence as it is now; poll the run to follow it.
          */
         post: operations["evaluate_run_api_v1_experiments__experiment_id__runs__run_id__evaluate_post"];
         delete?: never;
@@ -1654,6 +1654,23 @@ export interface components {
             files: string[];
             /** Corpus Id */
             corpus_id?: string | null;
+        };
+        /**
+         * CallDetailRead
+         * @description One retrieval call of an execution, and how much it brought that was new.
+         */
+        CallDetailRead: {
+            /** Call Index */
+            call_index: number;
+            /** Query Text */
+            query_text: string;
+            /** Hit Count */
+            hit_count: number;
+            /**
+             * New Chunk Count
+             * @description Chunks this call returned that no earlier call of the execution had.
+             */
+            new_chunk_count: number;
         };
         /**
          * CandidateRead
@@ -2619,6 +2636,34 @@ export interface components {
             created_at: string;
         };
         /**
+         * EvaluationProgressRead
+         * @description The latest re-evaluation of a run: its state and how many executions it scored.
+         */
+        EvaluationProgressRead: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "succeeded" | "failed";
+            /**
+             * Evaluated
+             * @default 0
+             */
+            evaluated: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+            /** Error */
+            error?: string | null;
+        };
+        /**
          * EvidenceChunkRead
          * @description An evidence chunk with where it comes from, for the review panel.
          */
@@ -2809,7 +2854,17 @@ export interface components {
             timings?: {
                 [key: string]: unknown;
             } | null;
-            /** Hits */
+            /** Calls */
+            calls?: components["schemas"]["CallDetailRead"][];
+            /**
+             * Citations Declared
+             * @default false
+             */
+            citations_declared: boolean;
+            /**
+             * Hits
+             * @description Distinct chunks in order of first retrieval, then the chunks cited and never retrieved.
+             */
             hits: components["schemas"]["HitDetailRead"][];
         };
         /**
@@ -3053,11 +3108,14 @@ export interface components {
         };
         /**
          * HitDetailRead
-         * @description A retrieved chunk with the document it comes from and whether it counted as relevant.
+         * @description A distinct chunk of an execution, with every time it was returned and why it counts.
+         *
+         *     `rank` and `score` are those of its first occurrence. A chunk cited by the answer
+         *     system and never retrieved has `retrieved = false` and no occurrence.
          */
         HitDetailRead: {
             /** Rank */
-            rank: number;
+            rank: number | null;
             /** Score */
             score: number | null;
             /** Chunk Id */
@@ -3078,6 +3136,30 @@ export interface components {
             relevant_chunk?: boolean | null;
             /** @description Grade of the chunk when it is an evidence chunk. */
             relevance?: components["schemas"]["RelevanceGrade"] | null;
+            /** Occurrences */
+            occurrences?: components["schemas"]["HitOccurrenceRead"][];
+            /**
+             * Retrieved
+             * @default true
+             */
+            retrieved: boolean;
+            /**
+             * Cited
+             * @description Empty when the answer system declares no citations.
+             */
+            cited?: boolean | null;
+        };
+        /**
+         * HitOccurrenceRead
+         * @description One time a chunk was returned: by which call, at which rank.
+         */
+        HitOccurrenceRead: {
+            /** Call Index */
+            call_index: number;
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number | null;
         };
         /**
          * ImportSummaryRead
@@ -3480,6 +3562,11 @@ export interface components {
             created_at: string;
         };
         /**
+         * MetricFamily
+         * @enum {string}
+         */
+        MetricFamily: "retrieval" | "answer" | "efficiency" | "robustness";
+        /**
          * MetricLevel
          * @enum {string}
          */
@@ -3491,7 +3578,9 @@ export interface components {
         MetricResultRead: {
             /** Key */
             key: string;
-            level: components["schemas"]["MetricLevel"];
+            family: components["schemas"]["MetricFamily"];
+            /** @description Empty for the call metrics, which read no gold. */
+            level: components["schemas"]["MetricLevel"] | null;
             /** Direction */
             direction: string;
             /** Mean */
@@ -3813,6 +3902,8 @@ export interface components {
              * @default 0
              */
             pending: number;
+            /** @description Absent until the run is re-evaluated. */
+            evaluation?: components["schemas"]["EvaluationProgressRead"] | null;
         };
         /**
          * QASetCreate
@@ -4246,10 +4337,15 @@ export interface components {
         };
         /**
          * RetrievalScope
-         * @description Which chunks a metric is computed on: what was retrieved, put in context or cited.
+         * @description Which chunks the set metrics of a Q&A experiment are computed on.
+         *
+         *     `retrieved` is every chunk the calls returned, `cited` what the answer system says it
+         *     used. The PostgreSQL type still has `in_context`, since a value cannot be dropped from
+         *     an ENUM without recreating it, but nothing writes it: what an external system put in
+         *     its context is not observable, and for a builtin one it is what was retrieved.
          * @enum {string}
          */
-        RetrievalScope: "retrieved" | "in_context" | "cited";
+        RetrievalScope: "retrieved" | "cited";
         /**
          * RetrievalStrategy
          * @description How the vector store is searched; only `dense` is executable today.
@@ -4498,6 +4594,8 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
+            /** @description Decides the metrics: `retrieval` has the ranked ones only, `qa` also the set and call metrics. */
+            experiment_type: components["schemas"]["ExperimentType"];
             status: components["schemas"]["ExecutionStatus"];
             /** Repetitions */
             repetitions: number;
@@ -7769,12 +7867,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunDetail"];
+                    "application/json": components["schemas"]["RunRead"];
                 };
             };
             /** @description Validation Error */
