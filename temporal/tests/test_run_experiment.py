@@ -36,6 +36,11 @@ class Run:
     failed_runs: list[str] = dataclasses.field(default_factory=list)
     marked_failed: list[str] = dataclasses.field(default_factory=list)
     open_error: Exception | None = None
+    experiment_type: str = "retrieval"
+    # Executions the answer system cannot answer in the expected shape: permanent.
+    malformed: set[str] = dataclasses.field(default_factory=set)
+    # Queue each execution ran on, by activity.
+    queues: dict[str, set[str]] = dataclasses.field(default_factory=dict)
 
 
 def _run(variants: int = 1, executions: int = 3) -> Run:
@@ -54,7 +59,10 @@ def _activities(state: Run):
     async def open_experiment_run(run_id: str) -> ExperimentRunResolved:
         if state.open_error is not None:
             raise state.open_error
-        return ExperimentRunResolved(variant_ids=list(state.variant_ids))
+        return ExperimentRunResolved(
+            variant_ids=list(state.variant_ids),
+            experiment_type=state.experiment_type,
+        )
 
     @activity.defn(name="list_unfinished_executions")
     async def list_unfinished_executions(
@@ -68,15 +76,24 @@ def _activities(state: Run):
         )
         return ids[:limit]
 
-    @activity.defn(name="retrieve_question")
-    async def retrieve_question(execution_id: str) -> str:
+    def _execute(execution_id: str, name: str) -> str:
+        state.queues.setdefault(name, set()).add(activity.info().task_queue)
         state.attempts[execution_id] = state.attempts.get(execution_id, 0) + 1
         if execution_id in state.failing:
-            raise ApplicationError("embedder is down")
+            raise ApplicationError("provider is down")
+        status = "failed" if execution_id in state.malformed else "succeeded"
         for executions in state.executions.values():
             if execution_id in executions:
-                executions[execution_id] = "succeeded"
-        return "succeeded"
+                executions[execution_id] = status
+        return status
+
+    @activity.defn(name="retrieve_question")
+    async def retrieve_question(execution_id: str) -> str:
+        return _execute(execution_id, "retrieve_question")
+
+    @activity.defn(name="answer_question")
+    async def answer_question(execution_id: str) -> str:
+        return _execute(execution_id, "answer_question")
 
     @activity.defn(name="mark_execution_failed")
     async def mark_execution_failed(execution_id: str, error: str) -> None:
@@ -101,6 +118,7 @@ def _activities(state: Run):
         open_experiment_run,
         list_unfinished_executions,
         retrieve_question,
+        answer_question,
         mark_execution_failed,
         record_run_progress,
         finish_experiment_run,
@@ -150,6 +168,51 @@ async def test_every_execution_of_every_variant_is_retrieved() -> None:
     )
     assert state.finished == 1
     assert state.failed_runs == []
+    assert state.queues == {"retrieve_question": {TaskQueue.EXPERIMENTS.value}}
+
+
+async def test_a_qa_run_answers_every_question_on_the_llm_queue() -> None:
+    state = _run(variants=2, executions=3)
+    state.experiment_type = "qa"
+
+    async with _environment(state) as env:
+        result = await _launch(env)
+
+    assert [variant["processed"] for variant in result["variants"]] == [3, 3]
+    assert state.queues == {"answer_question": {TaskQueue.LLM.value}}
+    assert state.finished == 1
+
+
+async def test_a_malformed_answer_fails_only_its_question_without_retries() -> None:
+    state = _run(executions=3)
+    state.experiment_type = "qa"
+    malformed = min(next(iter(state.executions.values())))
+    state.malformed.add(malformed)
+
+    async with _environment(state) as env:
+        result = await _launch(env)
+
+    statuses = next(iter(state.executions.values()))
+    assert statuses[malformed] == "failed"
+    assert sum(status == "succeeded" for status in statuses.values()) == 2
+    assert result["variants"][0]["failed"] == 1
+    # Failed by the activity itself: neither retried nor marked again by the workflow.
+    assert state.attempts[malformed] == 1
+    assert state.marked_failed == []
+
+
+async def test_a_provider_that_keeps_failing_is_retried_then_recorded() -> None:
+    state = _run(executions=2)
+    state.experiment_type = "qa"
+    broken = sorted(next(iter(state.executions.values())))[1]
+    state.failing.add(broken)
+
+    async with _environment(state) as env:
+        await _launch(env)
+
+    assert state.attempts[broken] == 5
+    assert state.marked_failed == [broken]
+    assert state.finished == 1
 
 
 async def test_a_question_that_keeps_failing_does_not_stop_the_run() -> None:

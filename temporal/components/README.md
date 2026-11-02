@@ -12,11 +12,13 @@ be imported by the backend (dependencies flow `temporal → backend`).
 
 `__init__.py` holds `BUILTIN_PARSERS`, `BUILTIN_CHUNKERS`, `BUILTIN_VECTOR_STORES`,
 `resolve_parser`, `resolve_chunker`, `resolve_vector_store` and `assert_registry_complete()`,
-run at worker start over all four component types and the vector store readers.
+run at worker start over all five component types and the vector store readers.
 
 The embedders (`BUILTIN_EMBEDDERS`, `resolve_embedder`), the vector store readers and the
 distance mapping both sides use live in `backend/src/retrieval/`, because the API runs them
-too when it answers a query; the worker imports them from there.
+too when it answers a query; the worker imports them from there. The answer systems
+(`BUILTIN_ANSWER_SYSTEMS`) live in `backend/src/answering/`, next to the retrieval they
+call in-process.
 
 ## Contracts
 

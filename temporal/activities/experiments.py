@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import uuid
 
+from src.experiments.answering import AnswerRunner
 from src.experiments.evaluation import ExecutionRunner
 from src.experiments.repository import ExecutionRepository
 from src.experiments.service import RunService
@@ -13,20 +14,29 @@ from temporal.config import activity_session
 
 @dataclasses.dataclass
 class ExperimentRunResolved:
-    """The variants a run has to go through, as ids: nothing here grows with the questions."""
+    """The variants a run has to go through, as ids: nothing here grows with the questions.
+
+    The type has a default so a payload written before it existed still reads.
+    """
 
     variant_ids: list[str]
+    experiment_type: str = "retrieval"
 
 
 @activity.defn
 async def open_experiment_run(run_id: str) -> ExperimentRunResolved:
-    """Mark a run `running` for this attempt and return its variants.
+    """Mark a run `running` for this attempt and return its type and variants.
 
     Executions a previous, interrupted attempt left `running` go back to `pending`.
     """
     async with activity_session() as session:
-        variant_ids = await RunService(session).open_run(uuid.UUID(run_id))
-        return ExperimentRunResolved(variant_ids=[str(item) for item in variant_ids])
+        experiment_type, variant_ids = await RunService(session).open_run(
+            uuid.UUID(run_id)
+        )
+        return ExperimentRunResolved(
+            variant_ids=[str(item) for item in variant_ids],
+            experiment_type=experiment_type.value,
+        )
 
 
 @activity.defn
@@ -58,6 +68,20 @@ async def retrieve_question(execution_id: str) -> str:
     """
     async with activity_session() as session:
         outcome = await ExecutionRunner(session).run(uuid.UUID(execution_id))
+        return outcome.status.value
+
+
+@activity.defn
+async def answer_question(execution_id: str) -> str:
+    """Answer the question of one execution, record the answer and score it.
+
+    Runs on the `llm` queue, so the chat model's rate limit is not shared with the
+    embedders'. A permanent error on the question, such as an answer not in the expected
+    shape, marks the execution `failed` and returns normally; a failure of the model
+    provider, the embedder or the vector store is raised for the workflow to retry.
+    """
+    async with activity_session() as session:
+        outcome = await AnswerRunner(session).run(uuid.UUID(execution_id))
         return outcome.status.value
 
 

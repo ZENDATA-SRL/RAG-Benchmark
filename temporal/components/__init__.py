@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from src.answering.registry import BUILTIN_ANSWER_SYSTEMS
 from src.components.builtin import (
+    ANSWER_SYSTEM_DESCRIPTORS,
     CHUNKER_DESCRIPTORS,
     EMBEDDER_DESCRIPTORS,
     PARSER_DESCRIPTORS,
@@ -83,6 +85,7 @@ def assert_registry_complete() -> None:
             *((d, BUILTIN_EMBEDDERS) for d in EMBEDDER_DESCRIPTORS),
             *((d, BUILTIN_VECTOR_STORES) for d in VECTOR_STORE_DESCRIPTORS),
             *((d, BUILTIN_VECTOR_STORE_READERS) for d in VECTOR_STORE_DESCRIPTORS),
+            *((d, BUILTIN_ANSWER_SYSTEMS) for d in ANSWER_SYSTEM_DESCRIPTORS),
         )
         if descriptor.key not in registry
     ]

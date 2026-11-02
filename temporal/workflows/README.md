@@ -12,7 +12,7 @@ Deterministic orchestration only: no I/O, no randomness, no imports of heavy lib
 | `IndexCorpusWorkflow` | `IndexCorpusInput` (or just an index build id) | `resolve_index_build`, `open_index_build`, child `MaterializeChunksWorkflow` over the snapshot, `count_index_chunks`, `prepare_index_collection`, then a loop of `embed_batch` + `upsert_embedding_batch` (100 chunks per batch), `complete_index_build`. `continue_as_new` every 100 batches. An activity or child failing for good marks the build `failed` before the workflow fails |
 
 | `RunExperimentWorkflow` | `RunExperimentInput` (run id, concurrency) | `open_experiment_run`, one child `RunVariantWorkflow` per variant in sequence, `finish_experiment_run`. Any activity or child failing for good calls `fail_experiment_run` before the workflow fails |
-| `RunVariantWorkflow` | `RunVariantInput` (run id, variant id, concurrency, cursor and counters) | Loop of `list_unfinished_executions` (100 ids after the cursor) → `retrieve_question` per execution under a semaphore → `record_run_progress`. `continue_as_new` after 5 pages. An execution whose activity fails after its retries is marked with `mark_execution_failed` and the run continues |
+| `RunVariantWorkflow` | `RunVariantInput` (run id, variant id, concurrency, cursor and counters, experiment type) | Loop of `list_unfinished_executions` (100 ids after the cursor) → `retrieve_question` (retrieval, queue `experiments`) or `answer_question` (Q&A, queue `llm`) per execution under a semaphore → `record_run_progress`. The type comes from `open_experiment_run` and defaults to `retrieval`, so a variant started before it existed replays unchanged. `continue_as_new` after 5 pages. An execution whose activity fails after its retries is marked with `mark_execution_failed` and the run continues |
 | `EvaluateRunWorkflow` | `EvaluateRunInput` (run id, offset, whether it was opened) | `open_run_evaluation` (once, not again after `continue_as_new`), then `evaluate_executions` on batches of 200 by offset (heartbeat every execution, 30 s timeout) until a batch comes back short, then `finish_run_evaluation`. `continue_as_new` after 50 batches. A batch is one transaction: interrupted, it is redone whole and the batches before it are not. Failing for good calls `fail_run_evaluation` before the workflow fails |
 
 ## Ids and idempotency
@@ -36,7 +36,8 @@ and upsert 5 min, reads 30 s,
 `ProfileNotFoundError` (a missing document, profile or configuration) is non-retryable. A
 `PermanentParsingError` is recorded by the parse activity and returned, never raised. Experiments: `retrieve_question` 2 min with up to 4
 attempts and exponential backoff (2 s, doubling, capped at 30 s) because the query
-embeddings are rate limited; run bookkeeping 60 s; closing a run 10 min; a variant child 6 h.
+embeddings are rate limited; `answer_question` 5 min with up to 5 attempts (5 s, doubling,
+capped at 60 s), since a chat model rate limits for longer; run bookkeeping 60 s; closing a run 10 min; a variant child 6 h.
 Transfers: `rank_transfer_question` 5 min (it embeds a question's whole pool) with the same
 backoff, bookkeeping 60 s.
 

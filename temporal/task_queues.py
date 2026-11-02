@@ -16,6 +16,8 @@ class TaskQueue(StrEnum):
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
     EXPERIMENTS = "experiments"
+    # Calls to chat models: their provider rate limits apart from the embedders'.
+    LLM = "llm"
 
 
 # The queues a single MVP worker polls. Kept as one list so the worker registration and any
@@ -26,4 +28,5 @@ WORKER_TASK_QUEUES: tuple[TaskQueue, ...] = (
     TaskQueue.CHUNKING,
     TaskQueue.EMBEDDING,
     TaskQueue.EXPERIMENTS,
+    TaskQueue.LLM,
 )

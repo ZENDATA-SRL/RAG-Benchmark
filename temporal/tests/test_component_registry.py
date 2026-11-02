@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from src.answering.registry import BUILTIN_ANSWER_SYSTEMS
 from src.components.builtin import (
+    ANSWER_SYSTEM_DESCRIPTORS,
     BUILTIN_DESCRIPTORS,
     CHUNKER_DESCRIPTORS,
     EMBEDDER_DESCRIPTORS,
@@ -45,6 +47,9 @@ def test_no_implementation_without_a_descriptor() -> None:
     assert set(BUILTIN_EMBEDDERS) == declared_embedders
     assert set(BUILTIN_VECTOR_STORES) == declared_vector_stores
     assert set(BUILTIN_VECTOR_STORE_READERS) == declared_vector_stores
+    assert set(BUILTIN_ANSWER_SYSTEMS) == {
+        descriptor.key for descriptor in ANSWER_SYSTEM_DESCRIPTORS
+    }
 
 
 def test_implementations_satisfy_their_protocols() -> None:

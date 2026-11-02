@@ -12,6 +12,7 @@ with workflow.unsafe.imports_passed_through():
     from src.infrastructure.temporal.workflow_ids import run_variant_workflow_id
 
     from temporal.activities.experiments import (
+        answer_question,
         fail_experiment_run,
         finish_experiment_run,
         list_unfinished_executions,
@@ -25,6 +26,7 @@ with workflow.unsafe.imports_passed_through():
 _DB_TIMEOUT = timedelta(seconds=60)
 _FINISH_TIMEOUT = timedelta(minutes=10)
 _RETRIEVE_TIMEOUT = timedelta(minutes=2)
+_ANSWER_TIMEOUT = timedelta(minutes=5)
 _VARIANT_TIMEOUT = timedelta(hours=6)
 _DB_RETRY = RetryPolicy(maximum_attempts=3)
 # Backoff on the query itself: the embedder rate limits, and a transient failure that is
@@ -36,6 +38,14 @@ _RETRIEVE_RETRY = RetryPolicy(
     maximum_interval=timedelta(seconds=30),
     maximum_attempts=4,
 )
+# A chat model rate limits for longer than an embedder, so the backoff goes further.
+_ANSWER_RETRY = RetryPolicy(
+    initial_interval=timedelta(seconds=5),
+    backoff_coefficient=2.0,
+    maximum_interval=timedelta(seconds=60),
+    maximum_attempts=5,
+)
+_QA = "qa"
 
 _DEFAULT_CONCURRENCY = 5
 _PAGE_SIZE = 100
@@ -54,7 +64,11 @@ class RunExperimentInput:
 
 @dataclasses.dataclass
 class RunVariantInput:
-    """Arguments of one variant of a run, threaded through `continue_as_new` by cursor."""
+    """Arguments of one variant of a run, threaded through `continue_as_new` by cursor.
+
+    `experiment_type` has a default so the input of a variant started before it existed
+    still reads, and runs as before.
+    """
 
     run_id: str
     variant_id: str
@@ -62,6 +76,7 @@ class RunVariantInput:
     after_id: str | None = None
     processed: int = 0
     failed: int = 0
+    experiment_type: str = "retrieval"
 
 
 @workflow.defn
@@ -71,7 +86,8 @@ class RunVariantWorkflow:
     Pages through the unfinished executions with a cursor and runs each page with bounded
     concurrency. Executions that already succeeded are never listed, so a relaunched run
     redoes only the others: the execution row, unique per question, variant and
-    repetition, is the unit of idempotency.
+    repetition, is the unit of idempotency. A retrieval experiment retrieves each
+    question; a Q&A one answers it, on the `llm` queue.
     """
 
     @workflow.run
@@ -84,6 +100,14 @@ class RunVariantWorkflow:
         async def process(execution_id: str) -> str:
             async with semaphore:
                 try:
+                    if arg.experiment_type == _QA:
+                        return await workflow.execute_activity(
+                            answer_question,
+                            execution_id,
+                            task_queue=TaskQueue.LLM,
+                            start_to_close_timeout=_ANSWER_TIMEOUT,
+                            retry_policy=_ANSWER_RETRY,
+                        )
                     return await workflow.execute_activity(
                         retrieve_question,
                         execution_id,
@@ -134,6 +158,7 @@ class RunVariantWorkflow:
                     after_id=after_id,
                     processed=processed,
                     failed=failed,
+                    experiment_type=arg.experiment_type,
                 )
             )
         return {"variant_id": arg.variant_id, "processed": processed, "failed": failed}
@@ -168,6 +193,7 @@ class RunExperimentWorkflow:
                             run_id=arg.run_id,
                             variant_id=variant_id,
                             concurrency=arg.concurrency,
+                            experiment_type=resolved.experiment_type,
                         ),
                         id=run_variant_workflow_id(arg.run_id, variant_id),
                         task_queue=TaskQueue.EXPERIMENTS,

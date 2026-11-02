@@ -4,6 +4,7 @@ from temporal.activities.chunking import ChunkResultOutput, chunk_document
 from temporal.activities.embed import EmbedBatchOutput, embed_batch
 from temporal.activities.experiments import (
     ExperimentRunResolved,
+    answer_question,
     evaluate_executions,
     fail_experiment_run,
     fail_run_evaluation,
@@ -68,6 +69,7 @@ ALL_ACTIVITIES = [
     open_experiment_run,
     list_unfinished_executions,
     retrieve_question,
+    answer_question,
     mark_execution_failed,
     record_run_progress,
     finish_experiment_run,
@@ -94,6 +96,7 @@ __all__ = [
     "IndexBuildResolved",
     "ParseResult",
     "SnapshotDocumentsPage",
+    "answer_question",
     "chunk_document",
     "complete_index_build",
     "count_index_chunks",
