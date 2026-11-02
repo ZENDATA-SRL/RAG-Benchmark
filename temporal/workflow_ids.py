@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.infrastructure.temporal.workflow_ids import (
+    evaluate_run_workflow_id,
     index_corpus_workflow_id,
     materialize_workflow_id,
     process_document_workflow_id,
@@ -12,6 +13,7 @@ from src.infrastructure.temporal.workflow_ids import (
 # must compute the same id the worker serves; re-exported here so worker code keeps
 # importing it from its own package.
 __all__ = [
+    "evaluate_run_workflow_id",
     "index_corpus_workflow_id",
     "materialize_workflow_id",
     "process_document_workflow_id",

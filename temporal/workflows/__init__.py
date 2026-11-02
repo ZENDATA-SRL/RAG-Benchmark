@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from temporal.workflows.evaluate_run import EvaluateRunInput, EvaluateRunWorkflow
 from temporal.workflows.index_corpus import IndexCorpusInput, IndexCorpusWorkflow
 from temporal.workflows.materialize_chunks import (
     MaterializeChunksWorkflow,
@@ -23,11 +24,14 @@ ALL_WORKFLOWS = [
     IndexCorpusWorkflow,
     RunExperimentWorkflow,
     RunVariantWorkflow,
+    EvaluateRunWorkflow,
     TransferDatasetWorkflow,
 ]
 
 __all__ = [
     "ALL_WORKFLOWS",
+    "EvaluateRunInput",
+    "EvaluateRunWorkflow",
     "IndexCorpusInput",
     "IndexCorpusWorkflow",
     "MaterializeChunksWorkflow",

@@ -88,3 +88,38 @@ async def fail_experiment_run(run_id: str, reason: str) -> None:
     """Close a run that stopped for a reason of its own, so it does not stay `running`."""
     async with activity_session() as session:
         await RunService(session).fail_run(uuid.UUID(run_id), reason)
+
+
+@activity.defn
+async def open_run_evaluation(run_id: str) -> int:
+    """Mark a re-evaluation `running` and return how many executions it will score."""
+    async with activity_session() as session:
+        return await RunService(session).open_evaluation(uuid.UUID(run_id))
+
+
+@activity.defn
+async def evaluate_executions(run_id: str, offset: int, limit: int) -> int:
+    """Re-score one page of a run's executions; returns how many the page had.
+
+    The page is one transaction, so a batch interrupted halfway leaves nothing behind and
+    is redone whole. It heartbeats after each execution, so a worker that dies mid-batch
+    is noticed in seconds rather than at the end of the timeout.
+    """
+    async with activity_session() as session:
+        return await RunService(session).evaluate_batch(
+            uuid.UUID(run_id), offset=offset, limit=limit, on_scored=activity.heartbeat
+        )
+
+
+@activity.defn
+async def finish_run_evaluation(run_id: str) -> None:
+    """Aggregate the re-scored run and record the evidence it was scored on."""
+    async with activity_session() as session:
+        await RunService(session).finish_evaluation(uuid.UUID(run_id))
+
+
+@activity.defn
+async def fail_run_evaluation(run_id: str, reason: str) -> None:
+    """Close a re-evaluation that stopped, so the run does not stay `running` for it."""
+    async with activity_session() as session:
+        await RunService(session).fail_evaluation(uuid.UUID(run_id), reason)
