@@ -663,7 +663,7 @@ Tipo (retrieval o Q&A), snapshot di corpus e QA set, ripetizioni, ambito di calc
 | `corpus_snapshot_id` | UUID | FK → corpus_snapshots, NOT NULL | guardia: tutte le varianti devono usare indici su questo snapshot |
 | `qa_set_snapshot_id` | UUID | FK → qa_set_snapshots, NOT NULL | |
 | `repetitions` | INTEGER | NOT NULL DEFAULT 1 | ripetizioni per domanda |
-| `retrieval_scope` | retrieval_scope | NOT NULL DEFAULT 'retrieved' | ambito delle metriche d'insieme (RF-O04): `retrieved` o `cited`; il puro retrieval usa solo `retrieved` |
+| `retrieval_scope` | retrieval_scope | NOT NULL DEFAULT 'retrieved' | ambito delle metriche d'insieme (RF-O04): `retrieved` o `cited`. Significativo solo per `qa`: il puro retrieval non calcola metriche d'insieme e resta su `retrieved` |
 | `uncovered_policy` | TEXT | | `exclude` se alla creazione c'erano domande con gold fuori snapshot e l'utente ha scelto di escluderle; NULL altrimenti |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
@@ -704,7 +704,7 @@ Una esecuzione dell'esperimento, con **snapshot integrale della configurazione**
 | `workflow_id` | TEXT | UNIQUE | ID Temporal (RT-O01) |
 | `status` | execution_status | NOT NULL DEFAULT 'pending' | |
 | `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio; a ogni valutazione si aggiunge `chunk_gold`: data, impronta dei legami di evidenza usati (stato e chunk), conteggi per configurazione di chunking ed elenco dei legami |
-| `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI |
+| `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI; in `evaluation` lo stato dell'ultima rivalutazione (`status`, `evaluated`, `total`, `attempt`, `error`), che gira come workflow |
 | `error` | TEXT | | motivo se il run si è fermato per una ragione propria (per esempio `cancelled`) |
 | `langfuse_run_name` | TEXT | | identifica esperimento/variante/run (RT-L01) |
 | `started_at` | TIMESTAMPTZ | | |
@@ -765,7 +765,7 @@ Un chunk restituito da una chiamata, con rank, score, stadio e i flag di rilevan
 
 > **Gli insiemi di un'esecuzione non sono materializzati.** Il recuperato è l'insieme dei chunk distinti degli hit `final` di tutte le chiamate, il citato è `executions.cited_chunk_ids`: entrambi si calcolano dagli hit e dalla risposta in valutazione e nel drill-down, che per un'esecuzione sono decine di righe. Le citazioni stanno sull'esecuzione e non sull'hit perché sono una proprietà del chunk nell'esecuzione, e un chunk citato ma mai recuperato non avrebbe un hit su cui stare. Una tabella per esecuzione × chunk si aggiunge solo se servirà interrogare gli insiemi in SQL fra run diversi, come proiezione di questi dati.
 
-> **Più chiamate per esecuzione.** Le metriche con cutoff e rank (`@k`, MRR, primo rilevante) usano gli hit della prima chiamata (`call_index = 0`); le metriche d'insieme usano i chunk distinti dell'ambito dell'esperimento; le metriche di efficienza (chiamate, hit totali, chunk distinti, quota di hit ripetuti) usano tutti gli hit, ripetizioni comprese.
+> **Più chiamate per esecuzione.** Le metriche con cutoff e rank (`@k`, MRR, primo rilevante) usano gli hit della prima chiamata (il `call_index` più basso); le metriche d'insieme usano i chunk distinti dell'ambito dell'esperimento; le metriche di efficienza (chiamate, hit totali, chunk distinti, quota di hit ripetuti) usano tutti gli hit, ripetizioni comprese. Le ultime due famiglie si calcolano solo per gli esperimenti `qa`: nel puro retrieval c'è sempre una chiamata, e sarebbero un doppione delle metriche al top-k o una costante.
 
 ### `metric_definitions`
 Chiave, famiglia, livello, direzione, aggregazione (§6.7, §7).
@@ -775,10 +775,12 @@ Chiave, famiglia, livello, direzione, aggregazione (§6.7, §7).
 | `id` | UUID | PK | |
 | `key` | TEXT | NOT NULL UNIQUE | es. `recall@5`, `faithfulness` |
 | `family` | metric_family | NOT NULL | retrieval/answer/efficiency/robustness |
-| `level` | metric_level | | document/chunk (per metriche retrieval) |
+| `level` | metric_level | | document/chunk (per metriche retrieval); NULL per le metriche di efficienza delle chiamate |
 | `direction` | TEXT | NOT NULL | higher_is_better / lower_is_better |
 | `aggregation` | TEXT | NOT NULL | mean/median/p95/... default |
 | `description` | TEXT | | |
+
+> **Metriche per tipo di esperimento.** A quali tipi di esperimento si applica una metrica è dichiarato nel codice che la calcola, non in tabella: una valutazione scrive solo le metriche del tipo del suo esperimento, e una metrica che non si applica non ha righe in `evaluations`, che è diverso da un'esclusione.
 
 ### `evaluators`
 Deterministico, LLM-as-judge (versionato per prompt), o umano (RF-V02, RF-V03).

@@ -305,7 +305,7 @@ Il segnale semantico è ciò che recupera le tabelle, dove il matching lessicale
 | RF-O01 | Registrare **ogni chiamata** al tool di retrieval come entità distinta, con indice progressivo e query effettiva |
 | RF-O02 | Registrare per ogni chiamata gli hit con rank, score e stadio (denso, sparso, fuso, reranked, finale) |
 | RF-O03 | Distinguere due insiemi: **recuperato** (unione di tutte le chiamate) e **citato** (dichiarato dal sistema di risposta, anche se mai recuperato) |
-| RF-O04 | Calcolare le metriche di retrieval su un ambito configurabile fra i due |
+| RF-O04 | Negli esperimenti Q&A, calcolare le metriche d'insieme su un ambito configurabile fra i due; il puro retrieval usa sempre il recuperato |
 | RF-O05 | Rendere visibili le **ripetizioni** fra chiamate: lo stesso chunk restituito da più chiamate di un'esecuzione si conta e si mostra, non si nasconde nell'insieme |
 
 **Motivazione RF-O01/O03.** Un agente agentico effettua più chiamate con query riformulate. I due insiemi rispondono a domande diverse: *l'indice conteneva e ha restituito l'evidenza?* (recuperato), *l'attribuzione è corretta?* (citato). Un fallimento con recall pari a 1 è un problema di generazione; con recall pari a 0 è un problema di retrieval. Senza questa separazione non si sa dove intervenire. Vedere le riformulazioni successive è inoltre uno degli strumenti di debug più utili sugli agenti.
@@ -594,7 +594,9 @@ La UI applica il vincolo come raggruppamento (RT-U02).
 | nDCG@k | limitato | sì (usa la rilevanza graduata) |
 | rank del primo rilevante | sì | sì |
 
-**Esecuzioni con più chiamate.** Le metriche con cutoff e rank (`@k`, MRR, rank del primo rilevante) si calcolano sulla **prima chiamata**: N chiamate danno N liste con rank 1..k e score di query diverse, non confrontabili fra loro. Sull'unione delle chiamate si calcolano solo metriche d'insieme senza cutoff (recall e precision dell'insieme, ai due livelli), sui chunk **distinti**, sempre accompagnate dalla dimensione dell'insieme e dal numero di chiamate (§7.3): dieci ricerche da cinque coprono fino a cinquanta chunk e battono un top-5 senza essere un retriever migliore. Si registra anche in quale chiamata arriva la prima evidenza. Con una sola chiamata, come nel puro retrieval, i due modi coincidono.
+**Metriche per tipo di esperimento.** Il tipo dell'esperimento decide quali metriche si calcolano. Il **puro retrieval** misura il retriever: ogni esecuzione fa una sola ricerca, quindi calcola solo le metriche di questa tabella. Le metriche d'insieme coinciderebbero con quelle al top-k del profilo e quelle sulle chiamate sarebbero costanti, e mostrarle aggiungerebbe solo colonne da ignorare. Il **Q&A** misura il sistema intero, che può cercare più volte: calcola anche le metriche d'insieme, l'efficienza delle chiamate (§7.3) e le metriche di risposta (§7.2). Dentro il Q&A le colonne sono le stesse per ogni sistema di risposta, anche per uno che cerca una volta sola, così una catena semplice e un agente restano confrontabili.
+
+**Esecuzioni con più chiamate (Q&A).** Le metriche con cutoff e rank (`@k`, MRR, rank del primo rilevante) si calcolano sulla **prima chiamata**: N chiamate danno N liste con rank 1..k e score di query diverse, non confrontabili fra loro. Sull'unione delle chiamate si calcolano solo metriche d'insieme senza cutoff (recall e precision dell'insieme, ai due livelli), sui chunk **distinti**, sempre accompagnate dalla dimensione dell'insieme e dal numero di chiamate (§7.3): dieci ricerche da cinque coprono fino a cinquanta chunk e battono un top-5 senza essere un retriever migliore. Si registra anche in quale chiamata arriva la prima evidenza. Le metriche con cutoff e rank sulla prima chiamata sono un'informazione secondaria nel Q&A, perché la prima query di un agente è spesso già riformulata: per misurare il retriever si fa un esperimento di puro retrieval.
 
 Per gli esperimenti Q&A le metriche d'insieme si calcolano sull'ambito indicato nell'esperimento:
 
@@ -614,7 +616,7 @@ Per gli esperimenti Q&A le metriche d'insieme si calcolano sull'ambito indicato 
 
 ### 7.3 Efficienza
 
-Latenza totale e per fase (p50, p95), time-to-first-token, numero di tool call; per il retrieval: numero di chiamate, hit totali, chunk distinti e quota di hit ripetuti (hit che non hanno portato un chunk nuovo rispetto alle chiamate precedenti, RF-O05).
+Latenza totale e per fase (p50, p95), time-to-first-token, numero di tool call; per il retrieval negli esperimenti Q&A: numero di chiamate, hit totali, chunk distinti e quota di hit ripetuti (hit che non hanno portato un chunk nuovo rispetto alle chiamate precedenti, RF-O05).
 
 ### 7.4 Robustezza
 
