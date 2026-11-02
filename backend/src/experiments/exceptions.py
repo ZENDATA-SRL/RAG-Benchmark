@@ -117,6 +117,51 @@ class MultipleBaselinesError(ValidationError, ExperimentError):
         )
 
 
+class AnswerProfileRequiredError(ValidationError, ExperimentError):
+    """Raised when a Q&A experiment has a variant without an answer profile."""
+
+    code = "answer_profile_required"
+
+    def __init__(self, positions: list[int]) -> None:
+        super().__init__(
+            "every variant of a Q&A experiment needs an answer profile; missing on "
+            f"variants {', '.join(str(position) for position in positions)}",
+            details={"variants": positions},
+        )
+
+
+class AnswerProfileNotAllowedError(ValidationError, ExperimentError):
+    """Raised when a retrieval experiment is given what only a Q&A one has.
+
+    A retrieval experiment never answers, so an answer profile or the `cited` scope would
+    be recorded and never used.
+    """
+
+    code = "answer_profile_not_allowed"
+
+    def __init__(self, field: str) -> None:
+        super().__init__(
+            f"{field} only applies to Q&A experiments", details={"field": field}
+        )
+
+
+class CitationsNotSupportedError(ValidationError, ExperimentError):
+    """Raised when the `cited` scope is chosen for a system that does not cite.
+
+    Every set metric would be excluded for every question, so the experiment would
+    measure nothing on its scope.
+    """
+
+    code = "citations_not_supported"
+
+    def __init__(self, profiles: list[str]) -> None:
+        super().__init__(
+            "the cited scope needs answer systems that declare citations; "
+            f"these do not: {', '.join(profiles)}",
+            details={"answer_profiles": profiles},
+        )
+
+
 class RunNotCancellableError(ConflictError, ExperimentError):
     """Raised when cancellation is requested on a run that already finished."""
 

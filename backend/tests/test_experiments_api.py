@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import csv
 import dataclasses
+import io
 import uuid
 
 import pytest
 from sqlalchemy import func, select
+from src.answering.rag_simple import RagAnswer, RagSimple
+from src.answering.registry import BUILTIN_ANSWER_SYSTEMS
 from src.artifacts.models import Chunk, ChunkResult
+from src.components.service import ComponentService
+from src.experiments.answering import AnswerRunner
 from src.experiments.evaluation import EvaluationService, ExecutionRunner
 from src.experiments.models import (
     Evaluation,
@@ -25,8 +31,14 @@ from src.infrastructure.database.enums import (
     RetrievalScope,
     RetrievalStage,
 )
+from src.qa_sets.models import ExpectedAnswer, Question
 from src.retrieval.exceptions import IndexBuildNotReadyError
 from src.retrieval.service import RetrievalService
+from tests.answer_factory import (
+    ScriptedChatModel,
+    answer_profile,
+    rag_simple_version,
+)
 from tests.pipeline_factory import (
     Scenario,
     build_scenario,
@@ -255,11 +267,29 @@ async def test_the_first_variant_is_the_baseline_when_none_is_marked(
     assert baselines == ["dense top-1"]
 
 
-async def test_only_retrieval_experiments_exist_for_now(client, world) -> None:
+async def test_a_qa_experiment_needs_an_answer_profile_on_every_variant(
+    client, world
+) -> None:
     response = await client.post(EXPERIMENTS, json=_body(world, type="qa"))
 
     assert response.status_code == 422
-    assert response.json()["code"] == "unsupported_operation"
+    assert response.json()["code"] == "answer_profile_required"
+    assert response.json()["details"] == {"variants": [1, 2]}
+
+
+async def test_a_retrieval_experiment_takes_no_answer_profile_nor_cited_scope(
+    client, session, world
+) -> None:
+    profile = await answer_profile(client, session)
+    body = _body(world)
+    body["variants"][0]["answer_profile_id"] = profile["id"]
+
+    with_profile = await client.post(EXPERIMENTS, json=body)
+    cited = await client.post(EXPERIMENTS, json=_body(world, retrieval_scope="cited"))
+
+    assert with_profile.status_code == cited.status_code == 422
+    assert with_profile.json()["code"] == "answer_profile_not_allowed"
+    assert cited.json()["code"] == "answer_profile_not_allowed"
 
 
 async def test_the_detail_shows_variants_and_coverage(client, world) -> None:
@@ -1275,3 +1305,245 @@ async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved
     assert unanswerable["outcomes"][0]["chunk_excluded_reason"] == "not_answerable"
     answered = next(row for row in rows if row["question_id"] == question_id)
     assert answered["outcomes"][0]["chunk_first_relevant_rank"] == 1.0
+
+
+# -- Q&A ----------------------------------------------------------------------------------
+
+
+def _answers(question: str) -> RagAnswer | Exception:
+    """Refuse what nobody knows, cite the first passage otherwise."""
+    if question == "Nobody knows?":
+        return RagAnswer(answer="Not in the passages.", refused=True)
+    if question == "Malformed?":
+        return ValueError("refused is missing")
+    return RagAnswer(answer=f"Answer to {question}", refused=False, cited_sources=[1])
+
+
+@pytest.fixture
+def chat_model(monkeypatch) -> ScriptedChatModel:
+    model = ScriptedChatModel(_answers)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setitem(
+        BUILTIN_ANSWER_SYSTEMS, "rag_simple", RagSimple(lambda params: model)
+    )
+    return model
+
+
+async def _qa_experiment(client, session, world, **overrides) -> dict:
+    """Two variants on the same index and retrieval profile, differing by the prompt."""
+    concise = await answer_profile(client, session, system_prompt="Be concise.")
+    verbose = await answer_profile(client, session, system_prompt="Explain.")
+    body = _body(world, name="qa", type="qa", **overrides)
+    body["variants"] = [
+        {
+            "index_build_id": str(world.build.id),
+            "retrieval_profile_id": world.profile_large,
+            "answer_profile_id": profile["id"],
+        }
+        for profile in (concise, verbose)
+    ]
+    return await _create_raw(client, body)
+
+
+async def _create_raw(client, body: dict) -> dict:
+    response = await client.post(EXPERIMENTS, json=body)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+async def _answer_run(session, run_id: str) -> None:
+    """Do in-process what the workflow does for a Q&A run."""
+    executions = (
+        await session.scalars(
+            select(Execution).where(Execution.run_id == uuid.UUID(run_id))
+        )
+    ).all()
+    for execution in executions:
+        await AnswerRunner(session).run(execution.id)
+    await RunService(session).finish_run(uuid.UUID(run_id))
+
+
+async def test_a_qa_experiment_names_and_snapshots_its_answer_profiles(
+    client, session, world, fake_workflows
+) -> None:
+    experiment = await _qa_experiment(client, session, world, retrieval_scope="cited")
+
+    assert experiment["type"] == "qa"
+    assert experiment["retrieval_scope"] == "cited"
+    names = [variant["name"] for variant in experiment["variants"]]
+    assert len(set(names)) == 2
+    assert all(" · rag_simple@1 openai/gpt-test t=0" in name for name in names)
+    assert all(variant["answer_profile_id"] for variant in experiment["variants"])
+
+    run = (await client.post(f"{EXPERIMENTS}/{experiment['id']}/runs", json={})).json()
+    detail = (
+        await client.get(f"{EXPERIMENTS}/{experiment['id']}/runs/{run['id']}")
+    ).json()
+    answer = detail["config_snapshot"]["variants"][0]["answer_profile"]
+    assert answer["component"] == "rag_simple@1"
+    assert answer["capabilities"] == {"supports_citations": True}
+    assert answer["params"]["system_prompt"] == "Be concise."
+
+
+async def test_an_unavailable_answer_system_cannot_start_an_experiment(
+    client, session, world
+) -> None:
+    await _qa_experiment(client, session, world)
+    version = await rag_simple_version(session)
+    await ComponentService(session).mark_unavailable(version.id, "no key")
+
+    response = await client.post(
+        EXPERIMENTS,
+        json={
+            **_body(world, type="qa"),
+            "variants": [
+                {
+                    "index_build_id": str(world.build.id),
+                    "retrieval_profile_id": world.profile_large,
+                    "answer_profile_id": (
+                        await client.get(
+                            "/api/v1/answer-profiles",
+                            params={"component_version_id": str(version.id)},
+                        )
+                    ).json()["items"][0]["id"],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "answer_system_not_available"
+
+
+async def test_a_qa_run_records_the_answers_and_scores_refusals_and_citations(
+    client, session, world, chat_model
+) -> None:
+    first = _question(world, "chunk 0 of ready-0")
+    session.add(
+        ExpectedAnswer(
+            question_id=uuid.UUID(first), text="The first chunk.", is_primary=True
+        )
+    )
+    experiment = await _qa_experiment(client, session, world, retrieval_scope="cited")
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+
+    await _answer_run(session, run["id"])
+
+    # One prompt per question and variant; each searched once with the question.
+    assert len(chat_model.prompts) == 8
+    assert await _calls(session, run["id"]) == 8
+    results = (await client.get(f"{base}/{run['id']}/results")).json()
+    for variant in _variants(results):
+        metrics = {metric["key"]: metric for metric in variant["metrics"]}
+        refusal = metrics["refusal_accuracy"]
+        # The unanswerable question counts; the one whose gold is outside the
+        # snapshot does not, since there refusing would be right.
+        assert (refusal["mean"], refusal["n_effective"]) == (1.0, 3)
+        assert refusal["excluded_reasons"] == {"gold_document_not_in_snapshot": 1}
+        assert metrics["input_tokens"]["mean"] == 100.0
+        assert metrics["output_tokens"]["n_effective"] == 4
+        assert metrics["answer_latency_ms"]["p95"] is not None
+        assert "chunk_set_precision" in metrics
+
+    drilldown = (await client.get(f"{base}/{run['id']}/questions/{first}")).json()
+    assert drilldown["expected_answer"] == "The first chunk."
+    execution = drilldown["variants"][0]["executions"][0]
+    assert execution["status"] == "succeeded"
+    assert execution["answer_text"].startswith("Answer to ")
+    assert execution["refused"] is False
+    assert execution["usage"] == {
+        "model": "gpt-test",
+        "input_tokens": 100,
+        "output_tokens": 10,
+    }
+    assert execution["citations_declared"] is True
+    cited = [hit for hit in execution["hits"] if hit["cited"]]
+    assert len(cited) == 1 and cited[0]["rank"] == 1
+
+    nobody = (
+        await client.get(
+            f"{base}/{run['id']}/questions/{_question(world, 'Nobody knows?')}"
+        )
+    ).json()
+    refused = nobody["variants"][0]["executions"][0]
+    assert refused["refused"] is True
+    assert refused["citations_declared"] is True
+    assert [hit for hit in refused["hits"] if hit["cited"]] == []
+
+
+async def test_the_answers_are_listed_per_question_and_downloadable(
+    client, session, world, chat_model
+) -> None:
+    first = _question(world, "chunk 0 of ready-0")
+    session.add(
+        ExpectedAnswer(
+            question_id=uuid.UUID(first), text="The first chunk.", is_primary=True
+        )
+    )
+    experiment = await _qa_experiment(client, session, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _answer_run(session, run["id"])
+
+    listed = (await client.get(f"{base}/{run['id']}/questions")).json()["items"]
+    row = next(item for item in listed if item["question_id"] == first)
+    assert row["expected_answer"] == "The first chunk."
+    assert len(row["outcomes"]) == 2
+    assert all(item["answer_text"].startswith("Answer to ") for item in row["outcomes"])
+    assert all(item["refused"] is False for item in row["outcomes"])
+    nobody = next(item for item in listed if item["text"] == "Nobody knows?")
+    assert all(item["refused"] is True for item in nobody["outcomes"])
+
+    response = await client.get(f"{base}/{run['id']}/answers.csv")
+    assert response.status_code == 200
+    assert "answers.csv" in response.headers["content-disposition"]
+    lines = list(csv.DictReader(io.StringIO(response.text)))
+    # Four questions x two variants, the answers of one question together.
+    assert len(lines) == 8
+    assert lines[0]["question_id"] == lines[1]["question_id"]
+    by_question = [line for line in lines if line["question_id"] == first]
+    assert {line["expected_answer"] for line in by_question} == {"The first chunk."}
+    assert by_question[0]["refused"] == "False"
+    assert by_question[0]["cited_chunks"] == "1"
+    assert by_question[0]["input_tokens"] == "100"
+
+
+async def test_a_malformed_answer_fails_only_its_execution(
+    client, session, world, chat_model
+) -> None:
+    experiment = await _qa_experiment(client, session, world)
+    run = (await client.post(f"{EXPERIMENTS}/{experiment['id']}/runs", json={})).json()
+    malformed = await session.get(
+        Question, uuid.UUID(_question(world, "Nobody knows?"))
+    )
+    malformed.text = "Malformed?"
+    await session.flush()
+
+    await _answer_run(session, run["id"])
+
+    executions = (
+        await session.scalars(
+            select(Execution).where(Execution.run_id == uuid.UUID(run["id"]))
+        )
+    ).all()
+    failed = [item for item in executions if item.status == ExecutionStatus.FAILED]
+    assert len(failed) == 2
+    assert all(item.question_id == malformed.id for item in failed)
+    assert all("expected shape" in item.error for item in failed)
+    # What the attempt had searched is discarded with it.
+    assert all(item.answer_text is None for item in failed)
+    assert sum(item.status == ExecutionStatus.SUCCEEDED for item in executions) == 6
+
+
+async def test_a_rerun_of_an_answered_execution_changes_nothing(
+    client, session, world, chat_model
+) -> None:
+    experiment = await _qa_experiment(client, session, world)
+    run = (await client.post(f"{EXPERIMENTS}/{experiment['id']}/runs", json={})).json()
+    await _answer_run(session, run["id"])
+    prompts = len(chat_model.prompts)
+
+    await _answer_run(session, run["id"])
+
+    assert len(chat_model.prompts) == prompts

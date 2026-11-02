@@ -6,6 +6,7 @@ import uuid
 import pytest
 from src.experiments.metrics import (
     CUTOFFS,
+    answer_metrics,
     call_efficiency,
     chunk_metrics,
     chunk_set_metrics,
@@ -117,9 +118,43 @@ def test_every_score_has_a_seeded_definition() -> None:
         | set(chunk_set_metrics([A], gold))
         | set(call_efficiency(1, [A]))
         | {"first_relevant_call_index", "chunk_first_relevant_call_index"}
+        | set(answer_metrics(refused=False, answerable=True, usage={}, timings={}))
     )
 
     assert scored == keys
+
+
+def test_refusal_accuracy_rewards_refusing_exactly_the_unanswerable() -> None:
+    def accuracy(refused, answerable):
+        return answer_metrics(
+            refused=refused, answerable=answerable, usage=None, timings=None
+        )["refusal_accuracy"]
+
+    assert accuracy(True, False) == 1.0
+    assert accuracy(False, True) == 1.0
+    assert accuracy(True, True) == 0.0
+    assert accuracy(False, False) == 0.0
+    assert accuracy(None, True) is None
+
+
+def test_latency_and_tokens_are_read_from_what_the_system_reported() -> None:
+    scores = answer_metrics(
+        refused=False,
+        answerable=True,
+        usage={"model": "m", "input_tokens": 120, "output_tokens": 30},
+        timings={"total_ms": 900.5, "model_ms": 700.0},
+    )
+
+    assert (
+        scores["answer_latency_ms"],
+        scores["model_latency_ms"],
+        scores["input_tokens"],
+        scores["output_tokens"],
+    ) == (900.5, 700.0, 120.0, 30.0)
+    # Not reported is not zero.
+    missing = answer_metrics(refused=False, answerable=True, usage={}, timings={})
+    assert missing["input_tokens"] is None
+    assert missing["model_latency_ms"] is None
 
 
 def test_a_retrieval_experiment_is_scored_on_the_ranked_metrics_only() -> None:

@@ -1,7 +1,8 @@
 # components
 
-Registry of pluggable components (parser, chunker, embedder, vector store, ...) and their
-versions. A profile in `pipelines/` always points at a `component_versions` row.
+Registry of pluggable components (parser, chunker, embedder, vector store, answer system,
+...) and their versions. A profile in `pipelines/` or `answer_profiles/` always points at a
+`component_versions` row.
 
 | File | Role |
 |---|---|
@@ -17,18 +18,34 @@ versions. A profile in `pipelines/` always points at a `component_versions` row.
 
 Declarative only: no parsing or embedding library is imported here, so the API can seed and
 serve the registry on its own. The executable code lives in `temporal/components/` (parsers,
-chunkers, vector store writers) and in `src/retrieval/` (embedders and vector store readers,
-run by both the API and the worker).
+chunkers, vector store writers), in `src/retrieval/` (embedders and vector store readers,
+run by both the API and the worker) and in `src/answering/` (answer systems, run by the
+worker).
 
 - `contracts.py`: `Parser` / `Chunker` / `VectorStoreReader` protocols, `ParseOutput`,
   `ParsePage`, `ChunkPayload`, `VectorHit`.
 - `__init__.py`: `BuiltinDescriptor` and the descriptor lists (`PARSER_`, `CHUNKER_`,
-  `EMBEDDER_`, `VECTOR_STORE_DESCRIPTORS`); `BUILTIN_KEYS` is what `register_version`
-  validates a builtin key against.
+  `EMBEDDER_`, `VECTOR_STORE_`, `ANSWER_SYSTEM_DESCRIPTORS`); `BUILTIN_KEYS` is what
+  `register_version` validates a builtin key against.
 - One module per component, each exposing `KEY`, `VERSION`, `DISPLAY_NAME`, `PARAMS_SCHEMA`
-  (and `CAPABILITIES` for parsers and chunkers): `parsers/{pypdf,pdfplumber}`,
+  (and `CAPABILITIES` for parsers, chunkers and answer systems): `parsers/{pypdf,pdfplumber}`,
   `chunkers/{recursive,markdown}`, `embedder/{openai_embedder,bedrock_embedder}`,
-  `vector_stores/{chroma,qdrant}`.
+  `vector_stores/{chroma,qdrant}`, `answer_systems/rag_simple`.
+
+`answer_system/rag_simple` (v1) is the simplest RAG chain: one search, every hit in the
+prompt, a structured answer. Parameters: `provider` (`openai` or `bedrock`), `model`,
+`system_prompt`, `temperature` (default 0), `max_tokens` (default 1024), `region` (Bedrock
+only); no credential, which the worker reads from its environment. Capabilities:
+`supports_citations: true`.
+
+## Availability
+
+`is_available` and `unavailable_reason` say whether a version can be run now. They can be
+set by hand (`mark_unavailable` / `mark_available`); for the builtin answer systems the
+worker sets them at startup from its own model credentials, which the API cannot see: a
+version is available when at least one of its providers has credentials, and the reason
+lists the missing ones otherwise. Answer profiles and Q&A experiments refuse an unavailable
+version with the reason.
 
 ## Adding a builtin component
 
@@ -38,6 +55,7 @@ run by both the API and the worker).
    - parser, chunker, vector store writer: `temporal/components/`, in `BUILTIN_PARSERS`,
      `BUILTIN_CHUNKERS` or `BUILTIN_VECTOR_STORES` (`components/__init__.py`);
    - embedder: `src/retrieval/embedders.py`, in `BUILTIN_EMBEDDERS`;
+   - answer system: `src/answering/`, in `BUILTIN_ANSWER_SYSTEMS` (`registry.py`);
    - a vector store also needs a reader in `src/retrieval/readers/`, registered in
      `BUILTIN_VECTOR_STORE_READERS`, which must use the distance mapping of
      `src/retrieval/distances.py` like its writer.

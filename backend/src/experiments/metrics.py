@@ -28,6 +28,14 @@ RETRIEVAL_CALL_COUNT = "retrieval_call_count"
 RETRIEVED_HIT_COUNT = "retrieved_hit_count"
 RETRIEVED_SET_SIZE = "retrieved_set_size"
 DUPLICATE_HIT_RATE = "duplicate_hit_rate"
+REFUSAL_ACCURACY = "refusal_accuracy"
+ANSWER_LATENCY_MS = "answer_latency_ms"
+MODEL_LATENCY_MS = "model_latency_ms"
+INPUT_TOKENS = "input_tokens"
+OUTPUT_TOKENS = "output_tokens"
+
+# The evaluator of the metrics read from the answer and its usage rather than the hits.
+ANSWER_EVALUATOR = "answer_deterministic"
 
 # The ranked metrics measure the retriever and apply to every experiment. The set and call
 # metrics only mean something when an execution can search more than once: in a retrieval
@@ -53,15 +61,18 @@ class MetricSpec:
     level: MetricLevel | None = MetricLevel.DOCUMENT
     family: MetricFamily = MetricFamily.RETRIEVAL
     experiment_types: frozenset[ExperimentType] = ALL_TYPES
+    # Who scores the metric; `None` is the deterministic evaluator of its level.
+    evaluator: str | None = None
 
 
 def metric_specs() -> list[MetricSpec]:
-    """Every metric, in display order: ranked, then set, then call efficiency."""
+    """Every metric, in display order: ranked, set, call efficiency, then the answer."""
     return (
         document_metric_specs()
         + chunk_metric_specs()
         + set_metric_specs()
         + efficiency_metric_specs()
+        + answer_metric_specs()
     )
 
 
@@ -310,6 +321,94 @@ def efficiency_metric_specs() -> list[MetricSpec]:
             QA_ONLY,
         ),
     ]
+
+
+def answer_metric_specs() -> list[MetricSpec]:
+    """What the answer system said and what it cost: Q&A only, no gold level.
+
+    Latency and tokens are aggregated like every metric, so their median and p95 come
+    with the mean.
+    """
+    return [
+        MetricSpec(
+            REFUSAL_ACCURACY,
+            "higher_is_better",
+            "mean",
+            "1 when the system refused exactly when the question is not answerable. "
+            "Counts every question, the unanswerable ones included.",
+            None,
+            MetricFamily.ANSWER,
+            QA_ONLY,
+            ANSWER_EVALUATOR,
+        ),
+        MetricSpec(
+            ANSWER_LATENCY_MS,
+            "lower_is_better",
+            "mean",
+            "Time to answer, searches included, in milliseconds.",
+            None,
+            MetricFamily.EFFICIENCY,
+            QA_ONLY,
+            ANSWER_EVALUATOR,
+        ),
+        MetricSpec(
+            MODEL_LATENCY_MS,
+            "lower_is_better",
+            "mean",
+            "Time spent waiting for the model, in milliseconds.",
+            None,
+            MetricFamily.EFFICIENCY,
+            QA_ONLY,
+            ANSWER_EVALUATOR,
+        ),
+        MetricSpec(
+            INPUT_TOKENS,
+            "lower_is_better",
+            "mean",
+            "Tokens sent to the model, as the provider reports them.",
+            None,
+            MetricFamily.EFFICIENCY,
+            QA_ONLY,
+            ANSWER_EVALUATOR,
+        ),
+        MetricSpec(
+            OUTPUT_TOKENS,
+            "lower_is_better",
+            "mean",
+            "Tokens the model generated, as the provider reports them.",
+            None,
+            MetricFamily.EFFICIENCY,
+            QA_ONLY,
+            ANSWER_EVALUATOR,
+        ),
+    ]
+
+
+def answer_metrics(
+    *,
+    refused: bool | None,
+    answerable: bool,
+    usage: Mapping[str, object] | None,
+    timings: Mapping[str, object] | None,
+) -> dict[str, float | None]:
+    """The answer scores of one execution; `None` where the system reported nothing."""
+    usage = usage or {}
+    timings = timings or {}
+    return {
+        REFUSAL_ACCURACY: (
+            None if refused is None else float(refused == (not answerable))
+        ),
+        ANSWER_LATENCY_MS: _number(timings.get("total_ms")),
+        MODEL_LATENCY_MS: _number(timings.get("model_ms")),
+        INPUT_TOKENS: _number(usage.get("input_tokens")),
+        OUTPUT_TOKENS: _number(usage.get("output_tokens")),
+    }
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
 
 
 @dataclasses.dataclass(frozen=True)

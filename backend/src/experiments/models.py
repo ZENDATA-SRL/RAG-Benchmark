@@ -91,7 +91,9 @@ class Variant(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     retrieval_profile_id: Mapped[uuid.UUID] = _uuid_fk(
         "retrieval_profiles.id", ondelete="RESTRICT"
     )
-    answer_profile_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    answer_profile_id: Mapped[uuid.UUID | None] = _uuid_fk(
+        "answer_profiles.id", ondelete="RESTRICT", nullable=True
+    )
     is_baseline: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false"), default=False
     )

@@ -18,10 +18,13 @@ from src.infrastructure.database.enums import (
 
 
 class VariantCreate(BaseModel):
-    """A variant: an index build searched under a retrieval profile."""
+    """An index build, a retrieval profile and, for Q&A, an answer profile."""
 
     index_build_id: uuid.UUID
     retrieval_profile_id: uuid.UUID
+    answer_profile_id: uuid.UUID | None = Field(
+        default=None, description="Required in a Q&A experiment, refused otherwise."
+    )
     is_baseline: bool = False
 
 
@@ -33,6 +36,14 @@ class ExperimentCreate(BaseModel):
     corpus_snapshot_id: uuid.UUID
     qa_set_snapshot_id: uuid.UUID
     repetitions: int = Field(default=1, ge=1, le=50)
+    retrieval_scope: RetrievalScope = Field(
+        default=RetrievalScope.RETRIEVED,
+        description=(
+            "Chunks the set metrics of a Q&A experiment are computed on: everything "
+            "retrieved, or what the answer system cited. `cited` needs systems that "
+            "declare citations."
+        ),
+    )
     variants: list[VariantCreate] = Field(min_length=1)
     uncovered_policy: Literal["exclude"] | None = Field(
         default=None,
@@ -55,6 +66,8 @@ class VariantRead(BaseModel):
     retrieval_profile_id: uuid.UUID
     retrieval_profile_name: str
     top_k: int
+    answer_profile_id: uuid.UUID | None = None
+    answer_profile_name: str | None = None
 
 
 class ExperimentRead(BaseModel):
@@ -298,6 +311,10 @@ class QuestionVariantOutcomeRead(BaseModel):
     excluded_reason: str | None = None
     chunk_first_relevant_rank: float | None = None
     chunk_excluded_reason: str | None = None
+    answer_text: str | None = Field(
+        default=None, description="The answer, in a Q&A run; empty in a retrieval one."
+    )
+    refused: bool | None = None
 
 
 class RunQuestionRead(BaseModel):
@@ -307,6 +324,9 @@ class RunQuestionRead(BaseModel):
     text: str
     tags: list[str]
     answerable: bool
+    expected_answer: str | None = Field(
+        default=None, description="The primary expected answer, when there is one."
+    )
     outcomes: list[QuestionVariantOutcomeRead]
 
 
@@ -365,6 +385,9 @@ class ExecutionDetailRead(BaseModel):
     excluded_reason: str | None = None
     chunk_excluded_reason: str | None = None
     timings: dict[str, Any] | None = None
+    answer_text: str | None = None
+    refused: bool | None = None
+    usage: dict[str, Any] | None = None
     calls: list[CallDetailRead] = Field(default_factory=list)
     citations_declared: bool = False
     hits: list[HitDetailRead] = Field(
@@ -413,5 +436,8 @@ class QuestionDrilldownRead(BaseModel):
     text: str
     tags: list[str]
     answerable: bool
+    expected_answer: str | None = Field(
+        default=None, description="The primary expected answer, when there is one."
+    )
     gold_documents: list[UncoveredDocumentRead]
     variants: list[VariantDrilldownRead]

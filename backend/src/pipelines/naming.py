@@ -69,6 +69,18 @@ def retrieval_profile_name(
     return name
 
 
+def answer_profile_name(
+    component: str, *, provider: str | None, model: str | None, temperature: Any
+) -> str:
+    """`rag_simple@1 openai/gpt-4o-mini t=0`: who answers, and how freely."""
+    parts = [component]
+    if model:
+        parts.append(f"{provider}/{model}" if provider else str(model))
+    if temperature is not None:
+        parts.append(f"t={temperature:g}")
+    return " ".join(parts)
+
+
 def chunking_configuration_name(parsing: str, chunking: str) -> str:
     """`pypdf@1 → recursive@1 1000/200`: the parse feeds the chunker."""
     return f"{parsing} → {chunking}"
@@ -85,10 +97,15 @@ def index_build_name(
 
 
 def variant_name(
-    configuration: str, embedding: str, vector_store: str, retrieval_profile: str
+    configuration: str,
+    embedding: str,
+    vector_store: str,
+    retrieval_profile: str,
+    answer_profile: str | None = None,
 ) -> str:
-    """What a variant searches and how, without the snapshot all variants share."""
-    return f"{configuration} · {embedding} · {vector_store} · {retrieval_profile}"
+    """What a variant searches and how, then who answers, without the shared snapshot."""
+    name = f"{configuration} · {embedding} · {vector_store} · {retrieval_profile}"
+    return f"{name} · {answer_profile}" if answer_profile else name
 
 
 def disambiguated(name: str, digest: str, *, taken: bool) -> str:

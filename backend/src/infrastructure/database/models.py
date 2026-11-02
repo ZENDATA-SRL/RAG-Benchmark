@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.answer_profiles.models import AnswerProfile
 from src.artifacts.models import Chunk, ChunkResult, ParsingResult
 from src.components.models import Component, ComponentVersion
 from src.corpora.models import (
@@ -52,6 +53,7 @@ from src.sources.models import (
 from src.transfers.models import TransferCandidate, TransferJob, TransferQuestion
 
 __all__ = [
+    "AnswerProfile",
     "Base",
     "Chunk",
     "ChunkResult",

@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.answer_profiles.router import router as answer_profiles_router
 from src.artifacts.router import router as artifacts_router
 from src.components.registry_seed import seed_builtin_components
 from src.components.router import router as components_router
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(retrieval_router, prefix=API_PREFIX)
     app.include_router(qa_sets_router, prefix=API_PREFIX)
     app.include_router(questions_router, prefix=API_PREFIX)
+    app.include_router(answer_profiles_router, prefix=API_PREFIX)
     app.include_router(experiments_router, prefix=API_PREFIX)
     app.include_router(transfers_router, prefix=API_PREFIX)
 

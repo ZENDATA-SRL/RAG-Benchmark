@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from src.components.builtin.answer_systems import rag_simple
 from src.components.builtin.chunkers import markdown, recursive
 from src.components.builtin.contracts import (
     Chunker,
@@ -113,11 +114,23 @@ VECTOR_STORE_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
     ),
 )
 
+ANSWER_SYSTEM_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
+    BuiltinDescriptor(
+        component_type=ComponentType.ANSWER_SYSTEM,
+        key=rag_simple.KEY,
+        version=rag_simple.VERSION,
+        display_name=rag_simple.DISPLAY_NAME,
+        params_schema=rag_simple.PARAMS_SCHEMA,
+        capabilities=rag_simple.CAPABILITIES,
+    ),
+)
+
 BUILTIN_DESCRIPTORS: tuple[BuiltinDescriptor, ...] = (
     PARSER_DESCRIPTORS
     + CHUNKER_DESCRIPTORS
     + EMBEDDER_DESCRIPTORS
     + VECTOR_STORE_DESCRIPTORS
+    + ANSWER_SYSTEM_DESCRIPTORS
 )
 
 # Keys declared per type. `register_version` checks a key against this so a registry row can
@@ -129,9 +142,11 @@ BUILTIN_KEYS: dict[ComponentType, frozenset[str]] = {
     ComponentType.CHUNKER: frozenset(d.key for d in CHUNKER_DESCRIPTORS),
     ComponentType.EMBEDDER: frozenset(d.key for d in EMBEDDER_DESCRIPTORS),
     ComponentType.VECTOR_STORE: frozenset(d.key for d in VECTOR_STORE_DESCRIPTORS),
+    ComponentType.ANSWER_SYSTEM: frozenset(d.key for d in ANSWER_SYSTEM_DESCRIPTORS),
 }
 
 __all__ = [
+    "ANSWER_SYSTEM_DESCRIPTORS",
     "BUILTIN_DESCRIPTORS",
     "BUILTIN_KEYS",
     "CHUNKER_DESCRIPTORS",

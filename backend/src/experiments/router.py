@@ -72,6 +72,8 @@ def _variant_read(view: VariantView) -> VariantRead:
         retrieval_profile_id=view.retrieval_profile.id,
         retrieval_profile_name=view.retrieval_profile.name,
         top_k=view.retrieval_profile.top_k,
+        answer_profile_id=view.answer_profile.id if view.answer_profile else None,
+        answer_profile_name=view.answer_profile.name if view.answer_profile else None,
     )
 
 
@@ -117,10 +119,12 @@ async def create_experiment(
         corpus_snapshot_id=payload.corpus_snapshot_id,
         qa_set_snapshot_id=payload.qa_set_snapshot_id,
         repetitions=payload.repetitions,
+        retrieval_scope=payload.retrieval_scope,
         variants=[
             VariantInput(
                 index_build_id=variant.index_build_id,
                 retrieval_profile_id=variant.retrieval_profile_id,
+                answer_profile_id=variant.answer_profile_id,
                 is_baseline=variant.is_baseline,
             )
             for variant in payload.variants
@@ -278,6 +282,21 @@ async def get_results_csv(
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="run-{run_id}-results.csv"'
+        },
+    )
+
+
+@router.get("/{experiment_id}/runs/{run_id}/answers.csv")
+async def get_answers_csv(
+    experiment_id: uuid.UUID, run_id: uuid.UUID, session: SessionDep
+) -> Response:
+    """Download every answer of a run as CSV, next to the expected one."""
+    content = await ResultsService(session).answers_csv(experiment_id, run_id)
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="run-{run_id}-answers.csv"'
         },
     )
 

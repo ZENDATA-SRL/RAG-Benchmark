@@ -17,9 +17,11 @@ from src.experiments.metrics import (
     CHUNK_SET_PRECISION,
     CHUNK_SET_RECALL,
     FIRST_RELEVANT_CALL,
+    REFUSAL_ACCURACY,
     SET_PRECISION,
     SET_RECALL,
     GoldChunk,
+    answer_metrics,
     call_efficiency,
     chunk_metrics,
     chunk_set_metrics,
@@ -28,6 +30,7 @@ from src.experiments.metrics import (
     first_relevant_call,
     gold_chunk,
     metric_keys,
+    metric_specs,
     summarize,
 )
 from src.experiments.models import (
@@ -45,7 +48,7 @@ from src.experiments.repository import (
     ExperimentRepository,
     RunRepository,
 )
-from src.experiments.seed import seed_metric_catalog
+from src.experiments.seed import evaluator_name, seed_metric_catalog
 from src.infrastructure.database.enums import (
     EvidenceLinkStatus,
     ExecutionStatus,
@@ -73,6 +76,9 @@ EVIDENCE_NOT_FOUND = "evidence_not_found"
 # Set metrics on the `cited` scope only: the answer system declares no citations, which
 # says nothing about how well it attributes.
 SCOPE_NOT_DECLARED = "scope_not_declared"
+# Answer metrics only: the system did not say whether it refused, or how many tokens it
+# used. A missing value is not a zero.
+NOT_REPORTED = "not_reported"
 
 # The order the reasons are checked in, which is also the one that names a question whose
 # repetitions were excluded for different reasons.
@@ -84,6 +90,7 @@ EXCLUSION_REASONS = (
     GOLD_NOT_IN_SNAPSHOT,
     EXECUTION_FAILED,
     SCOPE_NOT_DECLARED,
+    NOT_REPORTED,
 )
 
 # Metrics read on the scope's chunks: excluded when the scope is not declared, while the
@@ -171,15 +178,24 @@ class ExecutionRunner:
         return ExecutionOutcome(execution.id, ExecutionStatus.SUCCEEDED)
 
     async def fail(self, execution_id: uuid.UUID, error: str) -> ExecutionOutcome:
-        """Mark an execution `failed` with its reason, discarding what it had retrieved."""
+        """Mark an execution `failed` with its reason, discarding what it had produced."""
         execution = await self.executions.get_by_id(execution_id)
         if execution is None:
             raise ExecutionNotFoundError(execution_id)
         await self.executions.clear_calls(execution.id)
+        clear_answer(execution)
         execution.status = ExecutionStatus.FAILED
         execution.error = error
         await self.session.flush()
         return ExecutionOutcome(execution.id, ExecutionStatus.FAILED, error)
+
+
+def clear_answer(execution: Execution) -> None:
+    """Forget the answer an earlier attempt of an execution recorded."""
+    execution.answer_text = None
+    execution.refused = None
+    execution.usage = None
+    execution.cited_chunk_ids = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -200,8 +216,7 @@ class EvaluationService:
         self.evaluations = EvaluationRepository(session)
         self.runs = RunRepository(session)
         self._catalog: (
-            tuple[dict[str, MetricDefinition], dict[MetricLevel | None, Evaluator]]
-            | None
+            tuple[dict[str, MetricDefinition], dict[str, Evaluator]] | None
         ) = None
 
     async def evaluate_execution(self, execution_id: uuid.UUID) -> None:
@@ -222,8 +237,10 @@ class EvaluationService:
         as in a retrieval experiment, this is every hit. A Q&A experiment is also scored on
         the distinct chunks of its scope (what was retrieved, or what the system cited),
         on the call where the first relevant chunk arrived, and on the efficiency of its
-        calls, repetitions included. A retrieval experiment does not get those metrics at
-        all: with one call they would only repeat the ranked ones or be constants.
+        calls, repetitions included, and on what the answer says: whether it refused when
+        it should have, its latency and its tokens. A retrieval experiment does not get
+        those metrics at all: with one call the retrieval ones would only repeat the ranked
+        ones or be constants, and there is no answer.
 
         Excluded executions get an evaluation per metric with `excluded` and the reason, and
         no score: they stay visible but do not enter the denominator. At document level the
@@ -233,8 +250,11 @@ class EvaluationService:
         failed. At chunk level the evidence not being reviewed, or not found, comes right
         after the question not being answerable: a question can count for its documents and
         be left out for its chunks. The set metrics on the `cited` scope are also excluded
-        when the system declared no citations, and the efficiency only when the execution
-        failed, since it reads no gold.
+        when the system declared no citations. The efficiency and the answer metrics read
+        no gold, so they count every question, the unanswerable ones included: they are
+        excluded when the execution failed, and an answer metric also when the system did
+        not report the value. The refusal accuracy also leaves out a question whose gold
+        document is not in the snapshot, since there refusing is the right answer.
 
         Raises:
             ExecutionNotFoundError: If the execution does not exist.
@@ -294,33 +314,57 @@ class EvaluationService:
                     )
                 )
 
-        for level, evaluator in evaluators.items():
-            rows = []
-            for key, definition in definitions.items():
-                if definition.level != level or key not in keys:
-                    continue
-                if level is None:
-                    reason = None if succeeded else EXECUTION_FAILED
-                else:
-                    reason = (
-                        document_reason
-                        if level == MetricLevel.DOCUMENT
-                        else chunk_reason
-                    )
-                    if reason is None and key in _SCOPE_KEYS and not scope_declared:
-                        reason = SCOPE_NOT_DECLARED
-                rows.append(
-                    {
-                        "execution_id": execution.id,
-                        "metric_definition_id": definition.id,
-                        "evaluator_id": evaluator.id,
-                        "score": scores.get(key) if reason is None else None,
-                        "excluded": reason is not None,
-                        "exclusion_reason": reason,
-                    }
+        if is_qa and succeeded:
+            scores.update(
+                answer_metrics(
+                    refused=execution.refused,
+                    answerable=question.answerable,
+                    usage=execution.usage,
+                    timings=execution.timings,
                 )
+            )
+
+        rows: dict[str, list[dict]] = {name: [] for name in evaluators}
+        for spec in metric_specs():
+            if spec.key not in keys:
+                continue
+            if spec.level is None:
+                # Read no gold: only a failure, or an answer that does not say, excludes.
+                if not succeeded:
+                    reason = EXECUTION_FAILED
+                elif (
+                    spec.key == REFUSAL_ACCURACY
+                    and document_reason == GOLD_NOT_IN_SNAPSHOT
+                ):
+                    # The answer was never searchable: refusing is right, and the label
+                    # "answerable" would score it as wrong.
+                    reason = GOLD_NOT_IN_SNAPSHOT
+                elif spec.evaluator is not None and scores.get(spec.key) is None:
+                    reason = NOT_REPORTED
+                else:
+                    reason = None
+            else:
+                reason = (
+                    document_reason
+                    if spec.level == MetricLevel.DOCUMENT
+                    else chunk_reason
+                )
+                if reason is None and spec.key in _SCOPE_KEYS and not scope_declared:
+                    reason = SCOPE_NOT_DECLARED
+            name = evaluator_name(spec)
+            rows[name].append(
+                {
+                    "execution_id": execution.id,
+                    "metric_definition_id": definitions[spec.key].id,
+                    "evaluator_id": evaluators[name].id,
+                    "score": scores.get(spec.key) if reason is None else None,
+                    "excluded": reason is not None,
+                    "exclusion_reason": reason,
+                }
+            )
+        for name, evaluator in evaluators.items():
             await self.evaluations.replace_for_execution(
-                execution.id, evaluator.id, rows
+                execution.id, evaluator.id, rows[name]
             )
 
     async def _qa_scores(

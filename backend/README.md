@@ -18,7 +18,7 @@ inputs always resolve to the same row (`core/hashing.py`):
 | Hash | Built from | Used by |
 |---|---|---|
 | `content_hash` | bytes of the file | `documents` |
-| `config_hash` | component version id + canonical JSON params | the four profile tables |
+| `config_hash` | component version id + canonical JSON params | the profile tables, `answer_profiles` |
 | combined config hash | parsing + chunking profile hashes | `chunking_configurations` |
 | `cache_key` | document `content_hash` + profile/configuration hash | `parsing_results`, `chunk_results` |
 | `composition_hash` | sorted set of document ids | `corpus_snapshots` |
@@ -48,8 +48,10 @@ was `created` or reused.
 | `materializations/` | User-triggered chunk materialisation runs and their progress |
 | `indexes/` | Index builds over a corpus snapshot, and launching their indexing |
 | `retrieval/` | Dense search over a ready index build; the embedders and vector store readers shared with the worker |
+| `answer_profiles/` | Answer profiles: an answer system and its parameters (model, prompt, ...), content-addressed, with the profile they were derived from |
+| `answering/` | The builtin answer systems (`rag_simple`) and their chat models, run by the worker for Q&A executions; their availability from the worker's credentials |
 | `qa_sets/` | Question sets: authoring of questions, gold documents, expected answers, evidence chunks confirmed per chunking configuration, CSV/JSONL import and export, immutable snapshots |
-| `experiments/` | Retrieval experiments: variants, guards, runs on Temporal, document- and chunk-level metrics, re-evaluation, results grouped by chunking configuration |
+| `experiments/` | Retrieval and Q&A experiments: variants, guards, runs on Temporal, document- and chunk-level metrics, set, call and answer metrics for Q&A, re-evaluation, results grouped by chunking configuration |
 | `transfers/` | Suggested evidence chunks: jobs that rank the chunks of each question's gold documents in a configuration (from the question and answer, or from the evidence confirmed in another configuration) on Temporal, and their review queue |
 
 The pipeline modules depend on each other in one direction only:
@@ -61,6 +63,8 @@ pipelines ← artifacts ← materializations
 ```
 
 `retrieval` also reads `experiments.repository` to record the calls of an execution.
+`experiments` reads `answer_profiles` for its Q&A variants, and runs `answering` (which calls
+`retrieval`) for their executions.
 
 ### `components/`
 
@@ -83,11 +87,23 @@ checks a profile's params against the schema of its version.
   | chunker | `recursive`, `markdown` |
   | embedder | `openai`, `bedrock` |
   | vector store | `chromadb`, `qdrant` |
+  | answer system | `rag_simple` |
 
   `contracts.py` holds the `Parser`/`Chunker`/`VectorStoreReader` protocols and the
   `ParseOutput`/`ChunkPayload`/`VectorHit` shapes. Parsers, chunkers and vector store writers
   are implemented in `temporal/components/`, so the API carries no parsing library; embedders
-  and vector store readers are in `retrieval/`, because the API runs them too.
+  and vector store readers are in `retrieval/`, because the API runs them too; answer systems
+  are in `answering/`. The worker marks the builtin answer systems available or not at
+  startup, from its own model credentials.
+
+### `answer_profiles/`
+
+| Route | Purpose |
+|---|---|
+| `POST /answer-profiles`, `GET /answer-profiles[?component_version_id=]`, `GET /answer-profiles/{id}` | Create (get-or-create on the hash of the version and the parameters with their defaults; only `answer_system` components, only available ones; optional `parent_profile_id`), list, read with `changed_params` from the parent |
+
+See [`src/answer_profiles/README.md`](src/answer_profiles/README.md) and, for the systems
+themselves, [`src/answering/README.md`](src/answering/README.md).
 
 ### `documents/` and `sources/`
 
@@ -213,10 +229,10 @@ freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`
 
 | Route | Purpose |
 |---|---|
-| `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list and read (each naming its corpus and QA set), check coverage |
+| `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create a `retrieval` or `qa` experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it; for `qa` an available answer profile on every variant, and the `cited` scope only on systems that cite), list and read (each naming its corpus and QA set), check coverage |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}`, `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | Launch a run on Temporal, poll it, cancel it, relaunch it redoing only what did not succeed |
 | `POST …/runs/{run_id}/evaluate` | `202`: re-score a finished run on the worker (`EvaluateRunWorkflow`) from its stored hits on the evidence as it is now, recording the fingerprint of that evidence; the run's `progress.evaluation` follows it. `409` while the run or another re-evaluation is in progress |
-| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Metrics per variant, grouped by chunking configuration, with effective and excluded counts per reason: the ranked ones at document and chunk level for every experiment, plus set and call metrics for a Q&A one. The per-question drill-down shows each execution's calls and its distinct chunks with every call and rank they came back at |
+| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/answers.csv`, `GET …/runs/{run_id}/questions[/{question_id}]` | Metrics per variant, grouped by chunking configuration, with effective and excluded counts per reason: the ranked ones at document and chunk level for every experiment, plus set, call and answer metrics (refusal accuracy, latency, tokens) for a Q&A one. `answers.csv` lists every answer of a Q&A run next to the expected one, and the questions table carries each variant's answer. The per-question drill-down shows the expected answer, each execution's answer, refusal and usage, its calls and its distinct chunks with every call and rank they came back at, cited ones marked |
 
 Metrics, guards and the run lifecycle are described in [`src/experiments/README.md`](src/experiments/README.md).
 
@@ -233,14 +249,15 @@ Signals, bands and pre-selection are described in [`src/transfers/README.md`](sr
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
-`retrieval_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
+`retrieval_profiles`, `answer_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
 `chunks`, `index_builds`, `materialization_runs`, `qa_sets`, `questions`, `expected_answers`, `gold_documents`,
 `evidence_links`, `evidence_link_chunks`, `transfer_jobs`, `transfer_questions`, `transfer_candidates`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
 `retrieval_calls`, `retrieval_hits`, `metric_definitions`, `evaluators`, `evaluations`,
 `metric_aggregates`. Profiles and configurations are in
 `pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
 `materializations/models.py`, index builds in `indexes/models.py`, the question sets in
-`qa_sets/models.py` and the experiment tables in `experiments/models.py`.
+`qa_sets/models.py`, the answer profiles in `answer_profiles/models.py` and the experiment
+tables in `experiments/models.py`.
 Parse output lives on object storage and is referenced by `parsing_results.output_uri`;
 chunks are rows. The full schema and its rationale are in
 [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md).
@@ -273,10 +290,11 @@ POST /qa-sets/{id}/questions          or write the questions one by one
 POST /transfers                       or have the worker rank the likely chunks first, then review them in a queue
 PUT  /questions/{id}/evidence         confirm the chunks that hold the answer, per chunking configuration
 POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (same questions, same snapshot)
-POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile)
+POST /answer-profiles                 for Q&A: an answer system with its model and prompt
+POST /experiments                     corpus snapshot + QA snapshot + variants (index build × retrieval profile [× answer profile])
 POST /experiments/{id}/runs           → RunExperimentWorkflow on the worker
 GET  /experiments/{id}/runs/{run}     progress: pending → running → succeeded | failed
 GET  /experiments/{id}/runs/{run}/results      document and chunk metrics per variant, grouped by chunking configuration, with n
 POST /experiments/{id}/runs/{run}/evaluate     re-score after annotating, on the worker, without retrieving again
-GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved, call by call and chunk by chunk
+GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved and answered, call by call and chunk by chunk
 ```

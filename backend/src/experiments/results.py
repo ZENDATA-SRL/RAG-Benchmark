@@ -75,6 +75,27 @@ CSV_COLUMNS = (
 )
 
 
+ANSWER_CSV_COLUMNS = (
+    "question_id",
+    "question",
+    "tags",
+    "answerable",
+    "expected_answer",
+    "variant",
+    "is_baseline",
+    "repetition",
+    "status",
+    "refused",
+    "answer",
+    "cited_chunks",
+    "model",
+    "input_tokens",
+    "output_tokens",
+    "total_ms",
+    "error",
+)
+
+
 CROSS_GROUP_REASON = (
     "Chunk-level metrics are computed against evidence confirmed on the chunks of one "
     "chunking configuration, so they only compare variants that search the same "
@@ -247,6 +268,75 @@ class ResultsService:
                     )
         return buffer.getvalue()
 
+    async def answers_csv(self, experiment_id: uuid.UUID, run_id: uuid.UUID) -> str:
+        """Every answer of a run as CSV: one row per question, variant and repetition.
+
+        Rows follow the question order of the snapshot, then the variants, then the
+        repetitions, so the answers of one question sit together next to the expected one.
+        A retrieval run has the rows with the answer columns empty.
+
+        Raises:
+            RunNotFoundError: If the run does not exist or belongs to another experiment.
+        """
+        await self.runs.get(run_id, experiment_id)
+        experiment = await self.experiments.get(experiment_id)
+        question_ids = await self.qa_snapshots.question_ids(
+            experiment.qa_set_snapshot_id
+        )
+        questions = {
+            question.id: question
+            for question in await self.questions.list_by_ids(question_ids)
+        }
+        expected = await self.questions.answers_by_question(question_ids)
+        views = await self.experiments.variant_views(experiment_id)
+        variant_rank = {view.variant.id: index for index, view in enumerate(views)}
+        variants = {view.variant.id: view.variant for view in views}
+        question_rank = {
+            question_id: index for index, question_id in enumerate(question_ids)
+        }
+        executions = sorted(
+            await self.executions.list_by_run(run_id),
+            key=lambda item: (
+                question_rank.get(item.question_id, len(question_rank)),
+                variant_rank.get(item.variant_id, len(variant_rank)),
+                item.repetition,
+            ),
+        )
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(ANSWER_CSV_COLUMNS)
+        for execution in executions:
+            question = questions.get(execution.question_id)
+            variant = variants[execution.variant_id]
+            answers = expected.get(execution.question_id) or []
+            usage = execution.usage or {}
+            timings = execution.timings or {}
+            writer.writerow(
+                [
+                    execution.question_id,
+                    question.text if question else "",
+                    "|".join(question.tags) if question else "",
+                    question.answerable if question else "",
+                    answers[0].text if answers else "",
+                    variant.name,
+                    variant.is_baseline,
+                    execution.repetition,
+                    execution.status.value,
+                    "" if execution.refused is None else execution.refused,
+                    execution.answer_text or "",
+                    ""
+                    if execution.cited_chunk_ids is None
+                    else len(execution.cited_chunk_ids),
+                    usage.get("model", ""),
+                    usage.get("input_tokens", ""),
+                    usage.get("output_tokens", ""),
+                    timings.get("total_ms", ""),
+                    execution.error or "",
+                ]
+            )
+        return buffer.getvalue()
+
     async def _group(
         self, configuration_id: uuid.UUID, chunk_gold: dict | None
     ) -> ResultGroupRead:
@@ -282,7 +372,9 @@ class ResultsService:
         """A page of the questions of a run with the outcome of each variant.
 
         The outcome is the first repetition's: the table is where one picks a question to
-        open, and the drill-down shows every repetition.
+        open, and the drill-down shows every repetition. In a Q&A run it carries the answer
+        and whether it refused, and each question its primary expected answer, so the
+        answers can be read side by side without opening every question.
         """
         await self.runs.get(run_id, experiment_id)
         experiment = await self.experiments.get(experiment_id)
@@ -294,6 +386,7 @@ class ResultsService:
             question.id: question
             for question in await self.questions.list_by_ids(page_ids)
         }
+        expected = await self.questions.answers_by_question(page_ids)
         executions = await self.executions.question_row_executions(run_id, page_ids)
         evaluations = await self.evaluations.evaluations_of_executions(
             [execution.id for execution in executions]
@@ -331,6 +424,8 @@ class ResultsService:
                     excluded_reason=reason,
                     chunk_first_relevant_rank=chunk_rank,
                     chunk_excluded_reason=chunk_reason,
+                    answer_text=execution.answer_text,
+                    refused=execution.refused,
                 )
             )
         rows = []
@@ -343,6 +438,11 @@ class ResultsService:
                     text=question.text,
                     tags=list(question.tags),
                     answerable=question.answerable,
+                    expected_answer=(
+                        expected[question_id][0].text
+                        if expected.get(question_id)
+                        else None
+                    ),
                     outcomes=[
                         outcomes[variant_id]
                         for variant_id in variant_order
@@ -355,9 +455,11 @@ class ResultsService:
     async def question_detail(
         self, experiment_id: uuid.UUID, run_id: uuid.UUID, question_id: uuid.UUID
     ) -> QuestionDrilldownRead:
-        """What each variant retrieved for a question, call by call and chunk by chunk.
+        """What each variant retrieved, and answered, for a question, call by call.
 
-        Each execution lists its calls, with the query and how many chunks each brought
+        In a Q&A run each execution carries its answer, whether it refused and what it
+        used, and the question its primary expected answer. Each execution lists its
+        calls, with the query and how many chunks each brought
         that no earlier call had, and its distinct chunks, each with every call and rank it
         was returned at: a chunk retrieved twice is shown twice-retrieved, not hidden in
         the set. Chunks the answer system cited without retrieving them come last. Each
@@ -376,6 +478,9 @@ class ResultsService:
             raise QuestionNotInRunError(run_id, question_id)
         question = (await self.questions.list_by_ids([question_id]))[0]
         gold = (await self.questions.gold_by_question([question_id])).get(
+            question_id, []
+        )
+        expected = (await self.questions.answers_by_question([question_id])).get(
             question_id, []
         )
 
@@ -435,6 +540,9 @@ class ResultsService:
                                 (execution.id, chunk_rank_id)
                             ),
                             timings=execution.timings,
+                            answer_text=execution.answer_text,
+                            refused=execution.refused,
+                            usage=execution.usage,
                             calls=calls.get(execution.id, []),
                             citations_declared=execution.cited_chunk_ids is not None,
                             hits=[
@@ -458,6 +566,7 @@ class ResultsService:
             text=question.text,
             tags=list(question.tags),
             answerable=question.answerable,
+            expected_answer=expected[0].text if expected else None,
             gold_documents=[
                 UncoveredDocumentRead(document_id=document_id, filename=filename)
                 for document_id, filename in gold

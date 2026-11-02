@@ -8,11 +8,15 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import UnsupportedOperationError
+from src.answer_profiles.models import AnswerProfile
+from src.answer_profiles.service import AnswerProfileService
 from src.corpora.exceptions import CorpusSnapshotNotFoundError
 from src.corpora.repository import CorpusSnapshotRepository
 from src.experiments.evaluation import EvaluationService
 from src.experiments.exceptions import (
+    AnswerProfileNotAllowedError,
+    AnswerProfileRequiredError,
+    CitationsNotSupportedError,
     EvaluationInProgressError,
     ExperimentNotFoundError,
     GoldCoverageChoiceRequiredError,
@@ -37,6 +41,7 @@ from src.infrastructure.database.enums import (
     ArtifactStatus,
     ExecutionStatus,
     ExperimentType,
+    RetrievalScope,
 )
 from src.infrastructure.temporal import WorkflowClient
 from src.infrastructure.temporal.workflow_ids import (
@@ -69,20 +74,25 @@ EVALUATION_FAILED = "failed"
 
 @dataclasses.dataclass(frozen=True)
 class VariantInput:
-    """A variant as requested: an index build searched under a retrieval profile."""
+    """A variant as requested: an index build searched under a retrieval profile.
+
+    A Q&A variant also names the answer profile that answers with that search.
+    """
 
     index_build_id: uuid.UUID
     retrieval_profile_id: uuid.UUID
     is_baseline: bool = False
+    answer_profile_id: uuid.UUID | None = None
 
 
 @dataclasses.dataclass(frozen=True)
 class VariantView:
-    """A variant with the index build and retrieval profile it points at."""
+    """A variant with the index build and the profiles it points at."""
 
     variant: Variant
     index_build: IndexBuild
     retrieval_profile: RetrievalProfile
+    answer_profile: AnswerProfile | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -123,6 +133,7 @@ class ExperimentService:
         self.qa_snapshots = QASetSnapshotRepository(session)
         self.builds = IndexBuildService(session)
         self.profiles = ProfileService(session)
+        self.answer_profiles = AnswerProfileService(session)
         self.configurations = ChunkingConfigurationService(session)
 
     async def coverage(
@@ -156,6 +167,7 @@ class ExperimentService:
         repetitions: int,
         variants: Sequence[VariantInput],
         uncovered_policy: str | None = None,
+        retrieval_scope: RetrievalScope = RetrievalScope.RETRIEVED,
     ) -> Experiment:
         """Create an experiment after checking its search space and its gold coverage.
 
@@ -167,12 +179,21 @@ class ExperimentService:
         which is what doing nothing would do, would blame the retriever for an answer that
         was never in the search space.
 
-        At most one variant is the baseline; when none is marked, the first one is. A
-        variant is named after what it searches and how: chunking configuration,
-        embedder, vector store and retrieval profile.
+        A Q&A experiment needs an answer profile on every variant, on a system that can
+        run now, and the `cited` scope only if every system declares citations; a
+        retrieval experiment takes neither. At most one variant is the baseline; when
+        none is marked, the first one is. A variant is named after what it searches and
+        how (chunking configuration, embedder, vector store and retrieval profile), then
+        who answers.
 
         Raises:
-            UnsupportedOperationError: If the type is not `retrieval`.
+            AnswerProfileRequiredError: If a Q&A variant has no answer profile.
+            AnswerProfileNotAllowedError: If a retrieval experiment has an answer profile
+                or the `cited` scope.
+            AnswerProfileNotFoundError: If an answer profile does not exist.
+            AnswerSystemNotAvailableError: If an answer system cannot be run now.
+            CitationsNotSupportedError: If the scope is `cited` and a system does not
+                declare citations.
             CorpusSnapshotNotFoundError: If the corpus snapshot does not exist.
             QASetSnapshotNotFoundError: If the QA set snapshot does not exist.
             IndexBuildNotFoundError: If a variant's index build does not exist.
@@ -182,20 +203,17 @@ class ExperimentService:
             GoldCoverageChoiceRequiredError: If some questions are not covered and no
                 policy was chosen.
         """
-        if type is not ExperimentType.RETRIEVAL:
-            raise UnsupportedOperationError(
-                f"experiments of type {type.value!r} are not supported yet"
-            )
+        answer_profiles = await self._answer_profiles(type, retrieval_scope, variants)
         coverage = await self.coverage(corpus_snapshot_id, qa_set_snapshot_id)
 
         names = []
         outside = []
-        for variant in variants:
+        for variant, answer_profile in zip(variants, answer_profiles, strict=True):
             build = await self.builds.get(variant.index_build_id)
             profile = await self.profiles.get_retrieval_profile(
                 variant.retrieval_profile_id
             )
-            names.append(await self._variant_name(build, profile))
+            names.append(await self._variant_name(build, profile, answer_profile))
             if build.corpus_snapshot_id != corpus_snapshot_id:
                 outside.append(
                     {
@@ -236,6 +254,7 @@ class ExperimentService:
                 corpus_snapshot_id=corpus_snapshot_id,
                 qa_set_snapshot_id=qa_set_snapshot_id,
                 repetitions=repetitions,
+                retrieval_scope=retrieval_scope,
                 uncovered_policy=uncovered_policy if coverage.uncovered else None,
             )
         )
@@ -247,6 +266,7 @@ class ExperimentService:
                     name=names[index],
                     index_build_id=variant.index_build_id,
                     retrieval_profile_id=variant.retrieval_profile_id,
+                    answer_profile_id=variant.answer_profile_id,
                     is_baseline=variant.is_baseline or (not baselines and index == 0),
                 )
             )
@@ -294,6 +314,11 @@ class ExperimentService:
                     retrieval_profile=await self.profiles.get_retrieval_profile(
                         variant.retrieval_profile_id
                     ),
+                    answer_profile=(
+                        await self.answer_profiles.get(variant.answer_profile_id)
+                        if variant.answer_profile_id is not None
+                        else None
+                    ),
                 )
             )
         return views
@@ -320,7 +345,45 @@ class ExperimentService:
             await self.experiments.count(),
         )
 
-    async def _variant_name(self, build: IndexBuild, profile: RetrievalProfile) -> str:
+    async def _answer_profiles(
+        self,
+        type: ExperimentType,
+        scope: RetrievalScope,
+        variants: Sequence[VariantInput],
+    ) -> list[AnswerProfile | None]:
+        """The answer profile of each variant, after the checks that depend on the type."""
+        if type is ExperimentType.RETRIEVAL:
+            if any(variant.answer_profile_id is not None for variant in variants):
+                raise AnswerProfileNotAllowedError("answer_profile_id")
+            if scope is not RetrievalScope.RETRIEVED:
+                raise AnswerProfileNotAllowedError("retrieval_scope")
+            return [None] * len(variants)
+
+        missing = [
+            position
+            for position, variant in enumerate(variants, start=1)
+            if variant.answer_profile_id is None
+        ]
+        if missing:
+            raise AnswerProfileRequiredError(missing)
+        profiles = []
+        not_citing = []
+        for variant in variants:
+            profile = await self.answer_profiles.get(variant.answer_profile_id)
+            version, _ = await self.answer_profiles.runnable_system(profile)
+            if not version.capabilities.get("supports_citations", False):
+                not_citing.append(profile.name)
+            profiles.append(profile)
+        if scope is RetrievalScope.CITED and not_citing:
+            raise CitationsNotSupportedError(sorted(set(not_citing)))
+        return profiles
+
+    async def _variant_name(
+        self,
+        build: IndexBuild,
+        profile: RetrievalProfile,
+        answer_profile: AnswerProfile | None = None,
+    ) -> str:
         configuration = await self.configurations.get(build.chunking_configuration_id)
         embedding = await self.profiles.get_embedding_profile(
             build.embedding_profile_id
@@ -329,7 +392,11 @@ class ExperimentService:
             build.vector_store_profile_id
         )
         return naming.variant_name(
-            configuration.name, embedding.name, vector_store.name, profile.name
+            configuration.name,
+            embedding.name,
+            vector_store.name,
+            profile.name,
+            answer_profile.name if answer_profile is not None else None,
         )
 
 
@@ -381,11 +448,14 @@ class RunService:
         await self.session.flush()
         return run.progress
 
-    async def open_run(self, run_id: uuid.UUID) -> list[uuid.UUID]:
-        """Mark a run `running` at the start of an attempt and return its variants.
+    async def open_run(
+        self, run_id: uuid.UUID
+    ) -> tuple[ExperimentType, list[uuid.UUID]]:
+        """Mark a run `running` at the start of an attempt; return its type and variants.
 
         Executions an interrupted attempt left `running` go back to `pending`, so a
-        relaunched run picks them up again.
+        relaunched run picks them up again. The type tells the workflow whether an
+        execution retrieves or answers.
         """
         run = await self.get(run_id)
         run.status = ExecutionStatus.RUNNING
@@ -394,7 +464,8 @@ class RunService:
         run.started_at = run.started_at or dt.datetime.now(dt.UTC)
         await self.executions.reset_running(run_id)
         await self.refresh_progress(run)
-        return [
+        experiment = await self.experiments.get_by_id(run.experiment_id)
+        return experiment.type, [
             variant.id
             for variant in await self.experiments.list_variants(run.experiment_id)
         ]
@@ -689,6 +760,7 @@ class RunLauncher:
         }
 
     async def _variant_snapshot(self, view: VariantView) -> dict[str, Any]:
+        """A variant by value: its index, its profiles and, for Q&A, who answered."""
         build = view.index_build
         profile = view.retrieval_profile
         embedding = await self.profiles.get_embedding_profile(
@@ -728,6 +800,25 @@ class RunLauncher:
                 "top_k": profile.top_k,
                 "score_threshold": profile.score_threshold,
             },
+            "answer_profile": await self._answer_snapshot(view.answer_profile),
+        }
+
+    async def _answer_snapshot(
+        self, profile: AnswerProfile | None
+    ) -> dict[str, Any] | None:
+        if profile is None:
+            return None
+        version, component = await self.experiments.answer_profiles.component_of(
+            profile
+        )
+        return {
+            "id": str(profile.id),
+            "name": profile.name,
+            "config_hash": profile.config_hash,
+            "component_version_id": str(version.id),
+            "component": naming.component_label(component.key, version.version),
+            "capabilities": dict(version.capabilities),
+            "params": dict(profile.params),
         }
 
 

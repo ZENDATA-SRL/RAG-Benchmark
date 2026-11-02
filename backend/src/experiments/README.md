@@ -1,23 +1,22 @@
 # experiments
 
-Experiments: a comparison of **variants** (index build x retrieval profile) on one corpus
-snapshot and one frozen question set, executed on Temporal and measured at document level
-and, where the evidence is confirmed, at chunk level. The **type** of the experiment decides
-which metrics it is scored on (see *Metrics*): `retrieval` measures the retriever, `qa`
-measures a whole answer system that may search several times. Only `retrieval` can be
-created yet; the scoring of `qa` executions exists and is tested on executions built by
-hand.
+Experiments: a comparison of **variants** (index build x retrieval profile, x answer
+profile for Q&A) on one corpus snapshot and one frozen question set, executed on Temporal
+and measured at document level and, where the evidence is confirmed, at chunk level. The
+**type** of the experiment decides how an execution runs and which metrics it is scored on
+(see *Metrics*): `retrieval` measures the retriever, `qa` measures a whole answer system
+that may search several times and answers.
 
 ## Entities (`models.py`)
 
 | Entity | Role |
 |---|---|
 | `Experiment` | Type, corpus snapshot, QA snapshot, repetitions, `retrieval_scope` (`retrieved` or `cited`, read by Q&A only), `uncovered_policy`. The snapshot is repeated here although derivable from the variants: it is the guard that makes "every variant searches the same documents" checkable |
-| `Variant` | Index build x retrieval profile; one is the baseline (the first, if none is marked). Named after what it searches and how: configuration · embedder · vector store · retrieval profile, without the snapshot all variants share |
-| `Run` | One execution, with `config_snapshot` (experiment, snapshots, variants, index builds and profiles **copied by value**, and the evidence the chunk metrics were scored on), the denormalised `progress` the UI polls, and `error` |
-| `Execution` | Question x variant x repetition, unique per run: the unit of idempotency and resume. `cited_chunk_ids` holds what an answer system says it used: NULL when it declares no citations, empty when it cited nothing; it may name chunks no call retrieved, which is why it is here and not on the hits |
+| `Variant` | Index build x retrieval profile, plus `answer_profile_id` (FK to `answer_profiles`) in a Q&A experiment and NULL in a retrieval one; one is the baseline (the first, if none is marked). Named after what it searches and how: configuration · embedder · vector store · retrieval profile, then the answer profile for Q&A, without the snapshot all variants share |
+| `Run` | One execution, with `config_snapshot` (experiment, snapshots, variants, index builds and profiles **copied by value**, answer profiles included with their component, capabilities and parameters, and the evidence the chunk metrics were scored on), the denormalised `progress` the UI polls, and `error` |
+| `Execution` | Question x variant x repetition, unique per run: the unit of idempotency and resume. In a Q&A run it holds the answer: `answer_text`, `refused`, `usage` (`model` as the provider reports it, `input_tokens`, `output_tokens`), `timings` (`retrieval_ms`, `model_ms`, `total_ms` and the search breakdown; a retrieval run has the search timings only). `cited_chunk_ids` holds what an answer system says it used: NULL when it declares no citations, empty when it cited nothing; it may name chunks no call retrieved, which is why it is here and not on the hits |
 | `RetrievalCall`, `RetrievalHit` | One call of the retrieval tool and the chunks it returned, with rank, score, stage, `relevant_document` and `relevant_chunk`. The raw log: a chunk returned by two calls has two hits |
-| `MetricDefinition`, `Evaluator`, `Evaluation` | The catalog of metrics (each with its family and level: `document`, `chunk`, or none for the call metrics), one deterministic evaluator per level, and one score (or exclusion with its reason) per execution and metric |
+| `MetricDefinition`, `Evaluator`, `Evaluation` | The catalog of metrics (each with its family and level: `document`, `chunk`, or none for the call and answer metrics), the deterministic evaluators (one per level, one for the answer), and one score (or exclusion with its reason) per execution and metric |
 | `MetricAggregate` | Per run, variant, metric and slice: mean, standard deviation, median, p95, `n_effective`, `n_excluded` and `excluded_reasons` |
 
 `executions`, `retrieval_calls` and `retrieval_hits` grow as questions x variants x
@@ -36,13 +35,23 @@ runs of thousands of questions are common.
    denominator with reason `gold_document_not_in_snapshot`; or widen the snapshot and create
    a new experiment. Without a choice: `422 gold_coverage_choice_required`. Counting them as
    retriever failures, which is what doing nothing would do, is the behaviour to avoid.
+3. **Answer profiles.** A `qa` experiment needs an `answer_profile_id` on every variant
+   (`422 answer_profile_required`, listing the variant positions), on a system that is
+   available (`422 answer_system_not_available` with the reason). A `retrieval` experiment
+   takes no answer profile and only the `retrieved` scope (`422
+   answer_profile_not_allowed`). `retrieval_scope: "cited"` needs every system to declare
+   `supports_citations` (`422 citations_not_supported`).
+
+To isolate the effect of the answer system, the variants of a Q&A experiment keep the same
+index build and retrieval profile and differ only by the answer profile.
 
 ## Runs (`RunLauncher`, `RunService`)
 
 `POST /experiments/{id}/runs` requires every variant's index build to be `ready`, creates
 the run with its `config_snapshot` and every `pending` execution, and starts
 `RunExperimentWorkflow` (id `run-experiment-{run_id}`, queue `experiments`). `concurrency`
-(default 5) is the number of queries in flight, because query embeddings are rate limited.
+(default 5) is the number of queries (or, for Q&A, answers) in flight, because query
+embeddings and chat models are rate limited.
 
 - `POST …/runs/{run_id}/cancel` cancels the workflow and marks the run `failed` with
   `error = "cancelled"`.
@@ -53,10 +62,19 @@ the run with its `config_snapshot` and every `pending` execution, and starts
   counted in `progress` and excluded from the metrics (`execution_failed`).
 
 `ExecutionRunner` (in `evaluation.py`) is what the worker's activity calls for one
-execution: it runs `RetrievalService.search` in-process with the execution id, which records
-the call and its hits, then scores the execution. A failure of the embedder or the vector
-store is raised so the workflow retries it with backoff; any other domain error fails the
-execution.
+execution of a retrieval run: it runs `RetrievalService.search` in-process with the execution
+id, which records the call and its hits, then scores the execution. A failure of the embedder
+or the vector store is raised so the workflow retries it with backoff; any other domain error
+fails the execution.
+
+`AnswerRunner` (in `answering.py`) does the same for a Q&A run: it resolves the variant's
+answer profile to its builtin system (see `src/answering`), hands it that same search bound
+to the variant and the execution, so every search the system makes is recorded as a call,
+writes the answer, `refused`, `usage`, `timings` and the cited chunks, then scores. A failure
+of the model provider is retried like a failure of the embedder; an answer not in the
+expected shape, a citation of a passage that was not in the prompt or a provider without
+credentials fails the execution. Either way, what an attempt recorded is discarded before
+the next one.
 
 ## Metrics (`metrics.py`, `evaluation.py`)
 
@@ -68,7 +86,7 @@ the same as an exclusion.
 | Type | Metrics | Why |
 |---|---|---|
 | `retrieval` | ranked metrics only (the two tables below) | every execution makes one call: set metrics would repeat the ranked ones at the profile's top-k, and call metrics would be constants |
-| `qa` | ranked metrics on the **first call**, set metrics on the experiment's scope, call metrics | a system may search several times; the columns are the same for every answer system, even one that searches once, so a simple chain and an agent compare |
+| `qa` | ranked metrics on the **first call**, set metrics on the experiment's scope, call metrics, answer metrics | a system may search several times; the columns are the same for every answer system, even one that searches once, so a simple chain and an agent compare |
 
 The ranked metrics are always computed on the hits of the first call (the lowest
 `call_index`): several calls give lists whose ranks and scores do not compare, and with one
@@ -131,6 +149,18 @@ repeated hits are wasted calls and context, and are measured rather than hidden 
 A hit whose chunk is no longer known cannot be told a repeat: it counts as a distinct chunk
 that is not relevant.
 
+**Answer metrics (Q&A, no level, evaluator `answer_deterministic`).** Read from what the
+execution recorded, never from the gold documents or the evidence, so they count every
+question, the unanswerable ones included. Latency and tokens are aggregated like any metric,
+so the results carry their median and p95 next to the mean.
+
+| Metric | Family | Definition |
+|---|---|---|
+| `refusal_accuracy` | `answer` | 1 when the system refused exactly when the question is not answerable, 0 otherwise |
+| `answer_latency_ms` | `efficiency` | `timings.total_ms`: searches and model |
+| `model_latency_ms` | `efficiency` | `timings.model_ms` |
+| `input_tokens`, `output_tokens` | `efficiency` | from `usage`, as the provider reports them |
+
 **Exclusions.** Executions that do not count get an evaluation per metric with
 `excluded = true` and the reason, and no score. At document level, in this order:
 `not_answerable`, `no_gold_documents`, `gold_document_not_in_snapshot`, `execution_failed`.
@@ -141,7 +171,10 @@ for its documents and be left out for its chunks; a missing evidence is never sc
 set metrics take the reasons of their level and, on the `cited` scope of an execution whose
 system declared no citations, `scope_not_declared`: no citation says nothing about how well
 a system attributes. The call metrics read no gold and are excluded only with
-`execution_failed`.
+`execution_failed`. The answer metrics too, plus `not_reported` when the system did not
+report the value (a missing token count is not zero); `refusal_accuracy` also leaves out a
+question whose gold document is not in the snapshot (`gold_document_not_in_snapshot`), since
+there refusing is the right answer and the label would score it wrong.
 
 **Aggregation.** At the end of the run `metric_aggregates` are written per variant and
 metric, over all questions (`slice_key = all`) and over each question tag
@@ -172,24 +205,27 @@ confirmed questions and every other one is excluded with `evidence_not_reviewed`
 `evidence_not_found`, so the results say on how much they rest. The wizard shows the
 evidence of each configuration of the chosen variants for the same reason.
 
-`seed.py` registers the metric definitions with their family and the three deterministic
-evaluators (`document_level_retrieval`, `chunk_level_retrieval`, and
-`retrieval_call_efficiency` for the call metrics, which have no level) at startup and again,
-idempotently, before evaluating, so a worker never depends on the API having started.
+`seed.py` registers the metric definitions with their family and the deterministic
+evaluators (`document_level_retrieval`, `chunk_level_retrieval`,
+`retrieval_call_efficiency` for the call metrics, which have no level, and
+`answer_deterministic` for the answer metrics) at startup and again, idempotently, before
+evaluating, so a worker never depends on the API having started. A re-evaluation re-scores
+the answer metrics from the stored answers, without calling the model again.
 
 ## Results (`results.py`)
 
 | Route | Purpose |
 |---|---|
-| `POST /experiments`, `GET /experiments`, `GET /experiments/{id}` | Create (with the guards above); list; detail with variants, runs and coverage. Both list and detail name the corpus and the QA set behind the two snapshots (`corpus_id`, `corpus_name`, `corpus_snapshot_label`, `qa_set_id`, `qa_set_name`, `qa_set_snapshot_label`) |
+| `POST /experiments`, `GET /experiments`, `GET /experiments/{id}` | Create (with the guards above; `type`, `retrieval_scope` and, per variant, `answer_profile_id`); list; detail with variants (with `answer_profile_id` and `answer_profile_name`), runs and coverage. Both list and detail name the corpus and the QA set behind the two snapshots (`corpus_id`, `corpus_name`, `corpus_snapshot_label`, `qa_set_id`, `qa_set_name`, `qa_set_snapshot_label`) |
 | `GET /experiments/coverage?corpus_snapshot_id=&qa_set_snapshot_id=` | The questions with gold documents outside a corpus snapshot |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}` | Launch (`202`, `started=false` if already running); read a run with progress and configuration, served from the row |
 | `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | See above |
 | `POST …/runs/{run_id}/evaluate` | `202`: start re-scoring a finished run on the current evidence, on the worker; returns the run with `progress.evaluation` |
 | `GET …/runs/{run_id}/results[?tag=]` | `experiment_type`; `groups`, one per chunking configuration (parser, chunker, `evidence_coverage`, `recall_ceiling`), each with its variants and their metrics (with `family` and `level`) with `n_effective`, `n_excluded` and `excluded_reasons`; `cross_group_metrics` names the keys that compare across groups (document-level and call metrics) and why; `chunk_gold` gives the date and fingerprint of the evidence; and the corpus and QA snapshots |
 | `GET …/runs/{run_id}/results.csv` | The same as CSV, one row per variant and metric, with the chunking configuration, the family and the level |
-| `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome at both levels |
-| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: every variant's executions, each with its `calls` (query, hits, chunks no earlier call had), `citations_declared`, and `hits`: its distinct chunks in order of first retrieval (rank and score of the first time, file, page, text, `relevant_document`, `relevant_chunk` and its grade, `cited`, and `occurrences`: every call and rank it came back at), then the chunks cited and never retrieved (`retrieved = false`); the evidence status under its configuration and the evidence chunks, retrieved or not; the gold documents |
+| `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome at both levels; in a Q&A run also each variant's `answer_text` and `refused`, and the question's primary `expected_answer` |
+| `GET …/runs/{run_id}/answers.csv` | Every answer of the run, one row per question, variant and repetition, in snapshot order: the question, its tags, `answerable` and expected answer, the variant, status, `refused`, the answer, the number of cited chunks, model, tokens, total time and error. A retrieval run has the answer columns empty |
+| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: the question's primary `expected_answer`; every variant's executions, each with `answer_text`, `refused`, `usage`, `timings`, its `calls` (query, hits, chunks no earlier call had), `citations_declared`, and `hits`: its distinct chunks in order of first retrieval (rank and score of the first time, file, page, text, `relevant_document`, `relevant_chunk` and its grade, `cited`, and `occurrences`: every call and rank it came back at), then the chunks cited and never retrieved (`retrieved = false`); the evidence status under its configuration and the evidence chunks, retrieved or not; the gold documents |
 
 `recall_ceiling` is `1 - not_found / (confirmed + not_found)` on the evidence the run was
 scored on: the share of the reviewed questions whose evidence exists among the chunks of the
@@ -198,6 +234,7 @@ bounds what any variant of the group can reach on those questions.
 
 ## Dependencies
 
-Depends on `qa_sets`, `corpora`, `indexes`, `pipelines` and `retrieval`. `retrieval` depends
+Depends on `qa_sets`, `corpora`, `indexes`, `pipelines`, `retrieval`, `answer_profiles` and
+`answering`. `retrieval` depends
 back on `experiments.repository` only to record the calls of an execution. The worker's
 `temporal/activities/experiments.py` calls the services here.
