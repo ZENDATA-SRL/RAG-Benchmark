@@ -142,7 +142,9 @@ services:
       AWS_CONFIG_FILE: /aws/config
       AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
       AWS_PROFILE: ${WORKER_AWS_PROFILE:-default}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-proj-1234567890}
+      # Embedders and chat models. Empty when unset, so the worker reports the OpenAI
+      # answer system unavailable instead of failing every execution on a fake key.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ${AWS_CONFIG_DIR:-~/.aws}:/aws:ro
     extra_hosts:

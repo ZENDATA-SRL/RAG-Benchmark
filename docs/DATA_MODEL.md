@@ -292,11 +292,11 @@ Configurazione di un **sistema di risposta**: quale sistema (versione di compone
 | Campo | Tipo | Vincoli | Note |
 |---|---|---|---|
 | `id` | UUID | PK | |
-| `name` | TEXT | NOT NULL | escluso dall'hash |
-| `component_version_id` | UUID | FK → component_versions, NOT NULL | il componente deve avere tipo `answer_system` |
-| `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo `params_schema` della versione; il system prompt è incluso per valore, come le eventuali trasformazioni della query |
+| `name` | TEXT | NOT NULL | derivato, escluso dall'hash: es. `rag_simple@1 openai/gpt-4o-mini t=0`, con suffisso ` #` + 6 caratteri dell'hash se già usato (due profili che differiscono solo per il prompt) |
+| `component_version_id` | UUID | FK → component_versions ON DELETE RESTRICT, NOT NULL, indicizzata | il componente deve avere tipo `answer_system` e la versione essere disponibile alla creazione |
+| `params` | JSONB | NOT NULL DEFAULT '{}' | validati contro lo `params_schema` della versione, con i `default` dello schema scritti prima dell'hash; il system prompt è incluso per valore, come le eventuali trasformazioni della query |
 | `config_hash` | TEXT | NOT NULL UNIQUE | hash(component_version + params) |
-| `parent_profile_id` | UUID | FK → answer_profiles, NULL | profilo da cui è stato derivato, per mostrare cosa è cambiato |
+| `parent_profile_id` | UUID | FK → answer_profiles ON DELETE SET NULL, NULL | profilo da cui è stato derivato, sulla stessa versione, per mostrare cosa è cambiato; scritto solo alla creazione |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
 > **Due assi di variazione, due livelli del modello.** Il *tipo di sistema* (workflow RAG, agente con tool call) è il componente; la sua *implementazione* è la versione di componente; i suoi *parametri* sono il profilo. Cambiare prompt o modello produce un nuovo `config_hash`, quindi un nuovo profilo; due configurazioni identiche restano una riga sola. Le performance si confrontano raggruppando le varianti per componente o versione (confronto fra sistemi) o per profilo a parità di versione (confronto fra parametri dello stesso sistema).
@@ -681,7 +681,7 @@ Indice × profilo di retrieval × profilo di risposta (RF-E02). Per esperimenti 
 | `name` | TEXT | NOT NULL | derivato: configurazione · embedder · vector store · retrieval profile |
 | `index_build_id` | UUID | FK → index_builds, NOT NULL | |
 | `retrieval_profile_id` | UUID | FK → retrieval_profiles, NOT NULL | |
-| `answer_profile_id` | UUID | FK → answer_profiles, NULL | NULL se retrieval puro; i `params` sono la `config` passata al sistema. Finché `answer_profiles` non esiste la colonna c'è ma senza vincolo di FK |
+| `answer_profile_id` | UUID | FK → answer_profiles ON DELETE RESTRICT, NULL, indicizzata | NULL se retrieval puro, obbligatorio per un esperimento `qa`; i `params` sono la `config` passata al sistema |
 | `is_baseline` | BOOLEAN | NOT NULL DEFAULT false | baseline dei confronti (RF-E04) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
@@ -725,8 +725,8 @@ Una domanda × variante × ripetizione. **Unità di idempotenza e resume** (RF-E
 | `answer_text` | TEXT | | risposta prodotta |
 | `refused` | BOOLEAN | | il sistema dichiara di non sapere |
 | `answer_payload_uri` | TEXT | | payload grezzo su object storage (RT-P02) |
-| `usage` | JSONB | | model, tokens_in, tokens_out |
-| `timings` | JSONB | | total_ms, per fase |
+| `usage` | JSONB | | `model` (quello riportato dal provider), `input_tokens`, `output_tokens` |
+| `timings` | JSONB | | per il retrieval i tempi della ricerca (`embed_ms`, `search_ms`, `enrich_ms`, `total_ms`); per il Q&A `retrieval_ms`, `model_ms`, `total_ms` e il dettaglio della ricerca in `retrieval` |
 | `cited_chunk_ids` | UUID[] | | chunk citati dal sistema di risposta; NULL = il sistema non dichiara citazioni, array vuoto = non ha citato nulla. Può contenere chunk mai recuperati |
 | `langfuse_trace_id` | TEXT | | trace Langfuse (RT-L02) |
 | `error` | TEXT | | motivo se failed |
@@ -775,7 +775,7 @@ Chiave, famiglia, livello, direzione, aggregazione (§6.7, §7).
 | `id` | UUID | PK | |
 | `key` | TEXT | NOT NULL UNIQUE | es. `recall@5`, `faithfulness` |
 | `family` | metric_family | NOT NULL | retrieval/answer/efficiency/robustness |
-| `level` | metric_level | | document/chunk (per metriche retrieval); NULL per le metriche di efficienza delle chiamate |
+| `level` | metric_level | | document/chunk (per metriche retrieval); NULL per le metriche di efficienza delle chiamate e per quelle di risposta (`refusal_accuracy`, latenza, token), che non leggono il gold |
 | `direction` | TEXT | NOT NULL | higher_is_better / lower_is_better |
 | `aggregation` | TEXT | NOT NULL | mean/median/p95/... default |
 | `description` | TEXT | | |
@@ -796,6 +796,8 @@ Deterministico, LLM-as-judge (versionato per prompt), o umano (RF-V02, RF-V03).
 | `version` | TEXT | NOT NULL | cambiarlo non altera storici (RF-V03) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
+> **Evaluator deterministici seedati.** `document_level_retrieval`, `chunk_level_retrieval`, `retrieval_call_efficiency` (metriche delle chiamate) e `answer_deterministic` (metriche di risposta lette dall'esecuzione). Ognuno riscrive solo i propri punteggi.
+
 ### `evaluations`
 Il punteggio su una singola esecuzione, con flag di esclusione e motivo (RF-V06, RF-V07).
 
@@ -807,7 +809,7 @@ Il punteggio su una singola esecuzione, con flag di esclusione e motivo (RF-V06,
 | `evaluator_id` | UUID | FK → evaluators, NOT NULL | |
 | `score` | DOUBLE PRECISION | | valore della metrica |
 | `excluded` | BOOLEAN | NOT NULL DEFAULT false | escluso dal denominatore |
-| `exclusion_reason` | TEXT | | `evidence_not_found` (RF-V06) / `gold_document_not_in_snapshot` (RF-E09) / `scope_not_declared` (ambito `cited` su un'esecuzione senza citazioni dichiarate) |
+| `exclusion_reason` | TEXT | | `evidence_not_found` (RF-V06) / `gold_document_not_in_snapshot` (RF-E09) / `scope_not_declared` (ambito `cited` su un'esecuzione senza citazioni dichiarate) / `not_reported` (metrica di risposta il cui valore il sistema non ha riportato) |
 | `langfuse_score_id` | TEXT | | copia da Langfuse via webhook (RT-L03) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (execution_id, metric_definition_id, evaluator_id) | |

@@ -43,7 +43,9 @@ also embeds text and reaches the vector stores: it needs the credentials of the 
 use and the `CHROMA_*` / `QDRANT_*` addresses in `.env`. For OpenAI, export `OPENAI_API_KEY`
 in the shell that starts the API and the worker: the library reads the process environment,
 which `.env` does not populate. For Bedrock, the host's `~/.aws` profile (or the `AWS_*`
-variables) is picked up directly by the API run from the host.
+variables) is picked up directly by the API run from the host. The chat models of the Q&A
+experiments run only in the worker and read the same credentials from its environment; at
+startup the worker marks an answer system unavailable, with the reason, when it finds none.
 
 With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
 upload, profiles, configuration, preview, materialisation, polling, chunk and parse
@@ -107,7 +109,7 @@ backend/
     settings.py       configuration read from the environment
     core/             hashing, get-or-create, domain errors, logging
     infrastructure/   database (base, session, enums), object storage, temporal client
-    components/       registry of pluggable components: contracts + descriptors (parser, chunker, embedder, vector store)
+    components/       registry of pluggable components: contracts + descriptors (parser, chunker, embedder, vector store, answer system)
     corpora/          corpora and snapshots
     documents/        documents
     pipelines/        profiles and chunking configurations
@@ -115,16 +117,18 @@ backend/
     materializations/ chunk materialisation runs and their progress
     indexes/          index builds over a corpus snapshot
     retrieval/        dense search over a ready index build, embedders, vector store readers
+    answer_profiles/  answer profiles: an answer system and its parameters (model, prompt, ...)
+    answering/        builtin answer systems (rag_simple) and their chat models, run by the worker
     qa_sets/          question sets, authoring, gold documents and evidence chunks, import/export, snapshots
-    experiments/      experiments: variants, runs, metrics chosen by experiment type (ranked; set and call metrics for Q&A), results by chunking configuration
+    experiments/      retrieval and Q&A experiments: variants, runs, metrics chosen by experiment type (ranked; set, call and answer metrics for Q&A), results by chunking configuration
     transfers/        suggested evidence chunks: proposal for imported questions, transfer between configurations, review queue
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/
-frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, question sets, annotation and its review queue, experiments, components
+frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, question sets, annotation and its review queue, answer profiles, experiments (retrieval and Q&A), components
 scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval, of a retrieval experiment and of its re-evaluation on confirmed evidence)
 temporal/             worker, workflows, activities and builtin implementations
-  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs, chunk ranking
+  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs (retrieve or answer), chunk ranking
   workflows/          ProcessDocument, MaterializeChunks, IndexCorpus, RunExperiment, RunVariant, EvaluateRun, TransferDataset
   components/         parser, chunker and vector store write code, invoked only by the worker
   tests/
@@ -150,6 +154,8 @@ Split on purpose, and the direction matters:
   shared distance mapping. Retrieval is synchronous and called many times per question, so it
   runs in the API rather than through a workflow; the worker imports the same embedders, so a
   query is embedded by exactly the code that embedded its index.
+- **`backend/src/answering/`** — the answer systems (`BUILTIN_ANSWER_SYSTEMS`), next to the
+  retrieval they call in-process. Only the worker executes them, for Q&A experiments.
 - **`temporal/components/`** — parsers, chunkers and the vector store writers, with the
   `BUILTIN_PARSERS` / `BUILTIN_CHUNKERS` / `BUILTIN_VECTOR_STORES` maps that resolve a key to
   running code. Only the worker executes them.
