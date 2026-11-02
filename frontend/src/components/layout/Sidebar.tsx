@@ -5,7 +5,8 @@ const links = [
   { to: "/configurations", label: "Configurations", hint: "Parse + chunk" },
   { to: "/indexes", label: "Indexes", hint: "Embed + store" },
   { to: "/qa-sets", label: "QA sets", hint: "Questions + gold" },
-  { to: "/experiments", label: "Experiments", hint: "Compare retrieval" },
+  { to: "/answer-profiles", label: "Answer profiles", hint: "Model + prompt" },
+  { to: "/experiments", label: "Experiments", hint: "Compare variants" },
   { to: "/components", label: "Components", hint: "Registry" },
 ];
 

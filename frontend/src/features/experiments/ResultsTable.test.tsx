@@ -134,6 +134,13 @@ describe("ResultsTable on a Q&A run", () => {
           metric("set_recall", 0.9),
           metric("retrieved_set_size", 7.5, { family: "efficiency", level: null }),
           metric("duplicate_hit_rate", 0.25, { family: "efficiency", level: null }),
+          metric("refusal_accuracy", 0.92, { family: "answer", level: null }),
+          metric("answer_latency_ms", 1500, {
+            family: "efficiency",
+            level: null,
+            median: 1840.4,
+            p95: 4100,
+          }),
         ],
       })),
     })),
@@ -154,6 +161,16 @@ describe("ResultsTable on a Q&A run", () => {
       "duplicate_hit_rate",
     ]);
     expect(within(screen.getByTestId("result-row-small-a")).getByText("0.25 (38/50)")).toBeTruthy();
+  });
+
+  it("adds the answer section, with latency on its median and p95", () => {
+    render(<ResultsTable results={qa} cutoff={5} />);
+
+    expect(screen.getByTestId("result-sections")).toHaveTextContent("Answer");
+    const row = within(screen.getByTestId("result-row-small-a"));
+    expect(row.getByText("0.92 (38/50)")).toBeTruthy();
+    expect(row.getByText("1840 (38/50)")).toBeTruthy();
+    expect(row.getByText("4100 (38/50)")).toBeTruthy();
   });
 
   it("drops the chunk-level set columns across chunking configurations", async () => {

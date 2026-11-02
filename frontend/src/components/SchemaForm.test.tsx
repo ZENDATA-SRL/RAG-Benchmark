@@ -61,10 +61,34 @@ describe("SchemaForm", () => {
       properties: { region: { type: "string", title: "Region", default: "eu-central-1" } },
     };
 
-    render(<SchemaForm schema={schema} formData={defaultsFromSchema(schema)} onChange={() => {}} />);
+    render(
+      <SchemaForm schema={schema} formData={defaultsFromSchema(schema)} onChange={() => {}} />,
+    );
 
     expect(screen.getByText("Region")).toBeInTheDocument();
     expect(screen.queryByText(/invalid parameter/)).not.toBeInTheDocument();
     expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("edits a prompt in a multi-line text area", () => {
+    const schema: JsonSchema = {
+      type: "object",
+      properties: {
+        model: { type: "string", title: "Model" },
+        system_prompt: { type: "string", title: "System prompt" },
+      },
+    };
+
+    render(
+      <SchemaForm
+        schema={schema}
+        formData={{ model: "m", system_prompt: "Line one\nLine two" }}
+        onChange={() => {}}
+      />,
+    );
+
+    const prompt = screen.getByDisplayValue(/Line one/);
+    expect(prompt.tagName).toBe("TEXTAREA");
+    expect(screen.getByDisplayValue("m").tagName).toBe("INPUT");
   });
 });

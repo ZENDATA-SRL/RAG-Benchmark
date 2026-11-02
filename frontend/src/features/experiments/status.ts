@@ -1,4 +1,9 @@
-import type { RunRead } from "@/api/types";
+import type { ExperimentType, RunRead } from "@/api/types";
+
+/** How an experiment's type reads in the UI. */
+export function experimentTypeLabel(type: ExperimentType): string {
+  return type === "qa" ? "Q&A" : "retrieval";
+}
 
 export function runStatusTone(status: string): "good" | "bad" | "warn" | "neutral" {
   if (status === "succeeded") return "good";

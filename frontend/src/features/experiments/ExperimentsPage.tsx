@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
 import type { ExperimentRead } from "@/api/types";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -12,6 +13,7 @@ import { formatDate } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
 import { ExperimentWizard } from "./ExperimentWizard";
+import { experimentTypeLabel } from "./status";
 
 type QaSetGroup = { qaSetId: string; qaSetName: string; items: ExperimentRead[] };
 type CorpusGroup = { corpusId: string; corpusName: string; qaSets: QaSetGroup[] };
@@ -57,7 +59,8 @@ export function ExperimentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Experiments</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Compare retrieval variants on the same corpus snapshot and the same frozen questions.
+            Compare retrievers, or answer systems, on the same corpus snapshot and the same frozen
+            questions.
           </p>
         </div>
         <Button onClick={() => setCreating(true)}>New experiment</Button>
@@ -123,6 +126,7 @@ function ExperimentTable({ items }: { items: ExperimentRead[] }) {
         <thead className="border-b border-line bg-paper text-xs text-ink-muted">
           <tr>
             <th className="px-4 py-2 font-medium">Name</th>
+            <th className="px-4 py-2 font-medium">Type</th>
             <th className="px-4 py-2 font-medium">Snapshots (corpus · QA)</th>
             <th className="px-4 py-2 font-medium">Variants</th>
             <th className="px-4 py-2 font-medium">Repetitions</th>
@@ -136,6 +140,11 @@ function ExperimentTable({ items }: { items: ExperimentRead[] }) {
                 <Link to={`/experiments/${experiment.id}`} className="font-medium hover:underline">
                   {experiment.name}
                 </Link>
+              </td>
+              <td className="px-4 py-3">
+                <Badge tone={experiment.type === "qa" ? "info" : "neutral"}>
+                  {experimentTypeLabel(experiment.type)}
+                </Badge>
               </td>
               <td className="px-4 py-3 text-xs text-ink-muted">
                 {experiment.corpus_snapshot_label ?? "—"} ·{" "}

@@ -1224,6 +1224,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/answer-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Answer Profiles
+         * @description List the answer profiles, optionally of one answer system version.
+         */
+        get: operations["list_answer_profiles_api_v1_answer_profiles_get"];
+        put?: never;
+        /**
+         * Create Answer Profile
+         * @description Create an answer profile, or return the identical one that already exists.
+         */
+        post: operations["create_answer_profile_api_v1_answer_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/answer-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Answer Profile
+         * @description Return one answer profile with the parameters changed from its parent.
+         */
+        get: operations["get_answer_profile_api_v1_answer_profiles__profile_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/experiments": {
         parameters: {
             query?: never;
@@ -1422,6 +1466,26 @@ export interface paths {
          * @description Download the aggregated metrics of a run as CSV.
          */
         get: operations["get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/answers.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Answers Csv
+         * @description Download every answer of a run as CSV, next to the expected one.
+         */
+        get: operations["get_answers_csv_api_v1_experiments__experiment_id__runs__run_id__answers_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1631,6 +1695,98 @@ export interface components {
             question: string;
             /** Files */
             files: components["schemas"]["AmbiguousFileRead"][];
+        };
+        /**
+         * AnswerProfileCreate
+         * @description Payload creating an answer profile; the name is derived by the server.
+         */
+        AnswerProfileCreate: {
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Parent Profile Id */
+            parent_profile_id?: string | null;
+        };
+        /**
+         * AnswerProfileCreated
+         * @description An answer profile with the outcome of the get-or-create that returned it.
+         */
+        AnswerProfileCreated: {
+            /** Created */
+            created: boolean;
+            /** Detail */
+            detail?: string | null;
+            profile: components["schemas"]["AnswerProfileRead"];
+        };
+        /**
+         * AnswerProfileDetail
+         * @description A profile with what changed from the profile it was derived from.
+         */
+        AnswerProfileDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Config Hash */
+            config_hash: string;
+            /** Parent Profile Id */
+            parent_profile_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Changed Params */
+            changed_params?: components["schemas"]["ParamChangeRead"][];
+        };
+        /**
+         * AnswerProfileRead
+         * @description An answer profile as exposed by the API.
+         */
+        AnswerProfileRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Component Version Id
+             * Format: uuid
+             */
+            component_version_id: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Config Hash */
+            config_hash: string;
+            /** Parent Profile Id */
+            parent_profile_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * ArtifactStatus
@@ -2854,6 +3010,14 @@ export interface components {
             timings?: {
                 [key: string]: unknown;
             } | null;
+            /** Answer Text */
+            answer_text?: string | null;
+            /** Refused */
+            refused?: boolean | null;
+            /** Usage */
+            usage?: {
+                [key: string]: unknown;
+            } | null;
             /** Calls */
             calls?: components["schemas"]["CallDetailRead"][];
             /**
@@ -2920,6 +3084,11 @@ export interface components {
              * @default 1
              */
             repetitions: number;
+            /**
+             * @description Chunks the set metrics of a Q&A experiment are computed on: everything retrieved, or what the answer system cited. `cited` needs systems that declare citations.
+             * @default retrieved
+             */
+            retrieval_scope: components["schemas"]["RetrievalScope"];
             /** Variants */
             variants: components["schemas"]["VariantCreate"][];
             /**
@@ -3603,6 +3772,17 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** Page[AnswerProfileRead] */
+        Page_AnswerProfileRead_: {
+            /** Items */
+            items?: components["schemas"]["AnswerProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[ChunkSearchHit] */
         Page_ChunkSearchHit_: {
             /** Items */
@@ -3811,6 +3991,18 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * ParamChangeRead
+         * @description A parameter whose value differs from the parent profile's.
+         */
+        ParamChangeRead: {
+            /** Key */
+            key: string;
+            /** Parent */
+            parent?: unknown;
+            /** Value */
+            value?: unknown;
         };
         /**
          * ParsePageRead
@@ -4076,6 +4268,11 @@ export interface components {
             tags: string[];
             /** Answerable */
             answerable: boolean;
+            /**
+             * Expected Answer
+             * @description The primary expected answer, when there is one.
+             */
+            expected_answer?: string | null;
             /** Gold Documents */
             gold_documents: components["schemas"]["UncoveredDocumentRead"][];
             /** Variants */
@@ -4198,6 +4395,13 @@ export interface components {
             chunk_first_relevant_rank?: number | null;
             /** Chunk Excluded Reason */
             chunk_excluded_reason?: string | null;
+            /**
+             * Answer Text
+             * @description The answer, in a Q&A run; empty in a retrieval one.
+             */
+            answer_text?: string | null;
+            /** Refused */
+            refused?: boolean | null;
         };
         /**
          * QueueRowRead
@@ -4542,6 +4746,11 @@ export interface components {
             tags: string[];
             /** Answerable */
             answerable: boolean;
+            /**
+             * Expected Answer
+             * @description The primary expected answer, when there is one.
+             */
+            expected_answer?: string | null;
             /** Outcomes */
             outcomes: components["schemas"]["QuestionVariantOutcomeRead"][];
         };
@@ -4899,7 +5108,7 @@ export interface components {
         };
         /**
          * VariantCreate
-         * @description A variant: an index build searched under a retrieval profile.
+         * @description An index build, a retrieval profile and, for Q&A, an answer profile.
          */
         VariantCreate: {
             /**
@@ -4912,6 +5121,11 @@ export interface components {
              * Format: uuid
              */
             retrieval_profile_id: string;
+            /**
+             * Answer Profile Id
+             * @description Required in a Q&A experiment, refused otherwise.
+             */
+            answer_profile_id?: string | null;
             /**
              * Is Baseline
              * @default false
@@ -4975,6 +5189,10 @@ export interface components {
             retrieval_profile_name: string;
             /** Top K */
             top_k: number;
+            /** Answer Profile Id */
+            answer_profile_id?: string | null;
+            /** Answer Profile Name */
+            answer_profile_name?: string | null;
         };
         /** VariantResultRead */
         VariantResultRead: {
@@ -7595,6 +7813,103 @@ export interface operations {
             };
         };
     };
+    list_answer_profiles_api_v1_answer_profiles_get: {
+        parameters: {
+            query?: {
+                component_version_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AnswerProfileRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_answer_profile_api_v1_answer_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerProfileCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_answer_profile_api_v1_answer_profiles__profile_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerProfileDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_experiments_api_v1_experiments_get: {
         parameters: {
             query?: {
@@ -7922,6 +8237,38 @@ export interface operations {
         };
     };
     get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_answers_csv_api_v1_experiments__experiment_id__runs__run_id__answers_csv_get: {
         parameters: {
             query?: never;
             header?: never;

@@ -76,7 +76,15 @@ export type EvidenceStatus = NonNullable<QuestionRead["evidence_status"]>;
 export type RelevanceGrade = EvidenceChunkRead["relevance"];
 export type ImportSummaryRead = components["schemas"]["ImportSummaryRead"];
 
+export type AnswerProfileRead = components["schemas"]["AnswerProfileRead"];
+export type AnswerProfileDetail = components["schemas"]["AnswerProfileDetail"];
+export type AnswerProfileCreate = components["schemas"]["AnswerProfileCreate"];
+export type AnswerProfileCreated = components["schemas"]["AnswerProfileCreated"];
+export type ParamChangeRead = components["schemas"]["ParamChangeRead"];
+
 export type ExperimentRead = components["schemas"]["ExperimentRead"];
+export type ExperimentType = components["schemas"]["ExperimentType"];
+export type RetrievalScope = components["schemas"]["RetrievalScope"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
 export type ExperimentCreate = components["schemas"]["ExperimentCreate"];
 export type VariantCreate = components["schemas"]["VariantCreate"];
@@ -94,6 +102,7 @@ export type RunQuestionRead = components["schemas"]["RunQuestionRead"];
 export type QuestionDrilldownRead = components["schemas"]["QuestionDrilldownRead"];
 export type VariantDrilldownRead = components["schemas"]["VariantDrilldownRead"];
 export type HitDetailRead = components["schemas"]["HitDetailRead"];
+export type ExecutionDetailRead = components["schemas"]["ExecutionDetailRead"];
 export type HitOccurrenceRead = components["schemas"]["HitOccurrenceRead"];
 export type CallDetailRead = components["schemas"]["CallDetailRead"];
 export type GoldChunkRead = components["schemas"]["GoldChunkRead"];

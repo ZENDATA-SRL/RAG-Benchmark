@@ -5,7 +5,9 @@ import {
   describeChunkOutcome,
   describeOccurrences,
   describeOutcome,
+  describeUsage,
   excerpt,
+  refusalRight,
 } from "./outcome";
 
 describe("describeOutcome", () => {
@@ -63,5 +65,30 @@ describe("describeOccurrences", () => {
         { call_index: 2, rank: 3 },
       ]),
     ).toBe("×2 · call 1 rank 1, call 2 rank 3");
+  });
+});
+
+describe("describeUsage", () => {
+  it("names the model, the tokens and where the time went", () => {
+    expect(
+      describeUsage({
+        usage: { model: "gpt-test", input_tokens: 1834, output_tokens: 112 },
+        timings: { total_ms: 1760.9, model_ms: 1532 },
+      }),
+    ).toBe("gpt-test · 1834 → 112 tokens · 1.8 s (model 1.5 s)");
+  });
+
+  it("is empty for an execution that did not answer", () => {
+    expect(describeUsage({ usage: null, timings: { total_ms: 12 } })).toBe("");
+  });
+});
+
+describe("refusalRight", () => {
+  it("is right to refuse exactly the unanswerable questions", () => {
+    expect(refusalRight(true, false)).toBe(true);
+    expect(refusalRight(false, true)).toBe(true);
+    expect(refusalRight(true, true)).toBe(false);
+    expect(refusalRight(false, false)).toBe(false);
+    expect(refusalRight(null, true)).toBeNull();
   });
 });

@@ -1,5 +1,9 @@
 import { api, apiFetch, apiUrl, uploadFiles, type UploadProgressHandler } from "./client";
 import type {
+  AnswerProfileCreate,
+  AnswerProfileCreated,
+  AnswerProfileDetail,
+  AnswerProfileRead,
   ChunkComparisonRead,
   ChunkingConfigurationComposed,
   ChunkingConfigurationCompose,
@@ -135,6 +139,13 @@ export const retrievalProfilesApi = {
   list: () => api.get<Page<RetrievalProfileRead>>("/api/v1/retrieval-profiles", { limit: 200 }),
   create: (body: RetrievalProfileCreate) =>
     api.post<RetrievalProfileCreated>("/api/v1/retrieval-profiles", body),
+};
+
+export const answerProfilesApi = {
+  list: () => api.get<Page<AnswerProfileRead>>("/api/v1/answer-profiles", { limit: 200 }),
+  get: (id: string) => api.get<AnswerProfileDetail>(`/api/v1/answer-profiles/${id}`),
+  create: (body: AnswerProfileCreate) =>
+    api.post<AnswerProfileCreated>("/api/v1/answer-profiles", body),
 };
 
 export const retrievalApi = {
@@ -296,6 +307,8 @@ export const experimentsApi = {
     api.get<RunResultsRead>(`/api/v1/experiments/${id}/runs/${runId}/results`, { tag }),
   resultsCsvUrl: (id: string, runId: string) =>
     apiUrl(`/api/v1/experiments/${id}/runs/${runId}/results.csv`),
+  answersCsvUrl: (id: string, runId: string) =>
+    apiUrl(`/api/v1/experiments/${id}/runs/${runId}/answers.csv`),
   questions: (id: string, runId: string) =>
     api.get<Page<RunQuestionRead>>(`/api/v1/experiments/${id}/runs/${runId}/questions`, {
       limit: 200,

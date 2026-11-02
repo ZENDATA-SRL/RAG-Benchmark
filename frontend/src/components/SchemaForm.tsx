@@ -90,9 +90,30 @@ function TextWidget(props: WidgetProps) {
       placeholder={placeholder}
       value={value ?? ""}
       onChange={(event) =>
-        onChange(isNumber ? (event.target.value === "" ? undefined : Number(event.target.value)) : event.target.value)
+        onChange(
+          isNumber
+            ? event.target.value === ""
+              ? undefined
+              : Number(event.target.value)
+            : event.target.value,
+        )
       }
       className="w-full rounded-md border border-line bg-paper-raised px-3 py-1.5 text-sm"
+    />
+  );
+}
+
+function TextareaWidget(props: WidgetProps) {
+  const { id, value, disabled, placeholder, onChange } = props;
+  return (
+    <textarea
+      id={id}
+      rows={6}
+      disabled={disabled}
+      placeholder={placeholder}
+      value={value ?? ""}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full rounded-md border border-line bg-paper-raised px-3 py-1.5 font-mono text-sm"
     />
   );
 }
@@ -120,6 +141,7 @@ const widgets = {
   CheckboxWidget: ToggleWidget,
   RangeWidget: SliderNumberWidget,
   TextWidget,
+  TextareaWidget,
   SelectWidget,
 };
 
@@ -134,6 +156,10 @@ function uiSchemaFor(schema: StrictRJSFSchema): UiSchema {
     }
     if (key === "chunk_size" || definition.title === "Chunk size") {
       ui[key] = { "ui:widget": "range" };
+    }
+    // A prompt is several lines of instructions, unreadable in a one-line input.
+    if (key.endsWith("prompt") && definition.type === "string") {
+      ui[key] = { "ui:widget": "textarea" };
     }
   }
   return ui;

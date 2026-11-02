@@ -8,6 +8,7 @@ import {
   describeCoverage,
   excludedDetail,
   findMetric,
+  formatAnswerMetric,
   formatCeiling,
   formatMetric,
   groupsOf,
@@ -131,5 +132,27 @@ describe("Q&A columns", () => {
     expect(setMetricKeys(false).some((key) => key.startsWith("chunk_"))).toBe(false);
     expect(callMetricKeys(false)).not.toContain("chunk_first_relevant_call_index");
     expect(callMetricKeys(true)).toContain("chunk_first_relevant_call_index");
+  });
+});
+
+describe("formatAnswerMetric", () => {
+  const latency = {
+    key: "answer_latency_ms",
+    family: "efficiency",
+    level: null,
+    direction: "lower_is_better",
+    mean: 1500,
+    stddev: 0,
+    median: 1840.4,
+    p95: null,
+    n_effective: 48,
+    n_excluded: 2,
+    excluded_reasons: { execution_failed: 2 },
+  } as const;
+
+  it("shows the chosen statistic with its sample", () => {
+    expect(formatAnswerMetric(latency, { stat: "median", unit: "amount" })).toBe("1840 (48/50)");
+    expect(formatAnswerMetric(latency, { stat: "p95", unit: "amount" })).toBe("— (48/50)");
+    expect(formatAnswerMetric(undefined, { stat: "mean", unit: "ratio" })).toBe("—");
   });
 });

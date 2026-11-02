@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AnswerProfilesPage } from "@/features/answer-profiles/AnswerProfilesPage";
 import { ChunkViewerPage } from "@/features/chunks/ChunkViewerPage";
 import { ComponentsPage } from "@/features/components/ComponentsPage";
 import { ConfigurationWizard } from "@/features/configurations/ConfigurationWizard";
@@ -38,6 +39,7 @@ export function App() {
           element={<AnnotationPage />}
         />
         <Route path="/transfers/:transferId" element={<TransferPage />} />
+        <Route path="/answer-profiles" element={<AnswerProfilesPage />} />
         <Route path="/experiments" element={<ExperimentsPage />} />
         <Route path="/experiments/:experimentId" element={<ExperimentDetailPage />} />
         <Route path="/experiments/:experimentId/runs/:runId" element={<RunPage />} />

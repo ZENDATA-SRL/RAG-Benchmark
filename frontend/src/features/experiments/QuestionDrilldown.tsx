@@ -5,6 +5,7 @@ import { experimentsApi } from "@/api/resources";
 import type {
   CallDetailRead,
   EvidenceStatus,
+  ExecutionDetailRead,
   HitDetailRead,
   VariantDrilldownRead,
 } from "@/api/types";
@@ -14,7 +15,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EvidenceStatusBadge } from "@/features/qa-sets/EvidencePanel";
 import { queryKeys } from "@/lib/queryClient";
 
-import { annotationUrl, describeOccurrences, excerpt } from "./outcome";
+import {
+  annotationUrl,
+  describeOccurrences,
+  describeUsage,
+  excerpt,
+  refusalRight,
+} from "./outcome";
 
 /**
  * A distinct chunk of an execution. One retrieved by several calls says so with every call
@@ -55,6 +62,35 @@ function Hit({ hit }: { hit: HitDetailRead }) {
       </p>
       <p className="mt-1 text-ink-muted">{excerpt(hit.text)}</p>
     </li>
+  );
+}
+
+/**
+ * What the answer system said, whether it refused and what it cost. Shown only when the
+ * execution recorded an answer, which a retrieval run never does.
+ */
+function Answer({
+  execution,
+  answerable,
+}: {
+  execution: ExecutionDetailRead;
+  answerable: boolean;
+}) {
+  if (execution.answer_text == null && execution.refused == null) return null;
+  const right = refusalRight(execution.refused, answerable);
+  const usage = describeUsage(execution);
+  return (
+    <div className="mb-2 rounded-md border border-line bg-paper p-3 text-xs" data-testid="answer">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <span className="font-medium">Answer</span>
+        {execution.refused ? <Badge tone="warn">refused</Badge> : null}
+        {right !== null ? (
+          <Badge tone={right ? "good" : "bad"}>{right ? "refusal right" : "refusal wrong"}</Badge>
+        ) : null}
+      </div>
+      <p className="whitespace-pre-wrap">{execution.answer_text}</p>
+      {usage ? <p className="mt-2 font-mono text-ink-muted">{usage}</p> : null}
+    </div>
   );
 }
 
@@ -162,6 +198,15 @@ export function QuestionDrilldown({
           <>
             <div>
               <p className="font-medium">{detail.text}</p>
+              {detail.answerable ? null : (
+                <p className="mt-1 text-xs text-ink-muted">Not answerable: refusing is right.</p>
+              )}
+              {detail.expected_answer ? (
+                <div className="mt-2 text-xs" data-testid="expected-answer">
+                  <p className="text-ink-muted">Expected answer</p>
+                  <p className="whitespace-pre-wrap">{detail.expected_answer}</p>
+                </div>
+              ) : null}
               <p className="mt-2 text-xs text-ink-muted">Gold documents</p>
               <ul className="font-mono text-xs">
                 {detail.gold_documents.map((doc) => (
@@ -208,6 +253,7 @@ export function QuestionDrilldown({
                       {execution.error ? (
                         <p className="text-xs text-danger">{execution.error}</p>
                       ) : null}
+                      <Answer execution={execution} answerable={detail.answerable} />
                       <Calls calls={execution.calls ?? []} />
                       <ul className="space-y-2">
                         {execution.hits.map((hit, index) => (

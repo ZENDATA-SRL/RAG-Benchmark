@@ -55,6 +55,44 @@ export function callMetricKeys(includeChunk: boolean): string[] {
   ];
 }
 
+/**
+ * A column of the answer section of a Q&A run: which metric, and which statistic of it.
+ * Latency is read on its median and p95, since a mean hides the slow answers.
+ */
+export interface AnswerColumn {
+  key: string;
+  label: string;
+  stat: "mean" | "median" | "p95";
+  unit: "ratio" | "amount";
+}
+
+export function answerColumns(): AnswerColumn[] {
+  return [
+    { key: "refusal_accuracy", label: "refusal_accuracy", stat: "mean", unit: "ratio" },
+    { key: "answer_latency_ms", label: "latency p50 (ms)", stat: "median", unit: "amount" },
+    { key: "answer_latency_ms", label: "latency p95 (ms)", stat: "p95", unit: "amount" },
+    { key: "model_latency_ms", label: "model p50 (ms)", stat: "median", unit: "amount" },
+    { key: "input_tokens", label: "tokens in", stat: "mean", unit: "amount" },
+    { key: "output_tokens", label: "tokens out", stat: "mean", unit: "amount" },
+  ];
+}
+
+/** An answer value with its sample: `0.92 (48/50)`, or `1840 (50/50)` for times and tokens. */
+export function formatAnswerMetric(
+  metric: MetricResultRead | undefined,
+  column: Pick<AnswerColumn, "stat" | "unit">,
+): string {
+  if (!metric) return "—";
+  const value = metric[column.stat];
+  const text =
+    value === null || value === undefined
+      ? "—"
+      : column.unit === "ratio"
+        ? value.toFixed(2)
+        : String(Math.round(value));
+  return `${text} (${sampleSize(metric)})`;
+}
+
 export function findMetric(
   variant: Pick<VariantResultRead, "metrics">,
   key: string,

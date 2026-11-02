@@ -3,7 +3,7 @@
 Browser client for the benchmark flow: create a corpus, upload PDFs, compose a
 chunking configuration from the component registry, materialise, and inspect chunks
 on the native PDF; then freeze a snapshot of the corpus, build an index over it and try
-queries against it.
+queries against it; then compare retrievers, or answer systems, in experiments.
 
 ## Pages
 
@@ -16,7 +16,8 @@ queries against it.
 | `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts, *Suggest chunks* and the set's suggestion jobs |
 | `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting. With `?transfer=` it is the review queue of a suggestion job |
 | `/transfers/:transferId` | A suggestion job: ranking progress, reviewed and confirmed counts, recall ceiling, its weights and thresholds, the questions by state, *Start review* |
-| `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with the snapshots each one uses, and the wizard that creates one; an experiment's corpus and QA set, variants, runs and the *Launch run* action |
+| `/answer-profiles` | Answer profiles: name, start of the system prompt, the profile each was derived from; *New answer profile*, *Derive*, and a detail with the parameters and what changed from the parent |
+| `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with their type and the snapshots each one uses, and the wizard that creates one; an experiment's type, corpus and QA set, variants (with the answer profile for Q&A), runs and the *Launch run* action |
 | `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down |
 | `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
 
@@ -43,8 +44,9 @@ went. Each hit links to the chunk viewer of its document, under the build's chun
 configuration and opened on that chunk; a hit whose chunk no longer exists is shown but not
 linked.
 
-`SchemaForm` drops the schemas' `$schema` (draft 2020-12, unknown to the ajv8 validator)
-and hides rjsf's "add property" control for schemas that allow extra keys.
+`SchemaForm` drops the schemas' `$schema` (draft 2020-12, unknown to the ajv8 validator),
+hides rjsf's "add property" control for schemas that allow extra keys, and edits string
+parameters whose key ends in `prompt` in a multi-line text area.
 
 ## Experiments
 
@@ -78,10 +80,24 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   and lists every row that was left out with its reason. *Freeze* creates the snapshot an
   experiment uses; if the questions did not change, the existing snapshot is shown with the
   server's message.
-- **Experiment wizard** (`features/experiments/`): corpus snapshot, QA set snapshot, then
-  variants. Only `ready` index builds of the chosen corpus snapshot are offered, each crossed
+- **Answer profiles** (`features/answer-profiles/`): the form is generated from the schema of
+  an `answer_system` component (provider, model, system prompt, temperature, ...). *Derive
+  from* copies another profile's parameters and records it as the parent, so the detail lists
+  what changed; the server names the profile and returns the existing one for the same
+  parameters. An answer system the worker marked unavailable (no model credentials) is shown
+  with its reason and cannot be used. Emptied text fields are dropped before sending, so they
+  hash like fields left out.
+- **Experiment wizard** (`features/experiments/`): the type (*Retrieval* or *Q&A*), corpus
+  snapshot, QA set snapshot, then variants. Only `ready` index builds of the chosen corpus snapshot are offered, each crossed
   with the chosen retrieval profiles and listed by index build and retrieval profile until
-  the server names them; one variant can be the baseline. The coverage check runs
+  the server names them; one variant can be the baseline. A Q&A experiment adds the answer
+  profiles as a third dimension of the cross (profiles of an unavailable system are offered
+  struck through, with the reason on hover) and the scope of its set metrics: every chunk
+  retrieved, or the chunks the answer cites, which needs systems that declare citations. When
+  the variants differ by the answer profile and by the index or the retrieval profile at
+  once, the wizard says the effects cannot be told apart (informative only).
+  `answer_profile_required`, `citations_not_supported` and `answer_system_not_available` are
+  shown inline. The coverage check runs
   as soon as both snapshots are chosen: if some questions have gold documents outside the
   corpus snapshot they are listed, and *Create* stays disabled until they are explicitly
   excluded from the metrics. `variants_outside_snapshot` and `gold_coverage_choice_required`
@@ -109,7 +125,15 @@ and hides rjsf's "add property" control for schemas that allow extra keys.
   retrieve, each linking to the annotation page. An execution that searched more than once
   lists its calls (query, hits, chunks new to that call), a chunk returned by several calls
   shows each call and rank (`×2 · call 1 rank 1, call 2 rank 2`), and chunks cited without
-  being retrieved come last.
+  being retrieved come last. In a Q&A run the questions table shows, under each question, its expected answer (or that
+  it is not answerable) and, for each variant, the start of its answer (whole on hover),
+  whether it refused and whether that was right, then the retrieval outcome; *Download
+  answers* gets every answer of the run as CSV, one row per question, variant and
+  repetition. A Q&A run also adds an *Answer* section to the results:
+  `refusal_accuracy`, latency p50 and p95, model latency p50, tokens in and out, each with
+  its sample. Its drill-down shows the question's expected answer and, for each execution,
+  the answer, whether it refused and whether that was right, the model, the tokens and where
+  the time went.
 
 ## Stack
 

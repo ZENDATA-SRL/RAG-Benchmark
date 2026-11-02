@@ -20,5 +20,17 @@ export function experimentErrorMessage(error: unknown): string | null {
   if (error.code === "multiple_baselines") {
     return "Only one variant can be the baseline.";
   }
+  if (error.code === "answer_profile_required") {
+    return "Every variant of a Q&A experiment needs an answer profile.";
+  }
+  if (error.code === "citations_not_supported") {
+    const profiles = Array.isArray(error.details.answer_profiles)
+      ? error.details.answer_profiles.map(String)
+      : [];
+    return `The cited scope needs answer systems that cite their sources; these do not: ${profiles.join(", ")}.`;
+  }
+  if (error.code === "answer_system_not_available") {
+    return `An answer system cannot run now: ${String(error.details.reason ?? error.message)}. The worker checks the model credentials when it starts.`;
+  }
   return null;
 }

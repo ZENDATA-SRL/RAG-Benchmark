@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { experimentsApi } from "@/api/resources";
+import type { QuestionVariantOutcomeRead } from "@/api/types";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatDate } from "@/lib/format";
@@ -11,13 +13,47 @@ import { queryKeys } from "@/lib/queryClient";
 import { TableFrame } from "@/components/ui/TableFrame";
 
 import { allVariants, CUTOFFS, DEFAULT_CUTOFF } from "./metrics";
-import { describeChunkOutcome, describeOutcome } from "./outcome";
+import { describeChunkOutcome, describeOutcome, excerpt, refusalRight } from "./outcome";
 import { QuestionDrilldown } from "./QuestionDrilldown";
 import { ResultsTable } from "./ResultsTable";
 import { RunProgressPanel } from "./RunProgressPanel";
 import { isEvaluating, isRunActive } from "./status";
 
 const POLL_MS = 2000;
+
+/**
+ * A variant's answer in the questions table: its start, whether it refused and whether that
+ * was right, then the retrieval outcome. The whole answer is on hover and in the drill-down.
+ */
+function AnswerCell({
+  outcome,
+  answerable,
+}: {
+  outcome: QuestionVariantOutcomeRead | undefined;
+  answerable: boolean;
+}) {
+  const right = refusalRight(outcome?.refused, answerable);
+  return (
+    <div className="min-w-56 space-y-1 text-xs" data-testid="answer-cell">
+      {outcome?.answer_text != null ? (
+        <p className="line-clamp-3 whitespace-pre-wrap" title={outcome.answer_text}>
+          {excerpt(outcome.answer_text)}
+        </p>
+      ) : (
+        <p className="text-ink-muted">{outcome?.status === "failed" ? "failed" : "no answer"}</p>
+      )}
+      {right !== null ? (
+        <div className="flex gap-1">
+          {outcome?.refused ? <Badge tone="warn">refused</Badge> : null}
+          <Badge tone={right ? "good" : "bad"}>{right ? "refusal right" : "refusal wrong"}</Badge>
+        </div>
+      ) : null}
+      <p className="font-mono text-ink-muted">
+        doc: {describeOutcome(outcome)} · chunk: {describeChunkOutcome(outcome)}
+      </p>
+    </div>
+  );
+}
 
 export function RunPage() {
   const { experimentId = "", runId = "" } = useParams();
@@ -93,6 +129,7 @@ export function RunPage() {
   const questionItems = questions.data?.items ?? [];
   const tags = [...new Set(questionItems.flatMap((question) => question.tags))].sort();
   const variantIds = variants.map((variant) => variant.variant_id);
+  const qa = results.data?.experiment_type === "qa";
   const chunkGold = results.data?.chunk_gold;
 
   return (
@@ -157,6 +194,15 @@ export function RunPage() {
             >
               Download CSV
             </a>
+            {qa ? (
+              <a
+                href={experimentsApi.answersCsvUrl(experimentId, runId)}
+                className="text-rust hover:underline"
+                download
+              >
+                Download answers
+              </a>
+            ) : null}
             <Button
               variant="secondary"
               disabled={active || evaluating || evaluate.isPending}
@@ -215,9 +261,24 @@ export function RunPage() {
                       >
                         {question.text}
                       </button>
+                      {qa && question.expected_answer ? (
+                        <p className="mt-1 text-xs text-ink-muted" data-testid="expected-answer">
+                          Expected: {excerpt(question.expected_answer)}
+                        </p>
+                      ) : null}
+                      {qa && !question.answerable ? (
+                        <p className="mt-1 text-xs text-ink-muted">Not answerable</p>
+                      ) : null}
                     </td>
                     {variantIds.map((id) => {
                       const outcome = question.outcomes.find((item) => item.variant_id === id);
+                      if (qa) {
+                        return (
+                          <td key={id} className="px-4 py-3 align-top">
+                            <AnswerCell outcome={outcome} answerable={question.answerable} />
+                          </td>
+                        );
+                      }
                       return (
                         <td key={id} className="px-4 py-3 font-mono text-xs whitespace-nowrap">
                           <span className="block">doc: {describeOutcome(outcome)}</span>

@@ -1,4 +1,36 @@
-import type { HitOccurrenceRead, QuestionVariantOutcomeRead } from "@/api/types";
+import type {
+  ExecutionDetailRead,
+  HitOccurrenceRead,
+  QuestionVariantOutcomeRead,
+} from "@/api/types";
+
+/** Whether a recorded refusal was right: refusing is right exactly on unanswerable questions. */
+export function refusalRight(
+  refused: boolean | null | undefined,
+  answerable: boolean,
+): boolean | null {
+  return refused == null ? null : refused === !answerable;
+}
+
+/**
+ * What an answer cost, in one line: `gpt-4o-mini · 1834 → 112 tokens · 1.8 s (model 1.5 s)`.
+ * Empty when the execution recorded no usage, as in a retrieval run.
+ */
+export function describeUsage(execution: Pick<ExecutionDetailRead, "usage" | "timings">): string {
+  const usage = execution.usage ?? {};
+  const timings = execution.timings ?? {};
+  const parts: string[] = [];
+  if (typeof usage.model === "string") parts.push(usage.model);
+  if (typeof usage.input_tokens === "number" && typeof usage.output_tokens === "number") {
+    parts.push(`${usage.input_tokens} → ${usage.output_tokens} tokens`);
+  }
+  if (parts.length === 0) return "";
+  const seconds = (ms: unknown) => (typeof ms === "number" ? `${(ms / 1000).toFixed(1)} s` : null);
+  const total = seconds(timings.total_ms);
+  const model = seconds(timings.model_ms);
+  if (total) parts.push(model ? `${total} (model ${model})` : total);
+  return parts.join(" · ");
+}
 
 /** One cell of the questions table: where the first gold document ranked, or why there is none. */
 export function describeOutcome(

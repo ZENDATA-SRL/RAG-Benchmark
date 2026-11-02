@@ -9,7 +9,7 @@ import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
-import { runStatusTone } from "./status";
+import { experimentTypeLabel, runStatusTone } from "./status";
 
 export function ExperimentDetailPage() {
   const { experimentId = "" } = useParams();
@@ -29,6 +29,7 @@ export function ExperimentDetailPage() {
   });
 
   const detail = experiment.data;
+  const qa = detail?.type === "qa";
 
   return (
     <div>
@@ -42,7 +43,10 @@ export function ExperimentDetailPage() {
         <>
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold">{detail.name}</h1>
+              <h1 className="flex items-center gap-2 text-2xl font-semibold">
+                {detail.name}
+                <Badge tone={qa ? "info" : "neutral"}>{experimentTypeLabel(detail.type)}</Badge>
+              </h1>
               {detail.corpus_id || detail.qa_set_id ? (
                 <p className="mt-1 text-sm" data-testid="experiment-origin">
                   {detail.corpus_id ? (
@@ -80,6 +84,9 @@ export function ExperimentDetailPage() {
                 {detail.coverage.uncovered_count > 0
                   ? ` · ${detail.coverage.uncovered_count} excluded from the metrics (gold outside the snapshot)`
                   : ""}
+                {qa
+                  ? ` · set metrics on ${detail.retrieval_scope === "cited" ? "the cited chunks" : "every retrieved chunk"}`
+                  : ""}
               </p>
             </div>
             <Button onClick={() => launch.mutate()} disabled={launch.isPending}>
@@ -96,6 +103,7 @@ export function ExperimentDetailPage() {
                     <th className="px-4 py-2 font-medium">Variant</th>
                     <th className="px-4 py-2 font-medium">Index build</th>
                     <th className="px-4 py-2 font-medium">Retrieval profile</th>
+                    {qa ? <th className="px-4 py-2 font-medium">Answer profile</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -109,6 +117,9 @@ export function ExperimentDetailPage() {
                       <td className="px-4 py-3">
                         {variant.retrieval_profile_name} · top-{variant.top_k}
                       </td>
+                      {qa ? (
+                        <td className="px-4 py-3">{variant.answer_profile_name ?? "—"}</td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>

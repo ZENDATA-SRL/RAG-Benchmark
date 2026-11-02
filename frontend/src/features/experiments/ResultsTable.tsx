@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { TableFrame } from "@/components/ui/TableFrame";
 
 import {
+  answerColumns,
   callMetricKeys,
   chunkMetricKeys,
   describeCoverage,
   excludedDetail,
   findMetric,
   formatCeiling,
+  formatAnswerMetric,
   formatMetric,
   groupsOf,
   metricKeys,
@@ -61,8 +63,9 @@ function SectionHeader({ label, span, tone }: { label: string; span: number; ton
  * document-level columns and says why the chunk-level ones are gone.
  *
  * A retrieval run shows the ranked metrics only. A Q&A run adds the metrics on the set of
- * chunks its executions gathered and on their calls, in sections of their own: there the
- * ranked metrics are those of each execution's first call.
+ * chunks its executions gathered, on their calls and on the answers (refusals, latency,
+ * tokens), in sections of their own: there the ranked metrics are those of each execution's
+ * first call.
  */
 export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cutoff: number }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -75,8 +78,9 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
   const chunkKeys = crossGroup ? [] : chunkMetricKeys(cutoff);
   const setKeys = qa ? setMetricKeys(!crossGroup) : [];
   const callKeys = qa ? callMetricKeys(!crossGroup) : [];
+  const answers = qa ? answerColumns() : [];
   const valueKeys = [...documentKeys, ...chunkKeys, ...setKeys, ...callKeys];
-  const span = 2 + valueKeys.length;
+  const span = 2 + valueKeys.length + answers.length;
   const groups = results.groups
     .map((group) => ({
       ...group,
@@ -149,6 +153,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
                 />
                 <SectionHeader label="Set" span={setKeys.length} tone="bg-amber/5" />
                 <SectionHeader label="Calls" span={callKeys.length} tone="bg-ink/5" />
+                <SectionHeader label="Answer" span={answers.length} tone="bg-rust/5" />
               </tr>
             ) : null}
             <tr>
@@ -172,6 +177,11 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
               {callKeys.map((key) => (
                 <th key={key} className="bg-ink/5 px-4 py-2 font-medium">
                   {key}
+                </th>
+              ))}
+              {answers.map((column) => (
+                <th key={column.label} className="bg-rust/5 px-4 py-2 font-medium">
+                  {column.label}
                 </th>
               ))}
             </tr>
@@ -209,6 +219,18 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
                       </td>
                     );
                   })}
+                  {answers.map((column) => {
+                    const metric = findMetric(variant, column.key);
+                    return (
+                      <td
+                        key={column.label}
+                        title={excludedDetail(metric)}
+                        className="px-4 py-3 font-mono text-xs whitespace-nowrap"
+                      >
+                        {formatAnswerMetric(metric, column)}
+                      </td>
+                    );
+                  })}
                 </tr>
               )),
             ])}
@@ -221,7 +243,7 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
         evidence was confirmed under that configuration: not reviewed and not found are excluded,
         never scored zero.
         {qa
-          ? " Set metrics count each distinct chunk once; read them next to the set size and the share of repeated hits."
+          ? " Set metrics count each distinct chunk once; read them next to the set size and the share of repeated hits. Refusal accuracy counts the unanswerable questions too: refusing them is the right answer."
           : null}
       </p>
     </div>

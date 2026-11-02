@@ -4109,6 +4109,164 @@
         }
       }
     },
+    "/api/v1/answer-profiles": {
+      "post": {
+        "tags": [
+          "answer-profiles"
+        ],
+        "summary": "Create Answer Profile",
+        "description": "Create an answer profile, or return the identical one that already exists.",
+        "operationId": "create_answer_profile_api_v1_answer_profiles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerProfileCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerProfileCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "answer-profiles"
+        ],
+        "summary": "List Answer Profiles",
+        "description": "List the answer profiles, optionally of one answer system version.",
+        "operationId": "list_answer_profiles_api_v1_answer_profiles_get",
+        "parameters": [
+          {
+            "name": "component_version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component Version Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AnswerProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/answer-profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "answer-profiles"
+        ],
+        "summary": "Get Answer Profile",
+        "description": "Return one answer profile with the parameters changed from its parent.",
+        "operationId": "get_answer_profile_api_v1_answer_profiles__profile_id__get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerProfileDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/experiments": {
       "post": {
         "tags": [
@@ -4661,6 +4819,58 @@
         "summary": "Get Results Csv",
         "description": "Download the aggregated metrics of a run as CSV.",
         "operationId": "get_results_csv_api_v1_experiments__experiment_id__runs__run_id__results_csv_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs/{run_id}/answers.csv": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Answers Csv",
+        "description": "Download every answer of a run as CSV, next to the expected one.",
+        "operationId": "get_answers_csv_api_v1_experiments__experiment_id__runs__run_id__answers_csv_get",
         "parameters": [
           {
             "name": "experiment_id",
@@ -5311,6 +5521,182 @@
           "files"
         ],
         "title": "AmbiguousRowRead"
+      },
+      "AnswerProfileCreate": {
+        "properties": {
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "parent_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Profile Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "component_version_id"
+        ],
+        "title": "AnswerProfileCreate",
+        "description": "Payload creating an answer profile; the name is derived by the server."
+      },
+      "AnswerProfileCreated": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/AnswerProfileRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "profile"
+        ],
+        "title": "AnswerProfileCreated",
+        "description": "An answer profile with the outcome of the get-or-create that returned it."
+      },
+      "AnswerProfileDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "parent_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Profile Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "changed_params": {
+            "items": {
+              "$ref": "#/components/schemas/ParamChangeRead"
+            },
+            "type": "array",
+            "title": "Changed Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "component_version_id",
+          "config_hash",
+          "created_at"
+        ],
+        "title": "AnswerProfileDetail",
+        "description": "A profile with what changed from the profile it was derived from."
+      },
+      "AnswerProfileRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "component_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Component Version Id"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "parent_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Profile Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "component_version_id",
+          "config_hash",
+          "created_at"
+        ],
+        "title": "AnswerProfileRead",
+        "description": "An answer profile as exposed by the API."
       },
       "ArtifactStatus": {
         "type": "string",
@@ -7721,6 +8107,40 @@
             ],
             "title": "Timings"
           },
+          "answer_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Text"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          },
           "calls": {
             "items": {
               "$ref": "#/components/schemas/CallDetailRead"
@@ -7831,6 +8251,11 @@
             "minimum": 1.0,
             "title": "Repetitions",
             "default": 1
+          },
+          "retrieval_scope": {
+            "$ref": "#/components/schemas/RetrievalScope",
+            "description": "Chunks the set metrics of a Q&A experiment are computed on: everything retrieved, or what the answer system cited. `cited` needs systems that declare citations.",
+            "default": "retrieved"
           },
           "variants": {
             "items": {
@@ -9433,6 +9858,36 @@
         "title": "MetricResultRead",
         "description": "Statistics of one metric for one variant, always with how many questions they rest on."
       },
+      "Page_AnswerProfileRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerProfileRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[AnswerProfileRead]"
+      },
       "Page_ChunkSearchHit_": {
         "properties": {
           "items": {
@@ -10003,6 +10458,26 @@
         ],
         "title": "Page[VectorStoreProfileRead]"
       },
+      "ParamChangeRead": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "parent": {
+            "title": "Parent"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "ParamChangeRead",
+        "description": "A parameter whose value differs from the parent profile's."
+      },
       "ParsePageRead": {
         "properties": {
           "page": {
@@ -10482,6 +10957,18 @@
             "type": "boolean",
             "title": "Answerable"
           },
+          "expected_answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Answer",
+            "description": "The primary expected answer, when there is one."
+          },
           "gold_documents": {
             "items": {
               "$ref": "#/components/schemas/UncoveredDocumentRead"
@@ -10798,6 +11285,29 @@
               }
             ],
             "title": "Chunk Excluded Reason"
+          },
+          "answer_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Text",
+            "description": "The answer, in a Q&A run; empty in a retrieval one."
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
           }
         },
         "type": "object",
@@ -11574,6 +12084,18 @@
           "answerable": {
             "type": "boolean",
             "title": "Answerable"
+          },
+          "expected_answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Answer",
+            "description": "The primary expected answer, when there is one."
           },
           "outcomes": {
             "items": {
@@ -12449,6 +12971,19 @@
             "format": "uuid",
             "title": "Retrieval Profile Id"
           },
+          "answer_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Profile Id",
+            "description": "Required in a Q&A experiment, refused otherwise."
+          },
           "is_baseline": {
             "type": "boolean",
             "title": "Is Baseline",
@@ -12461,7 +12996,7 @@
           "retrieval_profile_id"
         ],
         "title": "VariantCreate",
-        "description": "A variant: an index build searched under a retrieval profile."
+        "description": "An index build, a retrieval profile and, for Q&A, an answer profile."
       },
       "VariantDrilldownRead": {
         "properties": {
@@ -12554,6 +13089,29 @@
           "top_k": {
             "type": "integer",
             "title": "Top K"
+          },
+          "answer_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Profile Id"
+          },
+          "answer_profile_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Profile Name"
           }
         },
         "type": "object",

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
+  answerProfilesApi,
+  componentsApi,
   corporaApi,
   experimentsApi,
   indexBuildsApi,
@@ -10,13 +12,20 @@ import {
   retrievalProfilesApi,
   snapshotsApi,
 } from "@/api/resources";
+import type { ExperimentType, RetrievalScope } from "@/api/types";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { queryKeys } from "@/lib/queryClient";
 
 import { ChunkGoldCoverage } from "./ChunkGoldCoverage";
 import { experimentErrorMessage } from "./errors";
-import { canCreateExperiment, crossVariants, selectableBuilds } from "./variants";
+import {
+  canCreateExperiment,
+  crossVariants,
+  profilesWithoutCitations,
+  selectableBuilds,
+  variedDimensions,
+} from "./variants";
 
 const selectClass = "w-full rounded-md border border-line bg-paper px-3 py-1.5";
 
@@ -37,6 +46,9 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [type, setType] = useState<ExperimentType>("retrieval");
+  const [scope, setScope] = useState<RetrievalScope>("retrieved");
+  const [answerProfileIds, setAnswerProfileIds] = useState<string[]>([]);
   const [corpusId, setCorpusId] = useState("");
   const [corpusSnapshotId, setCorpusSnapshotId] = useState("");
   const [qaSetId, setQaSetId] = useState("");
@@ -67,6 +79,16 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
     queryKey: queryKeys.retrievalProfiles,
     queryFn: retrievalProfilesApi.list,
   });
+  const answerProfiles = useQuery({
+    queryKey: queryKeys.answerProfiles,
+    queryFn: answerProfilesApi.list,
+    enabled: type === "qa",
+  });
+  const components = useQuery({
+    queryKey: queryKeys.components,
+    queryFn: () => componentsApi.list(),
+    enabled: type === "qa",
+  });
   const coverage = useQuery({
     queryKey: queryKeys.coverageCheck(corpusSnapshotId, qaSnapshotId),
     queryFn: () => experimentsApi.coverage(corpusSnapshotId, qaSnapshotId),
@@ -82,14 +104,39 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
   const chosenProfiles = (profiles.data?.items ?? []).filter((profile) =>
     profileIds.includes(profile.id),
   );
-  const variants = crossVariants(chosenBuilds, chosenProfiles, baselineKey);
+  const qa = type === "qa";
+  const versions = (components.data ?? []).flatMap((component) => component.versions ?? []);
+  const unavailableReason = (versionId: string) => {
+    const version = versions.find((item) => item.id === versionId);
+    return version && !version.is_available
+      ? (version.unavailable_reason ?? "not available")
+      : null;
+  };
+  const chosenAnswers = (answerProfiles.data?.items ?? []).filter((profile) =>
+    answerProfileIds.includes(profile.id),
+  );
+  const variants = crossVariants(
+    chosenBuilds,
+    chosenProfiles,
+    baselineKey,
+    qa ? chosenAnswers : null,
+  );
+  const notCiting = profilesWithoutCitations(chosenAnswers, components.data ?? []);
+  const varied = qa
+    ? variedDimensions({
+        builds: chosenBuilds.length,
+        retrievalProfiles: chosenProfiles.length,
+        answerProfiles: chosenAnswers.length,
+      })
+    : [];
   const uncovered = coverage.data?.uncovered_count ?? null;
 
   const create = useMutation({
     mutationFn: () =>
       experimentsApi.create({
         name: name.trim(),
-        type: "retrieval",
+        type,
+        retrieval_scope: qa ? scope : "retrieved",
         corpus_snapshot_id: corpusSnapshotId,
         qa_set_snapshot_id: qaSnapshotId,
         repetitions,
@@ -104,12 +151,13 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
     },
   });
 
-  const canCreate = canCreateExperiment({
-    name,
-    variantCount: variants.length,
-    uncoveredCount: uncovered,
-    excludeUncovered,
-  });
+  const canCreate =
+    canCreateExperiment({
+      name,
+      variantCount: variants.length,
+      uncoveredCount: uncovered,
+      excludeUncovered,
+    }) && !(qa && scope === "cited" && notCiting.length > 0);
   const errorText = create.error
     ? (experimentErrorMessage(create.error) ?? (create.error as Error).message)
     : null;
@@ -132,6 +180,33 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
             className={selectClass}
           />
         </Field>
+
+        <fieldset className="text-sm" data-testid="experiment-type">
+          <legend className="mb-1 font-medium">Type</legend>
+          <div className="flex flex-wrap gap-4">
+            {(
+              [
+                ["retrieval", "Retrieval", "compare retrievers on the chunks they return"],
+                ["qa", "Q&A", "compare answer systems on their answers and what they cite"],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <label key={value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="experiment-type"
+                  checked={type === value}
+                  onChange={() => {
+                    setType(value);
+                    setBaselineKey(null);
+                  }}
+                />
+                <span>
+                  {label} <span className="text-xs text-ink-muted">· {hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Corpus">
@@ -294,6 +369,81 @@ export function ExperimentWizard({ onClose }: { onClose: () => void }) {
               ))}
             </fieldset>
           </div>
+        ) : null}
+
+        {qa && corpusSnapshotId ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <fieldset className="text-sm" data-testid="answer-profile-choices">
+              <legend className="mb-1 font-medium">Answer profiles</legend>
+              {(answerProfiles.data?.items ?? []).length === 0 && answerProfiles.isSuccess ? (
+                <p className="text-ink-muted">
+                  No answer profile yet.{" "}
+                  <Link to="/answer-profiles" className="text-rust hover:underline">
+                    Create one
+                  </Link>
+                  .
+                </p>
+              ) : null}
+              {(answerProfiles.data?.items ?? []).map((profile) => {
+                const reason = unavailableReason(profile.component_version_id);
+                return (
+                  <label
+                    key={profile.id}
+                    className="flex items-center gap-2 py-0.5"
+                    title={reason ?? undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={reason !== null}
+                      checked={answerProfileIds.includes(profile.id)}
+                      onChange={() => setAnswerProfileIds(toggle(answerProfileIds, profile.id))}
+                    />
+                    <span className={reason ? "text-ink-muted line-through" : ""}>
+                      {profile.name}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+            <fieldset className="text-sm" data-testid="retrieval-scope">
+              <legend className="mb-1 font-medium">Set metrics on</legend>
+              <label className="flex items-center gap-2 py-0.5">
+                <input
+                  type="radio"
+                  name="retrieval-scope"
+                  checked={scope === "retrieved"}
+                  onChange={() => setScope("retrieved")}
+                />
+                every chunk retrieved
+              </label>
+              <label className="flex items-center gap-2 py-0.5">
+                <input
+                  type="radio"
+                  name="retrieval-scope"
+                  checked={scope === "cited"}
+                  onChange={() => setScope("cited")}
+                />
+                the chunks the answer cites
+              </label>
+              {scope === "cited" && notCiting.length > 0 ? (
+                <p className="mt-1 text-xs text-danger" role="alert">
+                  These systems do not declare citations:{" "}
+                  {notCiting.map((profile) => profile.name).join(", ")}.
+                </p>
+              ) : null}
+            </fieldset>
+          </div>
+        ) : null}
+
+        {varied.length > 1 ? (
+          <p
+            className="rounded-md bg-amber/15 p-3 text-xs leading-5"
+            data-testid="mixed-dimensions"
+          >
+            The variants differ by {varied.join(" and ")} at once, so a difference in the answers
+            cannot be put down to one of them. To compare answer systems, keep one index build and
+            one retrieval profile.
+          </p>
         ) : null}
 
         {chosenBuilds.length > 0 && qaSetId ? (

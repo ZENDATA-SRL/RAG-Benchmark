@@ -48,6 +48,8 @@ export const queryKeys = {
   embeddingProfiles: ["embedding-profiles"] as const,
   vectorStoreProfiles: ["vector-store-profiles"] as const,
   retrievalProfiles: ["retrieval-profiles"] as const,
+  answerProfiles: ["answer-profiles"] as const,
+  answerProfile: (id: string) => ["answer-profiles", id] as const,
   indexBuilds: ["index-builds"] as const,
   indexBuild: (id: string) => ["index-builds", id] as const,
   materializations: (filters: Record<string, string | undefined>) =>
