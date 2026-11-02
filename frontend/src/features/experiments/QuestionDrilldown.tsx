@@ -94,6 +94,27 @@ function Answer({
   );
 }
 
+/**
+ * Where the execution's trace is on Langfuse: the prompt, each search and the call to the
+ * model, step by step. Absent when tracing was off for the run.
+ */
+function TraceLink({ url }: { url?: string | null }) {
+  if (!url) return null;
+  return (
+    <p className="mb-1 text-xs">
+      <a
+        href={url}
+        className="text-rust underline-offset-2 hover:underline"
+        target="_blank"
+        rel="noreferrer"
+        data-testid="trace-link"
+      >
+        Open trace in Langfuse
+      </a>
+    </p>
+  );
+}
+
 /** The calls of an execution in order, shown only when it searched more than once. */
 function Calls({ calls }: { calls: CallDetailRead[] }) {
   if (calls.length < 2) return null;
@@ -253,6 +274,7 @@ export function QuestionDrilldown({
                       {execution.error ? (
                         <p className="text-xs text-danger">{execution.error}</p>
                       ) : null}
+                      <TraceLink url={execution.langfuse_trace_url} />
                       <Answer execution={execution} answerable={detail.answerable} />
                       <Calls calls={execution.calls ?? []} />
                       <ul className="space-y-2">

@@ -20,6 +20,7 @@ from src.answering.exceptions import (
     AnswerSystemUnavailableError,
 )
 from src.components.builtin.answer_systems.rag_simple import KEY
+from src.infrastructure.observability import NULL_TRACER, Tracer
 from src.retrieval.service import RetrievedHit
 
 __all__ = ["KEY", "RagSimple"]
@@ -56,9 +57,16 @@ class RagSimple:
         self.chat_model = chat_model
 
     async def answer(
-        self, question: str, config: dict[str, Any], retrieve: Retrieve
+        self,
+        question: str,
+        config: dict[str, Any],
+        retrieve: Retrieve,
+        tracer: Tracer = NULL_TRACER,
     ) -> AnswerResult:
         """Search, prompt the model with every hit and translate its citations.
+
+        The call to the model is traced as a generation with the messages, the structured
+        answer, the tokens and the model the provider says it ran.
 
         Raises:
             AnswerSystemUnavailableError: If the provider has no credentials here.
@@ -82,24 +90,53 @@ class RagSimple:
         runnable = self.chat_model(config).with_structured_output(
             RagAnswer, include_raw=True
         )
-        try:
-            output = await runnable.ainvoke(messages)
-        except Exception as error:
-            if is_output_error(error):
-                raise AnswerOutputError(str(error) or type(error).__name__) from error
-            raise AnswerProviderError(
-                provider, str(error) or type(error).__name__
-            ) from error
+        with tracer.observe(
+            "model",
+            as_type="generation",
+            input=[
+                {"role": "system", "content": messages[0].content},
+                {"role": "user", "content": messages[1].content},
+            ],
+            model=config["model"],
+            model_parameters={
+                "temperature": config.get("temperature", 0),
+                "max_tokens": config.get("max_tokens", 1024),
+            },
+        ) as generation:
+            try:
+                output = await runnable.ainvoke(messages)
+            except Exception as error:
+                if is_output_error(error):
+                    raise AnswerOutputError(
+                        str(error) or type(error).__name__
+                    ) from error
+                raise AnswerProviderError(
+                    provider, str(error) or type(error).__name__
+                ) from error
+            usage = _usage(output.get("raw"), config["model"])
+            parsed = output.get("parsed")
+            generation.update(
+                output=parsed.model_dump()
+                if isinstance(parsed, RagAnswer)
+                else getattr(output.get("raw"), "content", None),
+                model=usage["model"],
+                usage_details={
+                    key: usage[f"{key}_tokens"]
+                    for key in ("input", "output")
+                    if f"{key}_tokens" in usage
+                },
+            )
+            if output.get("parsing_error") is not None or not isinstance(
+                parsed, RagAnswer
+            ):
+                raise AnswerOutputError(str(output.get("parsing_error") or "no answer"))
         finished = time.perf_counter()
 
-        parsed = output.get("parsed")
-        if output.get("parsing_error") is not None or not isinstance(parsed, RagAnswer):
-            raise AnswerOutputError(str(output.get("parsing_error") or "no answer"))
         return AnswerResult(
             answer=parsed.answer,
             refused=parsed.refused,
             citations=_cited_chunks(parsed.cited_sources, retrieval.hits),
-            usage=_usage(output.get("raw"), config["model"]),
+            usage=usage,
             timings={
                 "retrieval_ms": _ms(started, model_started),
                 "model_ms": _ms(model_started, finished),

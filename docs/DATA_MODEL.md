@@ -500,7 +500,7 @@ Snapshot immutabile congelato prima dell'esecuzione (RF-D08).
 | `label` | TEXT | NOT NULL | |
 | `question_count` | INTEGER | NOT NULL | |
 | `composition_hash` | TEXT | NOT NULL, indicizzato | sha-256 sugli id delle domande ordinati: congelare due volte le stesse domande restituisce lo stesso snapshot |
-| `langfuse_dataset_id` | TEXT | | id dataset Langfuse (RT-L01) |
+| `langfuse_dataset_id` | TEXT | | id del dataset Langfuse dello snapshot, creato all'apertura del primo run Q&A con la tracciatura attiva; NULL se la tracciatura è spenta (RT-L01) |
 | `frozen_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (qa_set_id, composition_hash) | deduplicazione per composizione, come per `corpus_snapshots` |
 
@@ -706,7 +706,7 @@ Una esecuzione dell'esperimento, con **snapshot integrale della configurazione**
 | `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio; a ogni valutazione si aggiunge `chunk_gold`: data, impronta dei legami di evidenza usati (stato e chunk), conteggi per configurazione di chunking ed elenco dei legami |
 | `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI; in `evaluation` lo stato dell'ultima rivalutazione (`status`, `evaluated`, `total`, `attempt`, `error`), che gira come workflow |
 | `error` | TEXT | | motivo se il run si è fermato per una ragione propria (per esempio `cancelled`) |
-| `langfuse_run_name` | TEXT | | identifica esperimento/variante/run (RT-L01) |
+| `langfuse_run_name` | TEXT | | prefisso dei dataset run Langfuse del run (`<esperimento> · <data> · <id breve>`); ogni variante aggiunge ` · <variante>`. NULL se il dataset non esiste (RT-L01) |
 | `started_at` | TIMESTAMPTZ | | |
 | `finished_at` | TIMESTAMPTZ | | |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
@@ -728,7 +728,7 @@ Una domanda × variante × ripetizione. **Unità di idempotenza e resume** (RF-E
 | `usage` | JSONB | | `model` (quello riportato dal provider), `input_tokens`, `output_tokens` |
 | `timings` | JSONB | | per il retrieval i tempi della ricerca (`embed_ms`, `search_ms`, `enrich_ms`, `total_ms`); per il Q&A `retrieval_ms`, `model_ms`, `total_ms` e il dettaglio della ricerca in `retrieval` |
 | `cited_chunk_ids` | UUID[] | | chunk citati dal sistema di risposta; NULL = il sistema non dichiara citazioni, array vuoto = non ha citato nulla. Può contenere chunk mai recuperati |
-| `langfuse_trace_id` | TEXT | | trace Langfuse (RT-L02) |
+| `langfuse_trace_id` | TEXT | | trace Langfuse dell'esecuzione, derivata in modo deterministico dall'id dell'esecuzione (un tentativo ripetuto scrive nella stessa trace); NULL se non tracciata (RT-L02) |
 | `error` | TEXT | | motivo se failed |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 | | | UNIQUE (run_id, variant_id, question_id, repetition) | idempotenza |

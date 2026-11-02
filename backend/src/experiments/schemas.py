@@ -424,6 +424,10 @@ class ExecutionDetailRead(BaseModel):
     answer_text: str | None = None
     refused: bool | None = None
     usage: dict[str, Any] | None = None
+    langfuse_trace_url: str | None = Field(
+        default=None,
+        description="The execution's trace on Langfuse; empty when it was not traced.",
+    )
     calls: list[CallDetailRead] = Field(default_factory=list)
     citations_declared: bool = False
     hits: list[HitDetailRead] = Field(

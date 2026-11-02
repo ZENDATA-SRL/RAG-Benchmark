@@ -5,6 +5,7 @@ import logging
 from datetime import timedelta
 
 from src.answering.availability import sync_answer_system_availability
+from src.infrastructure.observability import get_tracer
 from src.settings import get_settings
 from temporalio.worker import Worker
 
@@ -26,13 +27,21 @@ async def run_worker() -> None:
     `assert_registry_complete()` runs first: a declared-but-unimplemented builtin must fail
     at boot, not hours into a run when the first activity tries to resolve it. Then the
     answer systems are marked available or not from this process's model credentials,
-    which the API cannot see.
+    which the API cannot see, and the tracing credentials are checked: a wrong key is
+    reported here rather than as traces that never appear.
     """
     assert_registry_complete()
     settings = get_settings()
     logging.basicConfig(level=settings.log_level)
     async with activity_session() as session:
         await sync_answer_system_availability(session)
+    tracer = get_tracer()
+    if not tracer.enabled:
+        logger.info("tracing off: LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY not set")
+    elif await tracer.check():
+        logger.info("tracing Q&A executions on Langfuse at %s", settings.langfuse_host)
+    else:
+        logger.warning("Langfuse refused the credentials: executions are not traced")
 
     client = await connect(settings)
 
@@ -58,6 +67,7 @@ async def run_worker() -> None:
             for worker in workers:
                 group.create_task(worker.run())
     finally:
+        await tracer.shutdown()
         await dispose_worker_engine()
 
 

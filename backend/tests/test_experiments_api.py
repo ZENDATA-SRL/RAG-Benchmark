@@ -23,6 +23,7 @@ from src.experiments.models import (
 )
 from src.experiments.repository import ExecutionRepository
 from src.experiments.service import RunService
+from src.experiments.tracing import ExperimentTracing
 from src.indexes.models import IndexBuild
 from src.infrastructure.database.enums import (
     ArtifactStatus,
@@ -31,6 +32,7 @@ from src.infrastructure.database.enums import (
     RetrievalScope,
     RetrievalStage,
 )
+from src.infrastructure.observability import get_tracer
 from src.qa_sets.models import ExpectedAnswer, Question
 from src.retrieval.exceptions import IndexBuildNotReadyError
 from src.retrieval.service import RetrievalService
@@ -1536,6 +1538,129 @@ async def test_a_malformed_answer_fails_only_its_execution(
     # What the attempt had searched is discarded with it.
     assert all(item.answer_text is None for item in failed)
     assert sum(item.status == ExecutionStatus.SUCCEEDED for item in executions) == 6
+
+
+async def test_a_traced_qa_run_files_each_answer_in_langfuse(
+    client, session, world, chat_model, langfuse
+) -> None:
+    first = _question(world, "chunk 0 of ready-0")
+    session.add(
+        ExpectedAnswer(
+            question_id=uuid.UUID(first), text="The first chunk.", is_primary=True
+        )
+    )
+    experiment = await _qa_experiment(client, session, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+
+    await ExperimentTracing(session, get_tracer()).open_run(uuid.UUID(run["id"]))
+    await _answer_run(session, run["id"])
+
+    executions = (
+        await session.scalars(
+            select(Execution).where(Execution.run_id == uuid.UUID(run["id"]))
+        )
+    ).all()
+    tracer = get_tracer()
+    # One trace per execution, its id derived from the execution.
+    assert {item.langfuse_trace_id for item in executions} == {
+        tracer.trace_id(str(item.id)) for item in executions
+    }
+    roots = langfuse.named("qa-answer")
+    assert len(roots) == 8
+    assert {root.trace_context["trace_id"] for root in roots} == {
+        item.langfuse_trace_id for item in executions
+    }
+    assert all(root.updated("output")["refused"] is not None for root in roots)
+    # Each search and each call to the model is a child of its execution's root.
+    retrievals = langfuse.named("retrieval")
+    assert len(retrievals) == 8
+    assert {(item.as_type, item.parent) for item in retrievals} == {
+        ("retriever", "qa-answer")
+    }
+    assert retrievals[0].updated("output")[0]["rank"] == 1
+    generations = langfuse.named("model")
+    assert {(item.as_type, item.parent) for item in generations} == {
+        ("generation", "qa-answer")
+    }
+    assert generations[0].updated("usage_details") == {"input": 100, "output": 10}
+    # The configuration is on every trace, for filtering inside Langfuse.
+    metadata = langfuse.propagated[0]["metadata"]
+    assert metadata["model"] == "gpt-test"
+    assert metadata["answer_system"] == "rag_simple@1"
+    assert {"parsing_profile", "chunking_profile", "retrieval_profile"} <= set(metadata)
+    assert {item["metadata"]["answer_profile"] for item in langfuse.propagated} == {
+        variant["answer_profile"]["name"]
+        for variant in (await client.get(f"{base}/{run['id']}")).json()[
+            "config_snapshot"
+        ]["variants"]
+    }
+
+    # One dataset for the frozen set, one item per question, one run per variant.
+    assert len(langfuse.datasets) == 1
+    assert {item["id"] for item in langfuse.items} == {
+        item["dataset_item_id"] for item in langfuse.run_items
+    }
+    assert len({item["id"] for item in langfuse.items}) == 4
+    assert len(langfuse.run_items) == 8
+    run_names = {item["run_name"] for item in langfuse.run_items}
+    assert len(run_names) == 2
+    assert all(name.startswith("qa · ") for name in run_names)
+    expected = next(
+        item for item in langfuse.items if item["metadata"]["question_id"] == first
+    )
+    assert expected["expected_output"] == {"answer": "The first chunk."}
+
+    drilldown = (await client.get(f"{base}/{run['id']}/questions/{first}")).json()
+    execution = drilldown["variants"][0]["executions"][0]
+    assert execution["langfuse_trace_url"].endswith(
+        "/trace/" + tracer.trace_id(execution["execution_id"])
+    )
+
+
+async def test_an_untraced_run_has_no_trace_link(
+    client, session, world, chat_model
+) -> None:
+    first = _question(world, "chunk 0 of ready-0")
+    experiment = await _qa_experiment(client, session, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+
+    await ExperimentTracing(session, get_tracer()).open_run(uuid.UUID(run["id"]))
+    await _answer_run(session, run["id"])
+
+    drilldown = (await client.get(f"{base}/{run['id']}/questions/{first}")).json()
+    assert drilldown["variants"][0]["executions"][0]["langfuse_trace_url"] is None
+
+
+async def test_a_malformed_answer_is_traced_as_an_error(
+    client, session, world, chat_model, langfuse
+) -> None:
+    experiment = await _qa_experiment(client, session, world)
+    run = (await client.post(f"{EXPERIMENTS}/{experiment['id']}/runs", json={})).json()
+    malformed = await session.get(
+        Question, uuid.UUID(_question(world, "Nobody knows?"))
+    )
+    malformed.text = "Malformed?"
+    await session.flush()
+
+    await _answer_run(session, run["id"])
+
+    failed = (
+        await session.scalars(
+            select(Execution).where(
+                Execution.run_id == uuid.UUID(run["id"]),
+                Execution.status == ExecutionStatus.FAILED,
+            )
+        )
+    ).all()
+    assert len(failed) == 2
+    assert all(item.langfuse_trace_id for item in failed)
+    errors = [
+        root for root in langfuse.named("qa-answer") if root.updated("level") == "ERROR"
+    ]
+    assert len(errors) == 2
+    assert all("expected shape" in root.updated("status_message") for root in errors)
 
 
 async def test_a_rerun_of_an_answered_execution_changes_nothing(

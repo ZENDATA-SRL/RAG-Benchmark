@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+from src.infrastructure.observability import NULL_TRACER, Tracer
 from src.retrieval.service import RetrievalResult
 
 # The search an answer system is given: a query in, the hits of the variant's index and
@@ -32,7 +33,11 @@ class AnswerSystem(Protocol):
     """An implementation that answers a question with the search it is given."""
 
     async def answer(
-        self, question: str, config: dict[str, Any], retrieve: Retrieve
+        self,
+        question: str,
+        config: dict[str, Any],
+        retrieve: Retrieve,
+        tracer: Tracer = NULL_TRACER,
     ) -> AnswerResult:
         """Answer one question.
 
@@ -40,6 +45,8 @@ class AnswerSystem(Protocol):
             question: Text of the question.
             config: Parameters of the answer profile.
             retrieve: Search bound to the variant and the execution.
+            tracer: Where the system records its own steps, such as the call to the
+                model, as children of the execution's trace.
 
         Raises:
             AnswerOutputError: If the model answered in an unexpected shape.

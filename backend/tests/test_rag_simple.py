@@ -10,7 +10,9 @@ from src.answering.exceptions import (
     AnswerSystemUnavailableError,
 )
 from src.answering.rag_simple import RagAnswer, RagSimple
+from src.infrastructure.observability import LangfuseTracer
 from src.retrieval.service import RetrievalResult, RetrievalTimings, RetrievedHit
+from tests.tracing_factory import FakeLangfuse
 
 CONFIG = {
     "provider": "openai",
@@ -171,3 +173,47 @@ async def test_a_cited_chunk_that_no_longer_exists_is_left_out() -> None:
     result = await _answer(model, Searches([None, CHUNKS[1]]))
 
     assert result.citations == [CHUNKS[1]]
+
+
+async def test_the_call_to_the_model_is_traced_as_a_generation() -> None:
+    client = FakeLangfuse()
+    model = FakeChatModel(
+        RagAnswer(answer="It is X.", refused=False, cited_sources=[1])
+    )
+
+    await RagSimple(lambda params: model).answer(
+        "What is it?", CONFIG, Searches(), LangfuseTracer(client)
+    )
+
+    (generation,) = client.observations
+    assert (generation.name, generation.as_type) == ("model", "generation")
+    assert generation.fields["model"] == "gpt-test"
+    assert generation.fields["model_parameters"] == {
+        "temperature": 0,
+        "max_tokens": 256,
+    }
+    assert [message["role"] for message in generation.fields["input"]] == [
+        "system",
+        "user",
+    ]
+    assert generation.updated("output") == {
+        "answer": "It is X.",
+        "refused": False,
+        "cited_sources": [1],
+    }
+    # The model the provider ran, which may differ from the configured one.
+    assert generation.updated("model") == "gpt-test-2026"
+    assert generation.updated("usage_details") == {"input": 300, "output": 20}
+
+
+async def test_a_failed_call_to_the_model_marks_its_generation() -> None:
+    client = FakeLangfuse()
+    model = FakeChatModel(error=ConnectionError("rate limited"))
+
+    with pytest.raises(AnswerProviderError):
+        await RagSimple(lambda params: model).answer(
+            "What is it?", CONFIG, Searches(), LangfuseTracer(client)
+        )
+
+    (generation,) = client.observations
+    assert generation.updated("level") == "ERROR"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import io
 from collections.abc import AsyncGenerator
@@ -16,8 +17,38 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import NullPool
+from src.infrastructure.observability import (
+    NULL_TRACER,
+    LangfuseTracer,
+    set_tracer,
+    tracing,
+)
 from src.infrastructure.temporal import StartedWorkflow
 from src.settings import Settings, get_settings
+from tests.tracing_factory import FakeLangfuse
+
+
+@pytest.fixture(autouse=True)
+def no_tracing():
+    """Keep tests off Langfuse even when the `.env` they read holds its keys."""
+    set_tracer(NULL_TRACER)
+    yield
+    set_tracer(None)
+
+
+@pytest.fixture
+def langfuse(monkeypatch) -> FakeLangfuse:
+    """Trace on a fake Langfuse client, offline, for the duration of a test."""
+    client = FakeLangfuse()
+
+    @contextlib.contextmanager
+    def propagate(**attributes: Any):
+        client.propagated.append(attributes)
+        yield
+
+    monkeypatch.setattr(tracing, "propagate_attributes", propagate)
+    set_tracer(LangfuseTracer(client))
+    return client
 
 
 @pytest.fixture(scope="session")

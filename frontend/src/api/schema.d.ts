@@ -3116,6 +3116,11 @@ export interface components {
             usage?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Langfuse Trace Url
+             * @description The execution's trace on Langfuse; empty when it was not traced.
+             */
+            langfuse_trace_url?: string | null;
             /** Calls */
             calls?: components["schemas"]["CallDetailRead"][];
             /**

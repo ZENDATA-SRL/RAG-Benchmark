@@ -47,6 +47,13 @@ variables) is picked up directly by the API run from the host. The chat models o
 experiments run only in the worker and read the same credentials from its environment; at
 startup the worker marks an answer system unavailable, with the reason, when it finds none.
 
+Q&A executions are traced on Langfuse when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`
+are set in `.env` (Langfuse Cloud by default, any instance with `LANGFUSE_HOST`): one trace
+per execution with each search and the call to the model, the configuration in its metadata,
+and the frozen question set as a dataset with one dataset run per variant. Without the keys
+nothing is traced and the runs are unchanged. Langfuse is not part of the Compose stack.
+The `LANGFUSE_*` values of `.env` win over variables of the same name exported in the shell.
+
 With the API and the worker up, one script exercises the whole backend over HTTP — corpus,
 upload, profiles, configuration, preview, materialisation, polling, chunk and parse
 inspection — and exits non-zero at the first deviation. With `--embedder` it also freezes a
@@ -108,7 +115,7 @@ backend/
     main.py           app creation, router registration, error handler
     settings.py       configuration read from the environment
     core/             hashing, get-or-create, domain errors, logging
-    infrastructure/   database (base, session, enums), object storage, temporal client
+    infrastructure/   database (base, session, enums), object storage, temporal client, tracing (Langfuse)
     components/       registry of pluggable components: contracts + descriptors (parser, chunker, embedder, vector store, answer system)
     corpora/          corpora and snapshots
     documents/        documents

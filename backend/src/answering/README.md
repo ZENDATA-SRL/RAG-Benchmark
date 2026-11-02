@@ -14,11 +14,33 @@ worker runs a system for one execution through `experiments.answering.AnswerRunn
 
 ## The interface
 
-`answer(question, config, retrieve) -> AnswerResult`: `config` is the answer profile's
-`params`, `retrieve` is `RetrievalService.search` bound to the variant's index build and
-retrieval profile and to the execution, so every search the system makes is recorded as a
-call of the execution, as in a retrieval experiment. The result has the shape an external
+`answer(question, config, retrieve, tracer) -> AnswerResult`: `config` is the answer
+profile's `params`, `retrieve` is `RetrievalService.search` bound to the variant's index
+build and retrieval profile and to the execution, so every search the system makes is
+recorded as a call of the execution, as in a retrieval experiment (and traced as a
+`retrieval` span). `tracer` is where the system records its own steps, as children of the
+execution's trace; it defaults to the null tracer. The result has the shape an external
 system would return over HTTP, so both are recorded and scored by the same code.
+
+## Tracing
+
+`AnswerRunner` opens the execution's trace and the spans of its searches; `rag_simple` adds
+the call to the model as a `model` generation with the messages, the model parameters, the
+structured answer, the tokens and the model the provider reports. A failed call marks the
+generation `ERROR`.
+
+External answer systems run in a process the platform does not control, so their own steps
+are visible only if they cooperate. What a trace can hold for them:
+
+| Level | In the trace | Needs from the system |
+|---|---|---|
+| Boundary | the call to `/answer`: question, answer, refusal, citations, declared usage and timings, measured latency, error | nothing |
+| Retrieval | each `/retrieve` call it makes: rewritten query, chunks, ranks, scores. The API finds the execution from the retrieval token and the trace id from the execution, since the id is derived from it | to search through `/retrieve` with its token, which the retrieval metrics need anyway |
+| Internal | its model calls, tools and prompts, inside the same trace | to be instrumented with Langfuse or OpenTelemetry, read the trace context the request carries (`traceparent` header, or `langfuse_trace_id` and `langfuse_parent_observation_id`) and export to the same Langfuse project |
+
+A system that keeps its own Langfuse project can instead return a `trace_url`, which the
+platform stores and links. None of this is implemented yet: the HTTP client of the contract
+will carry it.
 
 ## rag_simple
 

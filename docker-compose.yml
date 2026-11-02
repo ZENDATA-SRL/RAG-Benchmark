@@ -145,6 +145,13 @@ services:
       # Embedders and chat models. Empty when unset, so the worker reports the OpenAI
       # answer system unavailable instead of failing every execution on a fake key.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    # The Langfuse keys (tracing of Q&A executions, off when unset) come from `.env` this
+    # way and not through `environment:`, where a key exported in the shell for another
+    # project would take precedence and send the traces there. Every variable listed under
+    # `environment:` above still wins over the same name in `.env`.
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${AWS_CONFIG_DIR:-~/.aws}:/aws:ro
     extra_hosts:

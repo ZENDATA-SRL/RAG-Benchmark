@@ -33,11 +33,12 @@ was `created` or reused.
 | Module | Responsibility |
 |---|---|
 | `main.py` | App factory, request-id middleware, `DomainError` → HTTP handler, router registration; the lifespan seeds the builtin registry, the `upload` source and the metric catalog |
-| `settings.py` | `Settings` read from `.env` (database, object storage, Temporal, ChromaDB and Qdrant addresses for the worker and for retrieval, upload limits, CORS) |
+| `settings.py` | `Settings` read from the environment and `.env` (database, object storage, Temporal, ChromaDB and Qdrant addresses for the worker and for retrieval, upload limits, CORS, Langfuse). The process environment wins, except for the `langfuse_*` settings, where `.env` wins over variables exported in the shell |
 | `dependencies.py` | FastAPI dependencies for object storage and the workflow client |
 | `core/` | `hashing`, `get_or_create`, domain errors (`NotFoundError`, `ConflictError`, `ValidationError`, `UnsupportedOperationError`), `Page` pagination, logging with request id |
 | `infrastructure/database/` | Declarative `Base` + mixins (UUID pk, `created_at`, `updated_at`), PostgreSQL enums, async session |
 | `infrastructure/storage/` | `ObjectStorage` protocol, S3/MinIO implementation, key helpers (`document_key`, `parse_key`) |
+| `infrastructure/observability/` | `Tracer` protocol with `NullTracer` and `LangfuseTracer` (best-effort: a Langfuse failure is logged, never raised), `get_tracer` / `set_tracer`, `trace_url` |
 | `infrastructure/temporal/` | `WorkflowClient` protocol (`start`, `cancel`) and its Temporal implementation, `SizeGuardCodec` (payloads over 128 KB are rejected), and `workflow_ids.py` (workflow names, task queues, deterministic ids) |
 | `components/` | Registry of pluggable components, see below |
 | `documents/` | Upload, content-hash deduplication, provenance, metadata, content download |

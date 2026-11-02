@@ -92,8 +92,8 @@ launching the same work twice is rejected or reported instead of duplicated.
 | `indexing.py` | `resolve_index_build`, `open_index_build`, `count_index_chunks`, `complete_index_build` | chunking |
 | `embed.py` | `embed_batch`: read one page of the build's chunks, embed them, check the profile's `dimensions`, write `embeddings/{index_build_id}/{batch_offset}.json` (vector, text, document, ordinal) to object storage | embedding |
 | `vector_store.py` | `prepare_index_collection` (create the collection with the profile's index params), `upsert_embedding_batch` (read the batch file, upsert into the collection) | embedding |
-| `experiments.py` | `answer_question` (run the variant's answer system through `AnswerRunner`, record the answer, its searches and citations, score the execution) | llm |
-| `experiments.py` | `open_experiment_run` (with the experiment type), `list_unfinished_executions` (one page after a cursor), `retrieve_question` (search in-process through `RetrievalService`, record the hits, score the execution), `mark_execution_failed`, `record_run_progress`, `finish_experiment_run`, `fail_experiment_run`, and the re-evaluation's `open_run_evaluation`, `evaluate_executions`, `finish_run_evaluation`, `fail_run_evaluation` | experiments |
+| `experiments.py` | `answer_question` (run the variant's answer system through `AnswerRunner`, record the answer, its searches and citations, score the execution, flush its Langfuse trace) | llm |
+| `experiments.py` | `open_experiment_run` (with the experiment type; for a Q&A run also the Langfuse dataset and run name), `list_unfinished_executions` (one page after a cursor), `retrieve_question` (search in-process through `RetrievalService`, record the hits, score the execution), `mark_execution_failed`, `record_run_progress`, `finish_experiment_run`, `fail_experiment_run`, and the re-evaluation's `open_run_evaluation`, `evaluate_executions`, `finish_run_evaluation`, `fail_run_evaluation` | experiments |
 | `transfer.py` | `open_transfer_job`, `list_unranked_questions`, `rank_transfer_question` (in-process through `TransferRanker`: embed the reference and the candidates, score, write the candidates), `mark_transfer_question_failed`, `record_transfer_progress`, `finish_transfer_job`, `fail_transfer_job` | experiments |
 
 Large artefacts never travel through Temporal: parse output and embeddings go to object
@@ -132,6 +132,19 @@ like the embedders: `OPENAI_API_KEY` for `openai`, the AWS chain below for `bedr
 startup the worker marks each builtin answer system unavailable, with the reason, when none
 of its providers has credentials; a profile on a provider without them fails its executions
 with the reason. After setting a key, restart the worker.
+
+## Tracing (Langfuse)
+
+With `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set (and `LANGFUSE_HOST` for an instance
+other than Langfuse Cloud), the worker traces every Q&A execution. The `LANGFUSE_*` values
+always come from `.env`, even when the shell exports variables with the same names (often
+the keys of another project): Compose hands `.env` to the worker container as an
+`env_file`, which the shell cannot override, and the settings read the `langfuse_*` fields
+from `.env` before the process environment when the worker or the API runs from the
+checkout. At startup the worker logs whether tracing is on and
+whether Langfuse accepted the keys. Each `answer_question` flushes its trace before
+returning, and the worker flushes the rest when it stops. A Langfuse failure is only logged:
+executions are never retried or failed because of it.
 
 ## AWS credentials (Bedrock)
 

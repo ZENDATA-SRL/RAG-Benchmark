@@ -50,6 +50,7 @@ from src.infrastructure.database.enums import (
     ExperimentType,
     RelevanceGrade,
 )
+from src.infrastructure.observability import trace_url
 from src.pipelines.service import ChunkingConfigurationService, ProfileService
 from src.qa_sets.exceptions import QASetSnapshotNotFoundError
 from src.qa_sets.repository import (
@@ -59,6 +60,7 @@ from src.qa_sets.repository import (
 )
 from src.qa_sets.service import NOT_REVIEWED
 from src.qa_sets.utils import recall_ceiling
+from src.settings import get_settings
 
 CSV_COLUMNS = (
     "chunking_configuration_id",
@@ -560,6 +562,7 @@ class ResultsService:
         hits = await self._distinct_hits(executions, rows)
         calls = await self._calls(executions, rows)
         gold_ids = {document_id for document_id, _ in gold}
+        langfuse_host = get_settings().langfuse_host
 
         variants = []
         for view in await self.experiments.variant_views(experiment_id):
@@ -601,6 +604,9 @@ class ResultsService:
                             answer_text=execution.answer_text,
                             refused=execution.refused,
                             usage=execution.usage,
+                            langfuse_trace_url=trace_url(
+                                execution.langfuse_trace_id, langfuse_host
+                            ),
                             calls=calls.get(execution.id, []),
                             citations_declared=execution.cited_chunk_ids is not None,
                             hits=[

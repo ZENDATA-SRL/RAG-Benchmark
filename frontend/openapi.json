@@ -8342,6 +8342,18 @@
             ],
             "title": "Usage"
           },
+          "langfuse_trace_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Langfuse Trace Url",
+            "description": "The execution's trace on Langfuse; empty when it was not traced."
+          },
           "calls": {
             "items": {
               "$ref": "#/components/schemas/CallDetailRead"

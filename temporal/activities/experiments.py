@@ -7,6 +7,9 @@ from src.experiments.answering import AnswerRunner
 from src.experiments.evaluation import ExecutionRunner
 from src.experiments.repository import ExecutionRepository
 from src.experiments.service import RunService
+from src.experiments.tracing import ExperimentTracing
+from src.infrastructure.database.enums import ExperimentType
+from src.infrastructure.observability import get_tracer
 from temporalio import activity
 
 from temporal.config import activity_session
@@ -27,12 +30,15 @@ class ExperimentRunResolved:
 async def open_experiment_run(run_id: str) -> ExperimentRunResolved:
     """Mark a run `running` for this attempt and return its type and variants.
 
-    Executions a previous, interrupted attempt left `running` go back to `pending`.
+    Executions a previous, interrupted attempt left `running` go back to `pending`. A Q&A
+    run also gets its dataset on the tracing backend, when tracing is on.
     """
     async with activity_session() as session:
         experiment_type, variant_ids = await RunService(session).open_run(
             uuid.UUID(run_id)
         )
+        if experiment_type == ExperimentType.QA:
+            await ExperimentTracing(session, get_tracer()).open_run(uuid.UUID(run_id))
         return ExperimentRunResolved(
             variant_ids=[str(item) for item in variant_ids],
             experiment_type=experiment_type.value,
@@ -79,10 +85,16 @@ async def answer_question(execution_id: str) -> str:
     embedders'. A permanent error on the question, such as an answer not in the expected
     shape, marks the execution `failed` and returns normally; a failure of the model
     provider, the embedder or the vector store is raised for the workflow to retry.
+
+    The trace is flushed before returning, so a worker stopped right after does not lose it.
     """
-    async with activity_session() as session:
-        outcome = await AnswerRunner(session).run(uuid.UUID(execution_id))
-        return outcome.status.value
+    tracer = get_tracer()
+    try:
+        async with activity_session() as session:
+            outcome = await AnswerRunner(session, tracer).run(uuid.UUID(execution_id))
+            return outcome.status.value
+    finally:
+        await tracer.flush()
 
 
 @activity.defn

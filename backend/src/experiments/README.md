@@ -76,6 +76,28 @@ expected shape, a citation of a passage that was not in the prompt or a provider
 credentials fails the execution. Either way, what an attempt recorded is discarded before
 the next one.
 
+When tracing is on, each attempt is a Langfuse trace (`tracing.py`, `ExperimentTracing`):
+
+- **Trace id** derived from the execution id and kept in `executions.langfuse_trace_id`: a
+  retried attempt writes into the same trace, and any process that knows the execution can
+  add to it. The root `qa-answer` holds the question and the answer (or `ERROR` with the
+  reason); its children are one `retrieval` span per search (query, ranks, scores, files,
+  an excerpt of each chunk) and what the answer system records, such as the `model`
+  generation of `rag_simple`.
+- **Metadata** on every observation, read from the run's configuration snapshot: experiment,
+  run, variant, execution, question, repetition, the two snapshots, index build, chunking
+  configuration, parsing, chunking, embedding, vector store, retrieval and answer profiles,
+  answer system, model, retrieval scope. Tags `experiment:<name>` and `variant:<name>`.
+- **Dataset**: opening a Q&A run (`open_run`) creates one Langfuse dataset per QA set
+  snapshot, its id kept in `qa_set_snapshots.langfuse_dataset_id`, and names the run in
+  `runs.langfuse_run_name` (`<experiment> · <date> · <short id>`). Each execution then
+  writes its question's item (id derived from snapshot and question, so it is unique across
+  the project; expected output the primary answer) and files its trace in the dataset run
+  `<run name> · <variant>`: one dataset run per variant.
+
+Everything is best-effort: without the keys, or with Langfuse unreachable, executions run
+and score exactly the same, without trace ids.
+
 ## Metrics (`metrics.py`, `evaluation.py`)
 
 Computed per execution on its `final` hits, from the stored hits. Each metric declares in
@@ -229,7 +251,7 @@ the answer metrics from the stored answers, without calling the model again.
 | `GET …/runs/{run_id}/results.csv` | The same as CSV, one row per variant and metric, with the chunking configuration, the family and the level |
 | `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome at both levels; in a Q&A run also each variant's `answer_text` and `refused`, and the question's primary `expected_answer` |
 | `GET …/runs/{run_id}/answers.csv` | Every answer of the run, one row per question, variant and repetition, in snapshot order: the question, its tags, `answerable` and expected answer, the variant, status, `refused`, the answer, the number of cited chunks, model, tokens, total time and error. A retrieval run has the answer columns empty |
-| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: the question's primary `expected_answer`; every variant's executions, each with `answer_text`, `refused`, `usage`, `timings`, its `calls` (query, hits, chunks no earlier call had), `citations_declared`, and `hits`: its distinct chunks in order of first retrieval (rank and score of the first time, file, page, text, `relevant_document`, `relevant_chunk` and its grade, `cited`, and `occurrences`: every call and rank it came back at), then the chunks cited and never retrieved (`retrieved = false`); the evidence status under its configuration and the evidence chunks, retrieved or not; the gold documents |
+| `GET …/runs/{run_id}/questions/{question_id}` | Drill-down: the question's primary `expected_answer`; every variant's executions, each with `answer_text`, `refused`, `usage`, `timings`, `langfuse_trace_url` (empty when not traced), its `calls` (query, hits, chunks no earlier call had), `citations_declared`, and `hits`: its distinct chunks in order of first retrieval (rank and score of the first time, file, page, text, `relevant_document`, `relevant_chunk` and its grade, `cited`, and `occurrences`: every call and rank it came back at), then the chunks cited and never retrieved (`retrieved = false`); the evidence status under its configuration and the evidence chunks, retrieved or not; the gold documents |
 
 `recall_ceiling` is `1 - not_found / (confirmed + not_found)` on the evidence the run was
 scored on: the share of the reviewed questions whose evidence exists among the chunks of the
