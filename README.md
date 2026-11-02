@@ -23,7 +23,7 @@ made of.
 ```bash
 cp .env.example .env          # adjust if a port is already taken
 uv sync
-docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, chromadb, qdrant, frontend
+docker compose up -d --wait   # minio (+ bucket), temporal, temporal-ui, chromadb, qdrant, frontend, worker, postgres
 uv run alembic -c backend/alembic.ini upgrade head
 cd backend && uv run uvicorn src.main:app --reload
 PYTHONPATH=.:backend uv run python -m temporal.worker   # from the repository root, own terminal
@@ -33,14 +33,10 @@ The UI is served on <http://localhost:5173> by the `frontend` Compose service. T
 a local checkout instead, stop that service and use
 `cd frontend && npm install && npm run dev`.
 
-`postgres` and `worker` are opt-in Compose profiles. The worker (it parses, chunks, embeds,
+The worker (it parses, chunks, embeds,
 indexes, runs the experiments and ranks suggested chunks; without it materialisations, index builds, runs and suggestion jobs stay pending) can run from the
 checkout as above or as a container, which reads AWS credentials for Bedrock from `~/.aws`
 (see the Temporal README):
-
-```bash
-docker compose --profile worker up -d --build worker
-```
 
 The API answers retrieval queries itself (`POST /api/v1/retrieve`), so besides the worker it
 also embeds text and reaches the vector stores: it needs the credentials of the embedders you
@@ -62,29 +58,6 @@ uv run python scripts/mvp_smoke.py --embedder openai --vector-store qdrant
 
 The interactive API documentation is on <http://localhost:8000/docs>.
 
-### PostgreSQL
-
-The stack assumes a **PostgreSQL 13+ already listening on `localhost:5432`** with the
-credentials in `.env`, which is the usual case on a development machine. Create the two
-databases once:
-
-```bash
-createdb -U postgres rag-bench
-createdb -U postgres rag-bench-test
-```
-
-If you have no local PostgreSQL, Compose ships one behind an opt-in profile:
-
-```bash
-docker compose --profile postgres up -d --wait
-```
-
-Should port 5432 already be busy, publish the container elsewhere and align `DATABASE_URL`:
-
-```bash
-POSTGRES_PORT=5433 docker compose --profile postgres up -d --wait
-# then, in .env: DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/rag-bench
-```
 
 The API answers on `http://localhost:8000`:
 
