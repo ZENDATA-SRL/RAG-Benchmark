@@ -23,6 +23,7 @@ export function metricKeys(cutoff: number): string[] {
 export function chunkMetricKeys(cutoff: number): string[] {
   return [
     `chunk_recall@${cutoff}`,
+    `chunk_hit_rate@${cutoff}`,
     `chunk_sufficient_hit@${cutoff}`,
     `chunk_precision@${cutoff}`,
     `chunk_ndcg@${cutoff}`,

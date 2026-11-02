@@ -81,6 +81,7 @@ describe("chunk-level results", () => {
   it("builds the chunk columns of a cutoff", () => {
     expect(chunkMetricKeys(5)).toEqual([
       "chunk_recall@5",
+      "chunk_hit_rate@5",
       "chunk_sufficient_hit@5",
       "chunk_precision@5",
       "chunk_ndcg@5",
