@@ -35,7 +35,8 @@ worker).
 `answer_system/rag_simple` (v1) is the simplest RAG chain: one search, every hit in the
 prompt, a structured answer. Parameters: `provider` (`openai` or `bedrock`), `model`,
 `system_prompt`, `temperature` (default 0), `max_tokens` (default 1024), `region` (Bedrock
-only); no credential, which the worker reads from its environment. Capabilities:
+only); no credential, which the worker reads from its environment. For the Bedrock Claude 5
+models `temperature` is not sent, since they reject it. Capabilities:
 `supports_citations: true`.
 
 ## Availability

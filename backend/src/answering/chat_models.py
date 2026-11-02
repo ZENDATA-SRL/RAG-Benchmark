@@ -24,6 +24,16 @@ def missing_credentials(provider: str) -> str | None:
     return f"unknown provider {provider!r}"
 
 
+# Bedrock Claude families that reject a sampling temperature and a forced tool choice:
+# the structured answer is then requested with the tool offered as "auto".
+_BEDROCK_AUTO_TOOL_FAMILIES = (
+    "claude-sonnet-5",
+    "claude-opus-5",
+    "claude-haiku-5",
+    "claude-fable-5",
+)
+
+
 def resolve_chat_model(params: dict[str, Any]) -> BaseChatModel:
     """Build the chat model a profile names, with the credentials of the environment.
 
@@ -46,11 +56,16 @@ def resolve_chat_model(params: dict[str, Any]) -> BaseChatModel:
     if provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
 
+        options: dict[str, Any]
+        if any(family in params["model"] for family in _BEDROCK_AUTO_TOOL_FAMILIES):
+            options = {"temperature": None, "supports_tool_choice_values": ("auto",)}
+        else:
+            options = {"temperature": temperature}
         return ChatBedrockConverse(
             model=params["model"],
-            temperature=temperature,
             max_tokens=max_tokens,
             region_name=params.get("region") or None,
+            **options,
         )
     raise ValueError(f"Unknown chat model provider: {provider}")
 
