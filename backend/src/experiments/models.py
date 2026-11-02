@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import (
@@ -152,6 +152,12 @@ class Execution(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     answer_payload_uri: Mapped[str | None] = mapped_column(Text)
     usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     timings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # What the answer system says it used. NULL when the system does not declare citations,
+    # empty when it declared none; it may name chunks no call retrieved, which is why it
+    # lives here and not on the hits.
+    cited_chunk_ids: Mapped[list[uuid.UUID] | None] = mapped_column(
+        ARRAY(UUID(as_uuid=True))
+    )
     langfuse_trace_id: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)
 
@@ -170,7 +176,11 @@ class RetrievalCall(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 
 class RetrievalHit(UUIDPrimaryKeyMixin, Base):
-    """A chunk returned by a call, with its rank, score and relevance flags."""
+    """A chunk returned by a call, with its rank, score and relevance flags.
+
+    The raw log: a chunk returned by several calls of one execution has one hit per call,
+    and those repetitions are what the call efficiency is measured on.
+    """
 
     __tablename__ = "retrieval_hits"
     __table_args__ = (
@@ -191,12 +201,6 @@ class RetrievalHit(UUIDPrimaryKeyMixin, Base):
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
     score: Mapped[float | None] = mapped_column(Double)
     stage: Mapped[RetrievalStage] = mapped_column(RETRIEVAL_STAGE, nullable=False)
-    in_context: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false"), default=False
-    )
-    cited: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false"), default=False
-    )
     relevant_document: Mapped[bool | None] = mapped_column(Boolean)
     relevant_chunk: Mapped[bool | None] = mapped_column(Boolean)
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 import csv
 import io
 import uuid
+from collections.abc import Sequence
 
+from sqlalchemy import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.corpora.repository import CorpusSnapshotRepository
@@ -14,17 +16,20 @@ from src.experiments.metrics import (
     FIRST_RELEVANT_RANK,
     metric_specs,
 )
+from src.experiments.models import Execution
 from src.experiments.repository import (
     EvaluationRepository,
     ExecutionRepository,
 )
 from src.experiments.schemas import (
+    CallDetailRead,
     ChunkGoldRead,
     CrossGroupRead,
     EvidenceCountsRead,
     ExecutionDetailRead,
     GoldChunkRead,
     HitDetailRead,
+    HitOccurrenceRead,
     MetricResultRead,
     QuestionDrilldownRead,
     QuestionVariantOutcomeRead,
@@ -37,7 +42,11 @@ from src.experiments.schemas import (
     VariantResultRead,
 )
 from src.experiments.service import ExperimentService, RunService
-from src.infrastructure.database.enums import EvidenceLinkStatus, MetricLevel
+from src.infrastructure.database.enums import (
+    EvidenceLinkStatus,
+    MetricLevel,
+    RelevanceGrade,
+)
 from src.pipelines.service import ChunkingConfigurationService, ProfileService
 from src.qa_sets.repository import (
     EvidenceRepository,
@@ -51,6 +60,7 @@ CSV_COLUMNS = (
     "chunking_configuration_id",
     "variant",
     "is_baseline",
+    "family",
     "level",
     "metric",
     "mean",
@@ -68,7 +78,7 @@ CSV_COLUMNS = (
 CROSS_GROUP_REASON = (
     "Chunk-level metrics are computed against evidence confirmed on the chunks of one "
     "chunking configuration, so they only compare variants that search the same "
-    "configuration. Across configurations only document-level metrics compare."
+    "configuration. Across configurations only document-level and call metrics compare."
 )
 
 
@@ -121,7 +131,8 @@ class ResultsService:
             per_variant.setdefault(aggregate.variant_id, []).append(
                 MetricResultRead(
                     key=definition.key,
-                    level=definition.level or MetricLevel.DOCUMENT,
+                    level=definition.level,
+                    family=definition.family,
                     direction=definition.direction,
                     mean=aggregate.mean,
                     stddev=aggregate.stddev,
@@ -163,6 +174,7 @@ class ResultsService:
         return RunResultsRead(
             run_id=run.id,
             experiment_id=experiment_id,
+            experiment_type=experiment.type,
             status=run.status,
             repetitions=experiment.repetitions,
             question_count=qa_snapshot.question_count,
@@ -188,7 +200,8 @@ class ResultsService:
                 keys=[
                     spec.key
                     for spec in metric_specs()
-                    if spec.level == MetricLevel.DOCUMENT
+                    if spec.level != MetricLevel.CHUNK
+                    and experiment.type in spec.experiment_types
                 ],
                 reason=CROSS_GROUP_REASON,
             ),
@@ -213,7 +226,8 @@ class ResultsService:
                             group.chunking_configuration_id,
                             variant.name,
                             variant.is_baseline,
-                            metric.level.value,
+                            metric.family.value,
+                            metric.level.value if metric.level else "",
                             metric.key,
                             metric.mean,
                             metric.stddev,
@@ -341,12 +355,16 @@ class ResultsService:
     async def question_detail(
         self, experiment_id: uuid.UUID, run_id: uuid.UUID, question_id: uuid.UUID
     ) -> QuestionDrilldownRead:
-        """What each variant retrieved for a question, hit by hit.
+        """What each variant retrieved for a question, call by call and chunk by chunk.
 
-        Each hit says whether its document is gold and whether the chunk itself is an
-        evidence chunk under the variant's configuration, as of the last scoring. Each
-        variant also lists the evidence chunks of that configuration as they are now, the
-        ones it did not retrieve included, which is what the annotation page links to.
+        Each execution lists its calls, with the query and how many chunks each brought
+        that no earlier call had, and its distinct chunks, each with every call and rank it
+        was returned at: a chunk retrieved twice is shown twice-retrieved, not hidden in
+        the set. Chunks the answer system cited without retrieving them come last. Each
+        chunk says whether its document is gold and whether the chunk itself is an evidence
+        chunk under the variant's configuration, as of the last scoring. Each variant also
+        lists the evidence chunks of that configuration as they are now, the ones it did
+        not retrieve included, which is what the annotation page links to.
 
         Raises:
             RunNotFoundError: If the run does not exist or belongs to another experiment.
@@ -373,30 +391,12 @@ class ResultsService:
             )
             if evaluation.metric_definition_id in (rank_id, chunk_rank_id)
         }
-        hits: dict[uuid.UUID, list[HitDetailRead]] = {}
-        for (
-            execution_id,
-            hit,
-            chunk,
-            document_id,
-            filename,
-        ) in await self.executions.hit_details(
+        rows = await self.executions.hit_details(
             [execution.id for execution in executions]
-        ):
-            hits.setdefault(execution_id, []).append(
-                HitDetailRead(
-                    rank=hit.rank,
-                    score=hit.score,
-                    chunk_id=hit.chunk_id,
-                    document_id=document_id,
-                    filename=filename,
-                    ordinal=chunk.ordinal if chunk is not None else None,
-                    page=_page(chunk),
-                    text=chunk.text if chunk is not None else None,
-                    relevant_document=hit.relevant_document,
-                    relevant_chunk=hit.relevant_chunk,
-                )
-            )
+        )
+        hits = await self._distinct_hits(executions, rows)
+        calls = await self._calls(executions, rows)
+        gold_ids = {document_id for document_id, _ in gold}
 
         variants = []
         for view in await self.experiments.variant_views(experiment_id):
@@ -412,6 +412,7 @@ class ResultsService:
                     hit.chunk_id
                     for execution in own
                     for hit in hits.get(execution.id, [])
+                    if hit.retrieved
                 },
             )
             grades = {chunk.chunk_id: chunk.relevance for chunk in gold_chunks}
@@ -434,9 +435,14 @@ class ResultsService:
                                 (execution.id, chunk_rank_id)
                             ),
                             timings=execution.timings,
+                            calls=calls.get(execution.id, []),
+                            citations_declared=execution.cited_chunk_ids is not None,
                             hits=[
-                                hit.model_copy(
-                                    update={"relevance": grades.get(hit.chunk_id)}
+                                _graded(
+                                    hit,
+                                    grades,
+                                    status,
+                                    gold_ids if question.answerable else set(),
                                 )
                                 for hit in hits.get(execution.id, [])
                             ],
@@ -458,6 +464,116 @@ class ResultsService:
             ],
             variants=variants,
         )
+
+    async def _distinct_hits(
+        self, executions: Sequence[Execution], rows: Sequence[Row]
+    ) -> dict[uuid.UUID, list[HitDetailRead]]:
+        """Each execution's distinct chunks with their occurrences, then those only cited."""
+        hits: dict[uuid.UUID, dict[uuid.UUID | int, HitDetailRead]] = {}
+        for index, (
+            execution_id,
+            call_index,
+            hit,
+            chunk,
+            document_id,
+            filename,
+        ) in enumerate(rows):
+            own = hits.setdefault(execution_id, {})
+            # A hit whose chunk is gone cannot be matched to another: it stands alone.
+            key = hit.chunk_id if hit.chunk_id is not None else index
+            if key not in own:
+                own[key] = HitDetailRead(
+                    rank=hit.rank,
+                    score=hit.score,
+                    chunk_id=hit.chunk_id,
+                    document_id=document_id,
+                    filename=filename,
+                    ordinal=chunk.ordinal if chunk is not None else None,
+                    page=_page(chunk),
+                    text=chunk.text if chunk is not None else None,
+                    relevant_document=hit.relevant_document,
+                    relevant_chunk=hit.relevant_chunk,
+                )
+            own[key].occurrences.append(
+                HitOccurrenceRead(call_index=call_index, rank=hit.rank, score=hit.score)
+            )
+
+        cited_only = {
+            chunk_id
+            for execution in executions
+            for chunk_id in execution.cited_chunk_ids or []
+            if chunk_id not in hits.get(execution.id, {})
+        }
+        details = {
+            chunk.id: (chunk, document_id, filename)
+            for chunk, document_id, filename in await self.executions.chunk_details(
+                list(cited_only)
+            )
+        }
+        result: dict[uuid.UUID, list[HitDetailRead]] = {}
+        for execution in executions:
+            own = hits.get(execution.id, {})
+            cited = (
+                set(execution.cited_chunk_ids)
+                if execution.cited_chunk_ids is not None
+                else None
+            )
+            items = [
+                item.model_copy(
+                    update={
+                        "cited": item.chunk_id in cited if cited is not None else None
+                    }
+                )
+                for item in own.values()
+            ]
+            for chunk_id in dict.fromkeys(execution.cited_chunk_ids or []):
+                if chunk_id in own:
+                    continue
+                chunk, document_id, filename = details.get(chunk_id, (None, None, None))
+                items.append(
+                    HitDetailRead(
+                        rank=None,
+                        score=None,
+                        chunk_id=chunk_id,
+                        document_id=document_id,
+                        filename=filename,
+                        ordinal=chunk.ordinal if chunk is not None else None,
+                        page=_page(chunk),
+                        text=chunk.text if chunk is not None else None,
+                        relevant_document=None,
+                        retrieved=False,
+                        cited=True,
+                    )
+                )
+            result[execution.id] = items
+        return result
+
+    async def _calls(
+        self, executions: Sequence[Execution], rows: Sequence[Row]
+    ) -> dict[uuid.UUID, list[CallDetailRead]]:
+        """Each execution's calls with their hit count and the chunks new to each."""
+        per_call: dict[tuple[uuid.UUID, int], list[uuid.UUID | None]] = {}
+        for execution_id, call_index, hit, *_ in rows:
+            per_call.setdefault((execution_id, call_index), []).append(hit.chunk_id)
+        result: dict[uuid.UUID, list[CallDetailRead]] = {}
+        seen: dict[uuid.UUID, set[uuid.UUID]] = {}
+        for call in await self.executions.calls_of_executions(
+            [execution.id for execution in executions]
+        ):
+            chunks = per_call.get((call.execution_id, call.call_index), [])
+            before = seen.setdefault(call.execution_id, set())
+            new = {chunk_id for chunk_id in chunks if chunk_id not in before}
+            before.update(chunk_id for chunk_id in chunks if chunk_id is not None)
+            result.setdefault(call.execution_id, []).append(
+                CallDetailRead(
+                    call_index=call.call_index,
+                    query_text=call.query_text,
+                    hit_count=len(chunks),
+                    new_chunk_count=len(new)
+                    + sum(1 for chunk_id in chunks if chunk_id is None),
+                )
+            )
+        return result
 
     async def _evidence(
         self,
@@ -489,3 +605,27 @@ class ResultsService:
                 link.id
             )
         ]
+
+
+def _graded(
+    hit: HitDetailRead,
+    grades: dict[uuid.UUID, RelevanceGrade],
+    evidence_status: str,
+    gold_documents: set[uuid.UUID],
+) -> HitDetailRead:
+    """A chunk with its evidence grade; a cited-only chunk also gets its relevance flags.
+
+    The flags of a retrieved chunk are those written by the last scoring; a chunk that was
+    only cited has no hit to carry them, so they are read from the gold as it is now.
+    """
+    update: dict = {"relevance": grades.get(hit.chunk_id)}
+    if not hit.retrieved:
+        update["relevant_document"] = (
+            hit.document_id in gold_documents if gold_documents else None
+        )
+        update["relevant_chunk"] = (
+            hit.chunk_id in grades
+            if evidence_status == EvidenceLinkStatus.CONFIRMED.value
+            else None
+        )
+    return hit.model_copy(update=update)

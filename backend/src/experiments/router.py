@@ -231,13 +231,22 @@ async def cancel_run(
     return RunRead.model_validate(run)
 
 
-@router.post("/{experiment_id}/runs/{run_id}/evaluate", response_model=RunDetail)
+@router.post(
+    "/{experiment_id}/runs/{run_id}/evaluate",
+    response_model=RunRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def evaluate_run(
-    experiment_id: uuid.UUID, run_id: uuid.UUID, session: SessionDep
-) -> RunDetail:
-    """Re-score a finished run from its stored hits, on the evidence as it is now."""
-    run = await RunService(session).evaluate_run(run_id, experiment_id)
-    return RunDetail.model_validate(run)
+    experiment_id: uuid.UUID,
+    run_id: uuid.UUID,
+    session: SessionDep,
+    workflows: WorkflowsDep,
+) -> RunRead:
+    """Start re-scoring a finished run on the evidence as it is now; poll the run to follow it."""
+    run = await RunLauncher(session, workflows).evaluate(
+        run_id, experiment_id=experiment_id
+    )
+    return RunRead.model_validate(run)
 
 
 @router.get("/{experiment_id}/runs/{run_id}/results", response_model=RunResultsRead)

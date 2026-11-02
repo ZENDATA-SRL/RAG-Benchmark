@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from src.corpora.exceptions import CorpusSnapshotNotFoundError
 from src.corpora.repository import CorpusSnapshotRepository
 from src.experiments.evaluation import EvaluationService
 from src.experiments.exceptions import (
+    EvaluationInProgressError,
     ExperimentNotFoundError,
     GoldCoverageChoiceRequiredError,
     MultipleBaselinesError,
@@ -39,8 +40,10 @@ from src.infrastructure.database.enums import (
 )
 from src.infrastructure.temporal import WorkflowClient
 from src.infrastructure.temporal.workflow_ids import (
+    EVALUATE_RUN_WORKFLOW,
     EXPERIMENTS_TASK_QUEUE,
     RUN_EXPERIMENT_WORKFLOW,
+    evaluate_run_workflow_id,
     run_experiment_workflow_id,
 )
 from src.pipelines import naming
@@ -56,6 +59,12 @@ DEFAULT_RUN_CONCURRENCY = 5
 
 CANCELLED_REASON = "cancelled"
 EXCLUDE_UNCOVERED = "exclude"
+
+# State of the latest re-evaluation of a run, in `runs.progress["evaluation"]`.
+EVALUATION_KEY = "evaluation"
+EVALUATION_RUNNING = "running"
+EVALUATION_SUCCEEDED = "succeeded"
+EVALUATION_FAILED = "failed"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -353,13 +362,17 @@ class RunService:
             raise RunNotFoundError(run_id)
         return run
 
-    async def refresh_progress(self, run: Run) -> dict[str, int]:
-        """Copy the execution counters onto the run row for the UI to poll."""
+    async def refresh_progress(self, run: Run) -> dict[str, Any]:
+        """Copy the execution counters onto the run row for the UI to poll.
+
+        The state of a re-evaluation, kept in the same column, is left as it is.
+        """
         counts = await self.executions.count_by_status(run.id)
         total = sum(counts.values())
         succeeded = counts.get(ExecutionStatus.SUCCEEDED, 0)
         failed = counts.get(ExecutionStatus.FAILED, 0)
         run.progress = {
+            **run.progress,
             "total": total,
             "succeeded": succeeded,
             "failed": failed,
@@ -407,32 +420,71 @@ class RunService:
         run.finished_at = dt.datetime.now(dt.UTC)
         await self.session.flush()
 
-    async def evaluate_run(self, run_id: uuid.UUID, experiment_id: uuid.UUID) -> Run:
-        """Score a finished run again from its stored hits, on the evidence as it is now.
+    async def open_evaluation(self, run_id: uuid.UUID) -> int:
+        """Mark a re-evaluation `running` and return how many executions it will score."""
+        run = await self.get(run_id)
+        total = await self.executions.count_by_run(run_id)
+        _set_evaluation(run, status=EVALUATION_RUNNING, evaluated=0, total=total)
+        await self.session.flush()
+        return total
+
+    async def evaluate_batch(
+        self,
+        run_id: uuid.UUID,
+        *,
+        offset: int,
+        limit: int,
+        on_scored: Callable[[int], object] | None = None,
+    ) -> int:
+        """Re-score one page of a run's executions from their stored hits.
+
+        No retrieval is repeated. The progress on the run says how many executions have
+        been scored so far, for the UI to show.
+
+        Args:
+            run_id: The run being re-evaluated.
+            offset: Executions already scored by the previous pages.
+            limit: Size of the page.
+            on_scored: Called with the number scored so far after each execution, which
+                is how the worker heartbeats.
+
+        Returns:
+            How many executions the page had; fewer than `limit` means it was the last.
+        """
+        run = await self.get(run_id)
+        evaluation = EvaluationService(self.session)
+        ids = await self.executions.page_ids(run_id, offset=offset, limit=limit)
+        for index, execution_id in enumerate(ids):
+            await evaluation.evaluate_execution(execution_id)
+            if on_scored is not None:
+                on_scored(offset + index + 1)
+        _set_evaluation(run, evaluated=offset + len(ids))
+        await self.session.flush()
+        return len(ids)
+
+    async def finish_evaluation(self, run_id: uuid.UUID) -> None:
+        """Aggregate a re-scored run and record the evidence it was scored on.
 
         Annotating questions after a run gives it chunk metrics it did not have, and
         changing the evidence changes them, so re-scoring is an explicit action and never a
-        side effect of reading the results. No retrieval is repeated: every execution is
-        re-scored from the hits it recorded, the aggregates are rewritten, and the run
-        records the fingerprint of the evidence it used. Document-level scores come out
+        side effect of reading the results. The aggregates are rewritten and the run
+        records the fingerprint of the evidence it used; document-level scores come out
         the same unless the gold documents changed.
-
-        Raises:
-            RunNotFoundError: If the run does not exist or belongs to another experiment.
-            RunInProgressError: If the run has not finished.
         """
-        run = await self.get(run_id, experiment_id)
-        if run.status in (ExecutionStatus.PENDING, ExecutionStatus.RUNNING):
-            raise RunInProgressError(run_id, run.status.value)
+        run = await self.get(run_id)
         evaluation = EvaluationService(self.session)
-        for execution in await self.executions.list_by_run(run_id):
-            await evaluation.evaluate_execution(execution.id)
         await evaluation.aggregate_run(run_id)
         await evaluation.record_chunk_gold(
             run, await self.experiments.get_by_id(run.experiment_id)
         )
-        await self.session.refresh(run)
-        return run
+        _set_evaluation(run, status=EVALUATION_SUCCEEDED)
+        await self.session.flush()
+
+    async def fail_evaluation(self, run_id: uuid.UUID, reason: str) -> None:
+        """Record that a re-evaluation stopped, so it does not stay `running`."""
+        run = await self.get(run_id)
+        _set_evaluation(run, status=EVALUATION_FAILED, error=reason)
+        await self.session.flush()
 
     async def fail_run(self, run_id: uuid.UUID, reason: str) -> None:
         """Record that a run stopped for a reason that is not one of its executions."""
@@ -518,10 +570,13 @@ class RunLauncher:
         Raises:
             RunNotFoundError: If the run does not exist.
             RunNotResumableError: If it is still running, or every execution succeeded.
+            EvaluationInProgressError: If the run is being re-evaluated.
         """
         run = await self.runs.get(run_id, experiment_id)
         if run.status == ExecutionStatus.RUNNING:
             raise RunNotResumableError(run_id, "it is still running")
+        if _evaluation_running(run):
+            raise EvaluationInProgressError(run_id)
         progress = await self.runs.refresh_progress(run)
         if (
             run.status == ExecutionStatus.SUCCEEDED
@@ -552,6 +607,43 @@ class RunLauncher:
         # Marked here and not by the workflow: a cancelled workflow may never run another
         # activity, and a run left `running` forever is worse than one that says so.
         await self.runs.fail_run(run_id, CANCELLED_REASON)
+        return run
+
+    async def evaluate(self, run_id: uuid.UUID, *, experiment_id: uuid.UUID) -> Run:
+        """Start re-scoring a finished run on the evidence as it is now.
+
+        The scoring runs on the worker, in batches, so a run of thousands of executions
+        never holds an HTTP request open; the run's progress says how far it got. Each
+        re-evaluation gets its own workflow id from a counter on the run, and the state is
+        set `running` here, in the request, so a second request arriving before the
+        workflow starts is refused rather than starting another.
+
+        Raises:
+            RunNotFoundError: If the run does not exist or belongs to another experiment.
+            RunInProgressError: If the run has not finished.
+            EvaluationInProgressError: If a re-evaluation of the run is running.
+        """
+        run = await self.runs.get(run_id, experiment_id)
+        if run.status in (ExecutionStatus.PENDING, ExecutionStatus.RUNNING):
+            raise RunInProgressError(run_id, run.status.value)
+        if _evaluation_running(run):
+            raise EvaluationInProgressError(run_id)
+        attempt = run.progress.get(EVALUATION_KEY, {}).get("attempt", 0) + 1
+        _set_evaluation(
+            run,
+            status=EVALUATION_RUNNING,
+            evaluated=0,
+            total=await self.executions.count_by_run(run_id),
+            attempt=attempt,
+            error=None,
+        )
+        await self.session.flush()
+        await self.workflows.start(
+            EVALUATE_RUN_WORKFLOW,
+            arg={"run_id": str(run.id)},
+            workflow_id=evaluate_run_workflow_id(run.id, attempt),
+            task_queue=EXPERIMENTS_TASK_QUEUE,
+        )
         return run
 
     async def _launch(self, run: Run, concurrency: int) -> RunLaunch:
@@ -637,3 +729,15 @@ class RunLauncher:
                 "score_threshold": profile.score_threshold,
             },
         }
+
+
+def _evaluation_running(run: Run) -> bool:
+    return run.progress.get(EVALUATION_KEY, {}).get("status") == EVALUATION_RUNNING
+
+
+def _set_evaluation(run: Run, **values: Any) -> None:
+    # A new dict, not an in-place change: the JSONB column only notices reassignment.
+    run.progress = {
+        **run.progress,
+        EVALUATION_KEY: {**run.progress.get(EVALUATION_KEY, {}), **values},
+    }

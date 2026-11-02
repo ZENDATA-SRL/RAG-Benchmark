@@ -12,6 +12,7 @@ from src.core.hashing import composition_hash
 MATERIALIZE_CHUNKS_WORKFLOW = "MaterializeChunksWorkflow"
 INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
 RUN_EXPERIMENT_WORKFLOW = "RunExperimentWorkflow"
+EVALUATE_RUN_WORKFLOW = "EvaluateRunWorkflow"
 TRANSFER_DATASET_WORKFLOW = "TransferDatasetWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"
 EMBEDDING_TASK_QUEUE = "embedding"
@@ -74,6 +75,15 @@ def run_variant_workflow_id(
 ) -> str:
     """Deterministic id of the `RunVariantWorkflow` child of one variant of a run."""
     return f"run-variant-{run_id}-{variant_id}"
+
+
+def evaluate_run_workflow_id(run_id: uuid.UUID | str, attempt: int) -> str:
+    """Deterministic id of the `EvaluateRunWorkflow` of one re-evaluation of a run.
+
+    The run counts its re-evaluations, so each gets its own id while two requests for the
+    same one map to the same workflow.
+    """
+    return f"evaluate-run-{run_id}-{attempt}"
 
 
 def transfer_dataset_workflow_id(transfer_job_id: uuid.UUID | str) -> str:

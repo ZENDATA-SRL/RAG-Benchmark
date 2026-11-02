@@ -10,6 +10,7 @@ from src.infrastructure.database.enums import (
     ArtifactStatus,
     ExecutionStatus,
     ExperimentType,
+    MetricFamily,
     MetricLevel,
     RelevanceGrade,
     RetrievalScope,
@@ -102,6 +103,16 @@ class CoverageRead(BaseModel):
     uncovered: list[UncoveredQuestionRead]
 
 
+class EvaluationProgressRead(BaseModel):
+    """The latest re-evaluation of a run: its state and how many executions it scored."""
+
+    status: Literal["running", "succeeded", "failed"]
+    evaluated: int = 0
+    total: int = 0
+    attempt: int = 1
+    error: str | None = None
+
+
 class ProgressRead(BaseModel):
     """Execution counters of a run: pending includes the ones still running."""
 
@@ -109,6 +120,9 @@ class ProgressRead(BaseModel):
     succeeded: int = 0
     failed: int = 0
     pending: int = 0
+    evaluation: EvaluationProgressRead | None = Field(
+        default=None, description="Absent until the run is re-evaluated."
+    )
 
 
 class RunRead(BaseModel):
@@ -176,7 +190,10 @@ class MetricResultRead(BaseModel):
     """Statistics of one metric for one variant, always with how many questions they rest on."""
 
     key: str
-    level: MetricLevel
+    family: MetricFamily
+    level: MetricLevel | None = Field(
+        description="Empty for the call metrics, which read no gold."
+    )
     direction: str
     mean: float | None
     stddev: float | None
@@ -254,6 +271,12 @@ class RunResultsRead(BaseModel):
 
     run_id: uuid.UUID
     experiment_id: uuid.UUID
+    experiment_type: ExperimentType = Field(
+        description=(
+            "Decides the metrics: `retrieval` has the ranked ones only, `qa` also the set "
+            "and call metrics."
+        )
+    )
     status: ExecutionStatus
     repetitions: int
     question_count: int
@@ -287,10 +310,33 @@ class RunQuestionRead(BaseModel):
     outcomes: list[QuestionVariantOutcomeRead]
 
 
-class HitDetailRead(BaseModel):
-    """A retrieved chunk with the document it comes from and whether it counted as relevant."""
+class HitOccurrenceRead(BaseModel):
+    """One time a chunk was returned: by which call, at which rank."""
 
+    call_index: int
     rank: int
+    score: float | None
+
+
+class CallDetailRead(BaseModel):
+    """One retrieval call of an execution, and how much it brought that was new."""
+
+    call_index: int
+    query_text: str
+    hit_count: int
+    new_chunk_count: int = Field(
+        description="Chunks this call returned that no earlier call of the execution had."
+    )
+
+
+class HitDetailRead(BaseModel):
+    """A distinct chunk of an execution, with every time it was returned and why it counts.
+
+    `rank` and `score` are those of its first occurrence. A chunk cited by the answer
+    system and never retrieved has `retrieved = false` and no occurrence.
+    """
+
+    rank: int | None
     score: float | None
     chunk_id: uuid.UUID | None
     document_id: uuid.UUID | None
@@ -303,6 +349,12 @@ class HitDetailRead(BaseModel):
     relevance: RelevanceGrade | None = Field(
         default=None, description="Grade of the chunk when it is an evidence chunk."
     )
+    occurrences: list[HitOccurrenceRead] = Field(default_factory=list)
+    retrieved: bool = True
+    cited: bool | None = Field(
+        default=None,
+        description="Empty when the answer system declares no citations.",
+    )
 
 
 class ExecutionDetailRead(BaseModel):
@@ -313,7 +365,14 @@ class ExecutionDetailRead(BaseModel):
     excluded_reason: str | None = None
     chunk_excluded_reason: str | None = None
     timings: dict[str, Any] | None = None
-    hits: list[HitDetailRead]
+    calls: list[CallDetailRead] = Field(default_factory=list)
+    citations_declared: bool = False
+    hits: list[HitDetailRead] = Field(
+        description=(
+            "Distinct chunks in order of first retrieval, then the chunks cited and never "
+            "retrieved."
+        )
+    )
 
 
 class GoldChunkRead(BaseModel):

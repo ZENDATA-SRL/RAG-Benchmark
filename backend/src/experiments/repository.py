@@ -358,6 +358,31 @@ class ExecutionRepository:
         stmt = select(Execution).where(Execution.run_id == run_id)
         return (await self.session.scalars(stmt)).all()
 
+    async def count_by_run(self, run_id: uuid.UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Execution)
+            .where(Execution.run_id == run_id)
+        )
+        return await self.session.scalar(stmt) or 0
+
+    async def page_ids(
+        self, run_id: uuid.UUID, *, offset: int, limit: int
+    ) -> list[uuid.UUID]:
+        """One page of every execution of a run, by id.
+
+        An offset is safe here, unlike for the unfinished executions: re-scoring changes no
+        execution's membership, so the pages do not move under the cursor.
+        """
+        stmt = (
+            select(Execution.id)
+            .where(Execution.run_id == run_id)
+            .order_by(Execution.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
     async def list_for_question(
         self, run_id: uuid.UUID, question_id: uuid.UUID
     ) -> Sequence[Execution]:
@@ -424,12 +449,21 @@ class ExecutionRepository:
             delete(RetrievalCall).where(RetrievalCall.execution_id == execution_id)
         )
 
+    async def call_indices(self, execution_id: uuid.UUID) -> list[int]:
+        """The calls of an execution in order, those that returned nothing included."""
+        stmt = (
+            select(RetrievalCall.call_index)
+            .where(RetrievalCall.execution_id == execution_id)
+            .order_by(RetrievalCall.call_index)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
     async def hits_of_execution(
         self, execution_id: uuid.UUID
-    ) -> list[tuple[RetrievalHit, uuid.UUID | None]]:
-        """Final hits of an execution with their document, in call then rank order."""
+    ) -> list[tuple[RetrievalHit, uuid.UUID | None, int]]:
+        """Final hits of an execution with their document and call, in call then rank order."""
         stmt = (
-            select(RetrievalHit, ChunkResult.document_id)
+            select(RetrievalHit, ChunkResult.document_id, RetrievalCall.call_index)
             .join(RetrievalCall, RetrievalCall.id == RetrievalHit.retrieval_call_id)
             .outerjoin(Chunk, Chunk.id == RetrievalHit.chunk_id)
             .outerjoin(ChunkResult, ChunkResult.id == Chunk.chunk_result_id)
@@ -440,15 +474,54 @@ class ExecutionRepository:
             .order_by(RetrievalCall.call_index, RetrievalHit.rank)
         )
         return [
-            (hit, document_id)
-            for hit, document_id in (await self.session.execute(stmt)).all()
+            (hit, document_id, call_index)
+            for hit, document_id, call_index in (await self.session.execute(stmt)).all()
         ]
+
+    async def chunk_documents(
+        self, chunk_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, uuid.UUID]:
+        """The document of each chunk, for chunks cited without being retrieved."""
+        if not chunk_ids:
+            return {}
+        stmt = (
+            select(Chunk.id, ChunkResult.document_id)
+            .join(ChunkResult, ChunkResult.id == Chunk.chunk_result_id)
+            .where(Chunk.id.in_(chunk_ids))
+        )
+        return dict((await self.session.execute(stmt)).all())
+
+    async def calls_of_executions(
+        self, execution_ids: Sequence[uuid.UUID]
+    ) -> Sequence[RetrievalCall]:
+        """The calls of some executions in order, for the drill-down."""
+        if not execution_ids:
+            return []
+        stmt = (
+            select(RetrievalCall)
+            .where(RetrievalCall.execution_id.in_(execution_ids))
+            .order_by(RetrievalCall.execution_id, RetrievalCall.call_index)
+        )
+        return (await self.session.scalars(stmt)).all()
+
+    async def chunk_details(self, chunk_ids: Sequence[uuid.UUID]):
+        """Chunks with their document and filename, for chunks cited and never retrieved."""
+        if not chunk_ids:
+            return []
+        stmt = (
+            select(Chunk, ChunkResult.document_id, Document.filename)
+            .join(ChunkResult, ChunkResult.id == Chunk.chunk_result_id)
+            .join(Document, Document.id == ChunkResult.document_id)
+            .where(Chunk.id.in_(chunk_ids))
+        )
+        return (await self.session.execute(stmt)).all()
 
     async def hit_details(self, execution_ids: Sequence[uuid.UUID]):
         """Hits of some executions with chunk, document and filename, for the drill-down."""
         stmt = (
             select(
                 RetrievalCall.execution_id,
+                RetrievalCall.call_index,
                 RetrievalHit,
                 Chunk,
                 ChunkResult.document_id,

@@ -13,10 +13,21 @@ from src.core.exceptions import DomainError
 from src.core.hashing import hash_json
 from src.experiments.exceptions import ExecutionNotFoundError, RunNotFoundError
 from src.experiments.metrics import (
+    CHUNK_FIRST_RELEVANT_CALL,
+    CHUNK_SET_PRECISION,
+    CHUNK_SET_RECALL,
+    FIRST_RELEVANT_CALL,
+    SET_PRECISION,
+    SET_RECALL,
     GoldChunk,
+    call_efficiency,
     chunk_metrics,
+    chunk_set_metrics,
     document_metrics,
+    document_set_metrics,
+    first_relevant_call,
     gold_chunk,
+    metric_keys,
     summarize,
 )
 from src.experiments.models import (
@@ -24,6 +35,7 @@ from src.experiments.models import (
     Execution,
     Experiment,
     MetricDefinition,
+    RetrievalHit,
     Run,
 )
 from src.experiments.repository import (
@@ -37,7 +49,9 @@ from src.experiments.seed import seed_metric_catalog
 from src.infrastructure.database.enums import (
     EvidenceLinkStatus,
     ExecutionStatus,
+    ExperimentType,
     MetricLevel,
+    RetrievalScope,
 )
 from src.qa_sets.models import Question
 from src.qa_sets.repository import QASetSnapshotRepository, QuestionRepository
@@ -56,6 +70,9 @@ EXECUTION_FAILED = "execution_failed"
 # configuration was not reviewed (no link, or a draft), or was looked for and not found.
 EVIDENCE_NOT_REVIEWED = "evidence_not_reviewed"
 EVIDENCE_NOT_FOUND = "evidence_not_found"
+# Set metrics on the `cited` scope only: the answer system declares no citations, which
+# says nothing about how well it attributes.
+SCOPE_NOT_DECLARED = "scope_not_declared"
 
 # The order the reasons are checked in, which is also the one that names a question whose
 # repetitions were excluded for different reasons.
@@ -66,6 +83,13 @@ EXCLUSION_REASONS = (
     NO_GOLD_DOCUMENTS,
     GOLD_NOT_IN_SNAPSHOT,
     EXECUTION_FAILED,
+    SCOPE_NOT_DECLARED,
+)
+
+# Metrics read on the scope's chunks: excluded when the scope is not declared, while the
+# other Q&A metrics of the same level still count.
+_SCOPE_KEYS = frozenset(
+    {SET_RECALL, SET_PRECISION, CHUNK_SET_RECALL, CHUNK_SET_PRECISION}
 )
 
 ALL_SLICE = "all"
@@ -176,11 +200,12 @@ class EvaluationService:
         self.evaluations = EvaluationRepository(session)
         self.runs = RunRepository(session)
         self._catalog: (
-            tuple[dict[str, MetricDefinition], dict[MetricLevel, Evaluator]] | None
+            tuple[dict[str, MetricDefinition], dict[MetricLevel | None, Evaluator]]
+            | None
         ) = None
 
     async def evaluate_execution(self, execution_id: uuid.UUID) -> None:
-        """Score one execution on every retrieval metric, or record why it is excluded.
+        """Score one execution on the metrics of its experiment's type, or record why not.
 
         The score is computed from the hits stored in the database, not from the search
         result in memory, so the same function re-scores an execution identically, and
@@ -192,6 +217,14 @@ class EvaluationService:
         under another configuration says nothing about these chunks. Both flags are written
         on each hit so the drill-down shows why a hit counts.
 
+        The ranked metrics (cutoffs and ranks) are computed on the first call: several
+        calls give several lists whose ranks and scores do not compare, and with one call,
+        as in a retrieval experiment, this is every hit. A Q&A experiment is also scored on
+        the distinct chunks of its scope (what was retrieved, or what the system cited),
+        on the call where the first relevant chunk arrived, and on the efficiency of its
+        calls, repetitions included. A retrieval experiment does not get those metrics at
+        all: with one call they would only repeat the ranked ones or be constants.
+
         Excluded executions get an evaluation per metric with `excluded` and the reason, and
         no score: they stay visible but do not enter the denominator. At document level the
         reasons are, in this order: the question is not answerable, it has no gold
@@ -199,7 +232,9 @@ class EvaluationService:
         the search space, so the retriever cannot be blamed), or the execution itself
         failed. At chunk level the evidence not being reviewed, or not found, comes right
         after the question not being answerable: a question can count for its documents and
-        be left out for its chunks.
+        be left out for its chunks. The set metrics on the `cited` scope are also excluded
+        when the system declared no citations, and the efficiency only when the execution
+        failed, since it reads no gold.
 
         Raises:
             ExecutionNotFoundError: If the execution does not exist.
@@ -211,6 +246,8 @@ class EvaluationService:
         experiment = await self.experiments.get_by_id(run.experiment_id)
         question = await self.session.get(Question, execution.question_id)
         definitions, evaluators = await self._metric_catalog()
+        keys = metric_keys(experiment.type)
+        is_qa = experiment.type == ExperimentType.QA
         gold = await self.experiments.gold_document_ids(question.id)
         evidence = await self._evidence(question.id, execution.variant_id)
 
@@ -218,42 +255,127 @@ class EvaluationService:
             execution, question, gold, experiment.corpus_snapshot_id
         )
         chunk_reason = _chunk_exclusion_reason(question, evidence, document_reason)
+        scope_declared = (
+            experiment.retrieval_scope != RetrievalScope.CITED
+            or execution.cited_chunk_ids is not None
+        )
+        succeeded = execution.status == ExecutionStatus.SUCCEEDED
         scores: dict[str, float | None] = {}
-        if execution.status == ExecutionStatus.SUCCEEDED:
+        if succeeded:
             hits = await self.executions.hits_of_execution(execution.id)
-            for hit, document_id in hits:
+            calls = await self.executions.call_indices(execution.id)
+            for hit, document_id, _ in hits:
                 if question.answerable and gold:
                     hit.relevant_document = document_id in gold
                 hit.relevant_chunk = (
                     hit.chunk_id in evidence.chunks if chunk_reason is None else None
                 )
             await self.session.flush()
+            first = [
+                (hit, document)
+                for hit, document, call in hits
+                if calls and call == calls[0]
+            ]
             if document_reason is None:
-                scores.update(
-                    document_metrics([document_id for _, document_id in hits], gold)
-                )
+                scores.update(document_metrics([doc for _, doc in first], gold))
             if chunk_reason is None:
                 scores.update(
-                    chunk_metrics([hit.chunk_id for hit, _ in hits], evidence.chunks)
+                    chunk_metrics([hit.chunk_id for hit, _ in first], evidence.chunks)
+                )
+            if is_qa:
+                scores.update(
+                    await self._qa_scores(
+                        execution,
+                        experiment.retrieval_scope,
+                        calls,
+                        hits,
+                        gold if document_reason is None else None,
+                        evidence.chunks if chunk_reason is None else None,
+                    )
                 )
 
         for level, evaluator in evaluators.items():
-            reason = document_reason if level == MetricLevel.DOCUMENT else chunk_reason
-            rows = [
-                {
-                    "execution_id": execution.id,
-                    "metric_definition_id": definition.id,
-                    "evaluator_id": evaluator.id,
-                    "score": scores.get(key),
-                    "excluded": reason is not None,
-                    "exclusion_reason": reason,
-                }
-                for key, definition in definitions.items()
-                if definition.level == level
-            ]
+            rows = []
+            for key, definition in definitions.items():
+                if definition.level != level or key not in keys:
+                    continue
+                if level is None:
+                    reason = None if succeeded else EXECUTION_FAILED
+                else:
+                    reason = (
+                        document_reason
+                        if level == MetricLevel.DOCUMENT
+                        else chunk_reason
+                    )
+                    if reason is None and key in _SCOPE_KEYS and not scope_declared:
+                        reason = SCOPE_NOT_DECLARED
+                rows.append(
+                    {
+                        "execution_id": execution.id,
+                        "metric_definition_id": definition.id,
+                        "evaluator_id": evaluator.id,
+                        "score": scores.get(key) if reason is None else None,
+                        "excluded": reason is not None,
+                        "exclusion_reason": reason,
+                    }
+                )
             await self.evaluations.replace_for_execution(
                 execution.id, evaluator.id, rows
             )
+
+    async def _qa_scores(
+        self,
+        execution: Execution,
+        scope: RetrievalScope,
+        calls: list[int],
+        hits: list[tuple[RetrievalHit, uuid.UUID | None, int]],
+        gold: set[uuid.UUID] | None,
+        evidence: dict[uuid.UUID, GoldChunk] | None,
+    ) -> dict[str, float | None]:
+        """The set, first-call and efficiency scores of a Q&A execution.
+
+        `gold` and `evidence` are `None` when their level is excluded, so only the scores
+        that will count are computed.
+        """
+        scores = call_efficiency(len(calls), [hit.chunk_id for hit, _, _ in hits])
+
+        # The scope as distinct chunks with their document. A hit whose chunk is no longer
+        # known cannot be told apart from another, so each such hit stays in the set.
+        scope_chunks: list[tuple[uuid.UUID | None, uuid.UUID | None]] = []
+        if scope == RetrievalScope.CITED:
+            cited = list(dict.fromkeys(execution.cited_chunk_ids or []))
+            known = await self.executions.chunk_documents(cited)
+            scope_chunks = [(chunk_id, known.get(chunk_id)) for chunk_id in cited]
+        else:
+            seen: set[uuid.UUID] = set()
+            for hit, document_id, _ in hits:
+                if hit.chunk_id is not None:
+                    if hit.chunk_id in seen:
+                        continue
+                    seen.add(hit.chunk_id)
+                scope_chunks.append((hit.chunk_id, document_id))
+
+        per_call: dict[int, list[tuple[RetrievalHit, uuid.UUID | None]]] = {
+            call: [] for call in calls
+        }
+        for hit, document_id, call in hits:
+            per_call.setdefault(call, []).append((hit, document_id))
+        if gold is not None:
+            scores.update(document_set_metrics([doc for _, doc in scope_chunks], gold))
+            scores[FIRST_RELEVANT_CALL] = first_relevant_call(
+                [[doc in gold for _, doc in items] for items in per_call.values()]
+            )
+        if evidence is not None:
+            scores.update(
+                chunk_set_metrics([chunk for chunk, _ in scope_chunks], evidence)
+            )
+            scores[CHUNK_FIRST_RELEVANT_CALL] = first_relevant_call(
+                [
+                    [hit.chunk_id in evidence for hit, _ in items]
+                    for items in per_call.values()
+                ]
+            )
+        return scores
 
     async def aggregate_run(self, run_id: uuid.UUID) -> None:
         """Compute `metric_aggregates` for a run: per variant, metric and slice.
@@ -364,7 +486,7 @@ class EvaluationService:
 
     async def _metric_catalog(
         self,
-    ) -> tuple[dict[str, MetricDefinition], dict[MetricLevel, Evaluator]]:
+    ) -> tuple[dict[str, MetricDefinition], dict[MetricLevel | None, Evaluator]]:
         # Seeded once per service: a run re-scores many executions in one session.
         if self._catalog is None:
             self._catalog = await seed_metric_catalog(self.session)

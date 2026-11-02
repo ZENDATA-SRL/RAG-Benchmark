@@ -6,10 +6,11 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 from src.artifacts.models import Chunk, ChunkResult
-from src.experiments.evaluation import ExecutionRunner
+from src.experiments.evaluation import EvaluationService, ExecutionRunner
 from src.experiments.models import (
     Evaluation,
     Execution,
+    Experiment,
     MetricDefinition,
     RetrievalCall,
     RetrievalHit,
@@ -17,7 +18,13 @@ from src.experiments.models import (
 from src.experiments.repository import ExecutionRepository
 from src.experiments.service import RunService
 from src.indexes.models import IndexBuild
-from src.infrastructure.database.enums import ArtifactStatus, ExecutionStatus
+from src.infrastructure.database.enums import (
+    ArtifactStatus,
+    ExecutionStatus,
+    ExperimentType,
+    RetrievalScope,
+    RetrievalStage,
+)
 from src.retrieval.exceptions import IndexBuildNotReadyError
 from src.retrieval.service import RetrievalService
 from tests.pipeline_factory import (
@@ -157,6 +164,21 @@ async def _execute_run(session, run_id: str) -> None:
     await RunService(session).finish_run(uuid.UUID(run_id))
 
 
+async def _reevaluate(client, session, base: str, run_id: str) -> dict:
+    """Ask for a re-evaluation, then do in-process what its workflow does."""
+    response = await client.post(f"{base}/{run_id}/evaluate")
+    assert response.status_code == 202, response.text
+    service = RunService(session)
+    offset = 0
+    await service.open_evaluation(uuid.UUID(run_id))
+    while scored := await service.evaluate_batch(
+        uuid.UUID(run_id), offset=offset, limit=3
+    ):
+        offset += scored
+    await service.finish_evaluation(uuid.UUID(run_id))
+    return (await client.get(f"{base}/{run_id}")).json()
+
+
 # -- guards -------------------------------------------------------------------------------
 
 
@@ -289,7 +311,13 @@ async def test_a_run_copies_the_configuration_and_creates_every_execution(
     assert response.status_code == 202, response.text
     run = response.json()
     # 4 questions x 2 variants x 2 repetitions
-    assert run["progress"] == {"total": 16, "succeeded": 0, "failed": 0, "pending": 16}
+    assert run["progress"] == {
+        "total": 16,
+        "succeeded": 0,
+        "failed": 0,
+        "pending": 16,
+        "evaluation": None,
+    }
     launch = fake_workflows.started[0]
     assert launch.workflow == "RunExperimentWorkflow"
     assert launch.workflow_id == f"run-experiment-{run['id']}"
@@ -507,11 +535,14 @@ async def test_results_download_as_csv(client, session, world) -> None:
     assert response.headers["content-type"].startswith("text/csv")
     lines = response.text.strip().splitlines()
     assert lines[0].startswith(
-        "chunking_configuration_id,variant,is_baseline,level,metric,mean"
+        "chunking_configuration_id,variant,is_baseline,family,level,metric,mean"
     )
+    # A retrieval experiment has the ranked metrics only: no set or call metric.
     assert len(lines) == 1 + 2 * (14 + 22)
-    assert ",document,recall@5," in response.text
-    assert ",chunk,chunk_recall@5," in response.text
+    assert ",retrieval,document,recall@5," in response.text
+    assert ",retrieval,chunk,chunk_recall@5," in response.text
+    assert "set_recall" not in response.text
+    assert "duplicate_hit_rate" not in response.text
     assert world.qa_snapshot_id in lines[1]
 
 
@@ -624,7 +655,13 @@ async def test_a_question_that_cannot_be_retrieved_fails_alone(
     done = (
         await client.get(f"{EXPERIMENTS}/{experiment['id']}/runs/{run['id']}")
     ).json()
-    assert done["progress"] == {"total": 8, "succeeded": 6, "failed": 2, "pending": 0}
+    assert done["progress"] == {
+        "total": 8,
+        "succeeded": 6,
+        "failed": 2,
+        "pending": 0,
+        "evaluation": None,
+    }
     failed = (
         await session.scalars(
             select(Execution).where(Execution.status == ExecutionStatus.FAILED)
@@ -726,7 +763,13 @@ async def test_the_worker_activities_drive_a_run_to_the_same_results(
         await client.get(f"{EXPERIMENTS}/{experiment['id']}/runs/{run['id']}")
     ).json()
     assert done["status"] == "succeeded"
-    assert done["progress"] == {"total": 8, "succeeded": 8, "failed": 0, "pending": 0}
+    assert done["progress"] == {
+        "total": 8,
+        "succeeded": 8,
+        "failed": 0,
+        "pending": 0,
+        "evaluation": None,
+    }
     results = (
         await client.get(f"{EXPERIMENTS}/{experiment['id']}/runs/{run['id']}/results")
     ).json()
@@ -832,8 +875,14 @@ async def test_a_run_scored_before_annotation_gains_chunk_metrics_when_reevaluat
     assert before["groups"][0]["recall_ceiling"] is None
 
     await _annotate(client, session, world)
-    evaluated = await client.post(f"{base}/{run['id']}/evaluate")
-    assert evaluated.status_code == 200, evaluated.text
+    evaluated = await _reevaluate(client, session, base, run["id"])
+    assert evaluated["progress"]["evaluation"] == {
+        "status": "succeeded",
+        "evaluated": 8,
+        "total": 8,
+        "attempt": 1,
+        "error": None,
+    }
     after = (await client.get(f"{base}/{run['id']}/results")).json()
 
     large = _metrics(after, "dense top-6")
@@ -874,9 +923,9 @@ async def test_reevaluating_twice_gives_the_same_numbers_and_fingerprint(
     await _execute_run(session, run["id"])
     await _annotate(client, session, world)
 
-    first = (await client.post(f"{base}/{run['id']}/evaluate")).json()
+    first = await _reevaluate(client, session, base, run["id"])
     once = (await client.get(f"{base}/{run['id']}/results")).json()
-    second = (await client.post(f"{base}/{run['id']}/evaluate")).json()
+    second = await _reevaluate(client, session, base, run["id"])
     twice = (await client.get(f"{base}/{run['id']}/results")).json()
 
     assert (
@@ -896,6 +945,236 @@ async def test_a_run_in_progress_is_not_reevaluated(client, world) -> None:
 
     assert response.status_code == 409
     assert response.json()["code"] == "run_in_progress"
+
+
+async def test_a_reevaluation_runs_on_the_worker_and_only_once_at_a_time(
+    client, session, world, fake_workflows
+) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+
+    accepted = await client.post(f"{base}/{run['id']}/evaluate")
+    again = await client.post(f"{base}/{run['id']}/evaluate")
+    resumed = await client.post(f"{base}/{run['id']}/resume")
+
+    assert accepted.status_code == 202, accepted.text
+    assert accepted.json()["progress"]["evaluation"]["status"] == "running"
+    started = fake_workflows.started[-1]
+    assert (started.workflow, started.workflow_id, started.task_queue) == (
+        "EvaluateRunWorkflow",
+        f"evaluate-run-{run['id']}-1",
+        "experiments",
+    )
+    assert again.status_code == 409
+    assert again.json()["code"] == "evaluation_in_progress"
+    assert resumed.status_code == 409
+    assert resumed.json()["code"] == "evaluation_in_progress"
+
+    service = RunService(session)
+    await service.fail_evaluation(uuid.UUID(run["id"]), "worker lost")
+    retried = await client.post(f"{base}/{run['id']}/evaluate")
+    assert retried.status_code == 202, retried.text
+    assert fake_workflows.started[-1].workflow_id == f"evaluate-run-{run['id']}-2"
+
+
+async def test_reevaluating_a_retrieval_run_changes_no_number_and_adds_no_key(
+    client, session, world
+) -> None:
+    experiment = await _create(client, world)
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+    before = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    await _reevaluate(client, session, base, run["id"])
+    after = (await client.get(f"{base}/{run['id']}/results")).json()
+
+    assert after["experiment_type"] == "retrieval"
+    assert after["groups"] == before["groups"]
+    families = {
+        metric["family"]
+        for variant in _variants(after)
+        for metric in variant["metrics"]
+    }
+    assert families == {"retrieval"}
+    keys = {
+        metric["key"] for variant in _variants(after) for metric in variant["metrics"]
+    }
+    assert not keys & {
+        "set_recall",
+        "retrieval_call_count",
+        "first_relevant_call_index",
+    }
+
+
+# -- Q&A metrics, on an execution built by hand -------------------------------------------
+
+
+async def _scores(session, execution_id: uuid.UUID) -> dict[str, tuple]:
+    stmt = (
+        select(MetricDefinition.key, Evaluation.score, Evaluation.exclusion_reason)
+        .join(Evaluation, Evaluation.metric_definition_id == MetricDefinition.id)
+        .where(Evaluation.execution_id == execution_id)
+    )
+    return {
+        key: (score, reason)
+        for key, score, reason in (await session.execute(stmt)).all()
+    }
+
+
+async def _two_call_execution(client, session, world):
+    """A Q&A experiment whose top-1 execution on ready-0 searched twice.
+
+    The first call returns the sufficient chunk S and a chunk T of ready-1, the second the
+    supporting chunk U and S again: four hits, three distinct chunks.
+    """
+    experiment = await _create(client, world)
+    stored = await session.get(Experiment, uuid.UUID(experiment["id"]))
+    stored.type = ExperimentType.QA
+    await session.flush()
+    base = f"{EXPERIMENTS}/{experiment['id']}/runs"
+    run = (await client.post(base, json={})).json()
+    await _execute_run(session, run["id"])
+    await _annotate(client, session, world)
+
+    configuration = world.build.chunking_configuration_id
+    s, u = await _chunks(session, world.scenario.ready[0], configuration)
+    t = (await _chunks(session, world.scenario.ready[1], configuration))[0]
+    small = next(
+        variant["id"]
+        for variant in experiment["variants"]
+        if variant["retrieval_profile_id"] == world.profile_small
+    )
+    question_id = _question(world, "chunk 0 of ready-0")
+    execution = await session.scalar(
+        select(Execution).where(
+            Execution.run_id == uuid.UUID(run["id"]),
+            Execution.variant_id == uuid.UUID(small),
+            Execution.question_id == uuid.UUID(question_id),
+        )
+    )
+    repository = ExecutionRepository(session)
+    await repository.clear_calls(execution.id)
+    for query, chunks in (("first", [s, t]), ("rewritten", [u, s])):
+        await repository.record_call(
+            execution.id,
+            query,
+            [
+                {
+                    "chunk_id": chunk.id,
+                    "rank": rank,
+                    "score": 0.9,
+                    "stage": RetrievalStage.FINAL,
+                }
+                for rank, chunk in enumerate(chunks, start=1)
+            ],
+        )
+    return stored, base, run, question_id, execution, (s, t, u)
+
+
+async def test_a_qa_execution_is_scored_on_its_first_call_its_set_and_its_calls(
+    client, session, world
+) -> None:
+    _, base, run, question_id, execution, (s, _, u) = await _two_call_execution(
+        client, session, world
+    )
+
+    await EvaluationService(session).evaluate_execution(execution.id)
+    scores = {
+        key: value for key, (value, _) in (await _scores(session, execution.id)).items()
+    }
+
+    # Ranked metrics on the first call only: S and T.
+    assert scores["recall@5"] == 1.0
+    assert scores["precision@5"] == 0.5
+    assert scores["chunk_recall@5"] == 0.5
+    # The set is S, T and U; two of them are evidence, two come from the gold document.
+    assert scores["set_recall"] == 1.0
+    assert scores["set_precision"] == pytest.approx(2 / 3)
+    assert scores["chunk_set_recall"] == 1.0
+    assert scores["chunk_set_precision"] == pytest.approx(2 / 3)
+    assert scores["first_relevant_call_index"] == 1.0
+    assert scores["chunk_first_relevant_call_index"] == 1.0
+    assert (
+        scores["retrieval_call_count"],
+        scores["retrieved_hit_count"],
+        scores["retrieved_set_size"],
+        scores["duplicate_hit_rate"],
+    ) == (2.0, 4.0, 3.0, 0.25)
+
+    body = (await client.get(f"{base}/{run['id']}/questions/{question_id}")).json()
+    detail = next(
+        item
+        for variant in body["variants"]
+        for item in variant["executions"]
+        if item["execution_id"] == str(execution.id)
+    )
+    assert [
+        (call["query_text"], call["hit_count"], call["new_chunk_count"])
+        for call in detail["calls"]
+    ] == [("first", 2, 2), ("rewritten", 2, 1)]
+    by_chunk = {hit["chunk_id"]: hit for hit in detail["hits"]}
+    assert [
+        (occurrence["call_index"], occurrence["rank"])
+        for occurrence in by_chunk[str(s.id)]["occurrences"]
+    ] == [(1, 1), (2, 2)]
+    assert by_chunk[str(u.id)]["rank"] == 1
+    assert detail["citations_declared"] is False
+    assert by_chunk[str(s.id)]["cited"] is None
+
+
+async def test_the_cited_scope_is_excluded_until_the_system_declares_citations(
+    client, session, world
+) -> None:
+    stored, base, run, question_id, execution, (s, _, u) = await _two_call_execution(
+        client, session, world
+    )
+    stored.retrieval_scope = RetrievalScope.CITED
+    await session.flush()
+
+    await EvaluationService(session).evaluate_execution(execution.id)
+    undeclared = await _scores(session, execution.id)
+
+    assert undeclared["chunk_set_recall"] == (None, "scope_not_declared")
+    assert undeclared["set_precision"] == (None, "scope_not_declared")
+    # Only the set metrics read the scope: the others still count.
+    assert undeclared["recall@5"] == (1.0, None)
+    assert undeclared["duplicate_hit_rate"] == (0.25, None)
+
+    # U was retrieved; the second chunk of ready-1 was cited without being retrieved.
+    never = (
+        await _chunks(
+            session, world.scenario.ready[1], world.build.chunking_configuration_id
+        )
+    )[1]
+    execution.cited_chunk_ids = [u.id, never.id]
+    await session.flush()
+    await EvaluationService(session).evaluate_execution(execution.id)
+    cited = await _scores(session, execution.id)
+
+    assert cited["chunk_set_recall"] == (0.5, None)
+    assert cited["chunk_set_precision"] == (0.5, None)
+    assert cited["set_precision"] == (0.5, None)
+
+    body = (await client.get(f"{base}/{run['id']}/questions/{question_id}")).json()
+    detail = next(
+        item
+        for variant in body["variants"]
+        for item in variant["executions"]
+        if item["execution_id"] == str(execution.id)
+    )
+    assert detail["citations_declared"] is True
+    last = detail["hits"][-1]
+    assert (last["chunk_id"], last["retrieved"], last["cited"]) == (
+        str(never.id),
+        False,
+        True,
+    )
+    assert (last["relevant_document"], last["relevant_chunk"]) == (False, False)
+    by_chunk = {hit["chunk_id"]: hit for hit in detail["hits"]}
+    assert (by_chunk[str(s.id)]["cited"], by_chunk[str(u.id)]["cited"]) == (False, True)
 
 
 async def test_repetitions_are_averaged_per_question_before_the_statistics(
@@ -972,7 +1251,7 @@ async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved
     run = (await client.post(base, json={})).json()
     await _execute_run(session, run["id"])
     await _annotate(client, session, world)
-    await client.post(f"{base}/{run['id']}/evaluate")
+    await _reevaluate(client, session, base, run["id"])
     question_id = _question(world, "chunk 0 of ready-0")
 
     body = (await client.get(f"{base}/{run['id']}/questions/{question_id}")).json()

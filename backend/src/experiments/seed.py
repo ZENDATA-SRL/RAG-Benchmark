@@ -7,23 +7,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.experiments.metrics import metric_specs
 from src.experiments.models import Evaluator, MetricDefinition
-from src.infrastructure.database.enums import EvaluatorKind, MetricFamily, MetricLevel
+from src.infrastructure.database.enums import EvaluatorKind, MetricLevel
 
 logger = logging.getLogger(__name__)
 
 # One deterministic evaluator per level: each rewrites only its own scores, and the
-# evaluation of a score names what judged it.
-DETERMINISTIC_EVALUATORS = {
+# evaluation of a score names what judged it. The call efficiency reads no gold and has no
+# level.
+DETERMINISTIC_EVALUATORS: dict[MetricLevel | None, str] = {
     MetricLevel.DOCUMENT: "document_level_retrieval",
     MetricLevel.CHUNK: "chunk_level_retrieval",
+    None: "retrieval_call_efficiency",
 }
 DETERMINISTIC_EVALUATOR_VERSION = "1"
 
 
 async def seed_metric_catalog(
     session: AsyncSession,
-) -> tuple[dict[str, MetricDefinition], dict[MetricLevel, Evaluator]]:
-    """Register the retrieval metrics and their deterministic evaluators, idempotently.
+) -> tuple[dict[str, MetricDefinition], dict[MetricLevel | None, Evaluator]]:
+    """Register the retrieval and call metrics and their evaluators, idempotently.
 
     Runs at startup and again before a run is evaluated, so a worker never depends on the
     API having started first. Existing rows are left as they are: a definition that
@@ -44,7 +46,7 @@ async def seed_metric_catalog(
             continue
         definition = MetricDefinition(
             key=spec.key,
-            family=MetricFamily.RETRIEVAL,
+            family=spec.family,
             level=spec.level,
             direction=spec.direction,
             aggregation=spec.aggregation,

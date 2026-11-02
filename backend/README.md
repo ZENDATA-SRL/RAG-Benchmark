@@ -215,8 +215,8 @@ freezes the questions, deduplicated by composition. See [`src/qa_sets/README.md`
 |---|---|
 | `POST /experiments`, `GET /experiments[/{id}]`, `GET /experiments/coverage` | Create an experiment (guards: variants on the experiment's corpus snapshot; an explicit choice for questions whose gold documents are not in it), list and read (each naming its corpus and QA set), check coverage |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}`, `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | Launch a run on Temporal, poll it, cancel it, relaunch it redoing only what did not succeed |
-| `POST …/runs/{run_id}/evaluate` | Re-score a finished run from its stored hits on the evidence as it is now, recording the fingerprint of that evidence |
-| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Document- and chunk-level metrics per variant, grouped by chunking configuration, with effective and excluded counts per reason, and the per-question drill-down |
+| `POST …/runs/{run_id}/evaluate` | `202`: re-score a finished run on the worker (`EvaluateRunWorkflow`) from its stored hits on the evidence as it is now, recording the fingerprint of that evidence; the run's `progress.evaluation` follows it. `409` while the run or another re-evaluation is in progress |
+| `GET …/runs/{run_id}/results[.csv]`, `GET …/runs/{run_id}/questions[/{question_id}]` | Metrics per variant, grouped by chunking configuration, with effective and excluded counts per reason: the ranked ones at document and chunk level for every experiment, plus set and call metrics for a Q&A one. The per-question drill-down shows each execution's calls and its distinct chunks with every call and rank they came back at |
 
 Metrics, guards and the run lifecycle are described in [`src/experiments/README.md`](src/experiments/README.md).
 
@@ -277,6 +277,6 @@ POST /experiments                     corpus snapshot + QA snapshot + variants (
 POST /experiments/{id}/runs           → RunExperimentWorkflow on the worker
 GET  /experiments/{id}/runs/{run}     progress: pending → running → succeeded | failed
 GET  /experiments/{id}/runs/{run}/results      document and chunk metrics per variant, grouped by chunking configuration, with n
-POST /experiments/{id}/runs/{run}/evaluate     re-score after annotating, without retrieving again
-GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved, hit by hit
+POST /experiments/{id}/runs/{run}/evaluate     re-score after annotating, on the worker, without retrieving again
+GET  /experiments/{id}/runs/{run}/questions/{question}   what each variant retrieved, call by call and chunk by chunk
 ```

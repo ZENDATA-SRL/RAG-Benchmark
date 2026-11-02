@@ -116,10 +116,15 @@ class RetrievalStage(str, enum.Enum):
 
 
 class RetrievalScope(str, enum.Enum):
-    """Which chunks a metric is computed on: what was retrieved, put in context or cited."""
+    """Which chunks the set metrics of a Q&A experiment are computed on.
+
+    `retrieved` is every chunk the calls returned, `cited` what the answer system says it
+    used. The PostgreSQL type still has `in_context`, since a value cannot be dropped from
+    an ENUM without recreating it, but nothing writes it: what an external system put in
+    its context is not observable, and for a builtin one it is what was retrieved.
+    """
 
     RETRIEVED = "retrieved"
-    IN_CONTEXT = "in_context"
     CITED = "cited"
 
 

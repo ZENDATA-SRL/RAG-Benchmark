@@ -6,12 +6,18 @@ import uuid
 import pytest
 from src.experiments.metrics import (
     CUTOFFS,
+    call_efficiency,
     chunk_metrics,
+    chunk_set_metrics,
     document_metrics,
+    document_set_metrics,
+    first_relevant_call,
     gold_chunk,
+    metric_keys,
     metric_specs,
     summarize,
 )
+from src.infrastructure.database.enums import ExperimentType
 
 A, B, C = (uuid.uuid4() for _ in range(3))
 S1, S2, P1, P2, X, Y = (uuid.uuid4() for _ in range(6))
@@ -103,11 +109,26 @@ def test_a_query_that_retrieves_fewer_chunks_than_k_is_judged_on_those() -> None
 
 def test_every_score_has_a_seeded_definition() -> None:
     keys = {spec.key for spec in metric_specs()}
-    scored = set(document_metrics([A], {A})) | set(
-        chunk_metrics([A], {A: gold_chunk("sufficient", None)})
+    gold = {A: gold_chunk("sufficient", None)}
+    scored = (
+        set(document_metrics([A], {A}))
+        | set(chunk_metrics([A], gold))
+        | set(document_set_metrics([A], {A}))
+        | set(chunk_set_metrics([A], gold))
+        | set(call_efficiency(1, [A]))
+        | {"first_relevant_call_index", "chunk_first_relevant_call_index"}
     )
 
     assert scored == keys
+
+
+def test_a_retrieval_experiment_is_scored_on_the_ranked_metrics_only() -> None:
+    ranked = set(document_metrics([A], {A})) | set(
+        chunk_metrics([A], {A: gold_chunk("sufficient", None)})
+    )
+
+    assert metric_keys(ExperimentType.RETRIEVAL) == ranked
+    assert metric_keys(ExperimentType.QA) == {spec.key for spec in metric_specs()}
 
 
 def test_summary_of_the_hand_computed_case() -> None:
@@ -220,3 +241,64 @@ def test_ndcg_is_empty_when_every_evidence_chunk_has_no_gain() -> None:
 def test_default_gains_follow_the_kind_of_evidence() -> None:
     assert (SUFFICIENT.sufficient, SUFFICIENT.gain) == (True, 2.0)
     assert (SUPPORTING.sufficient, SUPPORTING.gain) == (False, 1.0)
+
+
+# -- set and call metrics -----------------------------------------------------------------
+
+
+def test_the_set_is_judged_on_distinct_chunks_without_a_cutoff() -> None:
+    # Four distinct chunks: two from A, one from C, one with no known document.
+    scores = document_set_metrics([A, A, C, None], {A, B})
+
+    assert scores["set_recall"] == 0.5
+    assert scores["set_precision"] == 0.5
+
+
+def test_an_empty_scope_finds_nothing() -> None:
+    assert document_set_metrics([], {A}) == {"set_recall": 0.0, "set_precision": 0.0}
+    assert chunk_set_metrics([], {S1: SUFFICIENT}) == {
+        "chunk_set_recall": 0.0,
+        "chunk_set_precision": 0.0,
+    }
+
+
+def test_a_cited_chunk_never_retrieved_counts_in_the_cited_set() -> None:
+    # The scope is what was cited: S2 was never retrieved, and still is evidence.
+    scores = chunk_set_metrics([S2, X], {S1: SUFFICIENT, S2: SUPPORTING})
+
+    assert scores["chunk_set_recall"] == 0.5
+    assert scores["chunk_set_precision"] == 0.5
+
+
+def test_an_unknown_chunk_dilutes_the_set_precision() -> None:
+    scores = chunk_set_metrics([S1, None], {S1: SUFFICIENT})
+
+    assert scores["chunk_set_precision"] == 0.5
+
+
+def test_the_first_relevant_call_skips_calls_that_returned_nothing() -> None:
+    assert first_relevant_call([[], [False, False], [False, True]]) == 3.0
+    assert first_relevant_call([[True]]) == 1.0
+    assert first_relevant_call([[False], []]) is None
+
+
+def test_one_call_has_no_repetition() -> None:
+    assert call_efficiency(1, [A, B, C]) == {
+        "retrieval_call_count": 1.0,
+        "retrieved_hit_count": 3.0,
+        "retrieved_set_size": 3.0,
+        "duplicate_hit_rate": 0.0,
+    }
+
+
+def test_a_chunk_returned_by_two_calls_is_a_wasted_hit() -> None:
+    # Two calls of two hits each, A in both: four hits, three chunks.
+    scores = call_efficiency(2, [A, B, A, C])
+
+    assert scores["retrieved_set_size"] == 3.0
+    assert scores["duplicate_hit_rate"] == 0.25
+
+
+def test_no_hit_is_no_repetition_and_unknown_chunks_count_as_distinct() -> None:
+    assert call_efficiency(2, [])["duplicate_hit_rate"] == 0.0
+    assert call_efficiency(1, [None, None])["retrieved_set_size"] == 2.0

@@ -921,7 +921,24 @@ def check_chunk_metrics(
             "chunks": [{"chunk_id": top_hit["chunk_id"], "relevance": "sufficient"}],
         },
     )
-    evaluated = request(client, "POST", f"{base}/runs/{run_id}/evaluate")
+    request(client, "POST", f"{base}/runs/{run_id}/evaluate", expect=202)
+    # The re-evaluation runs on the worker: follow the run until it says it is done.
+    deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
+    while True:
+        evaluated = request(client, "GET", f"{base}/runs/{run_id}")
+        evaluation = evaluated["progress"].get("evaluation") or {}
+        if evaluation.get("status") in ("succeeded", "failed"):
+            break
+        if time.monotonic() > deadline:
+            raise SmokeFailure(
+                f"re-evaluation of run {run_id} still {evaluation.get('status')} after "
+                f"{POLL_TIMEOUT_SECONDS:.0f}s; is the Temporal worker running?"
+            )
+        time.sleep(POLL_INTERVAL_SECONDS)
+    check(
+        evaluation["status"] == "succeeded",
+        f"the re-evaluation succeeded ({evaluation.get('error') or 'no error'})",
+    )
     check(
         bool(evaluated["config_snapshot"]["chunk_gold"]["hash"]),
         "the run records the fingerprint of the evidence it was scored on",

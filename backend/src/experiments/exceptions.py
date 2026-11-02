@@ -151,3 +151,16 @@ class RunInProgressError(ConflictError, ExperimentError):
             f"run {run_id} is still in progress (status={status}): evaluate it once it ends",
             details={"run_id": str(run_id), "status": str(status)},
         )
+
+
+class EvaluationInProgressError(ConflictError, ExperimentError):
+    """Raised when a run is re-evaluated, or resumed, while a re-evaluation is running."""
+
+    code = "evaluation_in_progress"
+
+    def __init__(self, run_id: object) -> None:
+        super().__init__(
+            f"run {run_id} is being re-evaluated: wait for the evaluation to end",
+            details={"run_id": str(run_id)},
+        )
+        self.run_id = run_id

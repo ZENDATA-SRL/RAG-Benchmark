@@ -143,7 +143,7 @@ backend/
     indexes/          index builds over a corpus snapshot
     retrieval/        dense search over a ready index build, embedders, vector store readers
     qa_sets/          question sets, authoring, gold documents and evidence chunks, import/export, snapshots
-    experiments/      retrieval experiments: variants, runs, document- and chunk-level metrics, results by chunking configuration
+    experiments/      experiments: variants, runs, metrics chosen by experiment type (ranked; set and call metrics for Q&A), results by chunking configuration
     transfers/        suggested evidence chunks: proposal for imported questions, transfer between configurations, review queue
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
