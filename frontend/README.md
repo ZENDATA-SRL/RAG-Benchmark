@@ -133,7 +133,10 @@ parameters whose key ends in `prompt` in a multi-line text area.
   `refusal_accuracy`, latency p50 and p95, model latency p50, tokens in and out, each with
   its sample. Its drill-down shows the question's expected answer and, for each execution,
   the answer, whether it refused and whether that was right, the model, the tokens and where
-  the time went.
+  the time went. Every results column explains itself: hovering its name shows what the
+  metric measures, and the *How to read these metrics* section under the table lists each
+  column on screen with that description, whether higher or lower is better and the statistic
+  the cell reports (mean, median or p95). The wording is served by the API with each metric.
 
 ## Stack
 

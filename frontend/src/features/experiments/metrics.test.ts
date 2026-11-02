@@ -12,6 +12,7 @@ import {
   formatCeiling,
   formatMetric,
   groupsOf,
+  metricGuide,
   metricKeys,
   sampleSize,
   setMetricKeys,
@@ -22,6 +23,8 @@ const METRIC: MetricResultRead = {
   family: "retrieval",
   level: "document",
   direction: "higher_is_better",
+  aggregation: "mean",
+  description: "Share of the gold documents reached by the first 5 chunks.",
   mean: 0.7834,
   stddev: 0.1,
   median: 0.8,
@@ -141,6 +144,8 @@ describe("formatAnswerMetric", () => {
     family: "efficiency",
     level: null,
     direction: "lower_is_better",
+    aggregation: "mean",
+    description: "Time to answer.",
     mean: 1500,
     stddev: 0,
     median: 1840.4,
@@ -154,5 +159,36 @@ describe("formatAnswerMetric", () => {
     expect(formatAnswerMetric(latency, { stat: "median", unit: "amount" })).toBe("1840 (48/50)");
     expect(formatAnswerMetric(latency, { stat: "p95", unit: "amount" })).toBe("— (48/50)");
     expect(formatAnswerMetric(undefined, { stat: "mean", unit: "ratio" })).toBe("—");
+  });
+});
+
+describe("metricGuide", () => {
+  const rank = {
+    ...METRIC,
+    key: "first_relevant_rank",
+    direction: "lower_is_better",
+    aggregation: "median",
+    description: "Rank of the first relevant chunk.",
+  } satisfies MetricResultRead;
+
+  it("explains each column with its direction and the statistic its cell reports", () => {
+    const guide = metricGuide(
+      [{ metrics: [METRIC, rank] }],
+      [
+        { key: "recall@5", label: "recall@5" },
+        { key: "first_relevant_rank", label: "first_relevant_rank" },
+        { key: "recall@5", label: "recall p95", stat: "p95" },
+      ],
+    );
+    expect(guide.map((entry) => entry.reading)).toEqual([
+      "higher is better · mean over questions",
+      "lower is better · median over questions",
+      "higher is better · 95th percentile over questions",
+    ]);
+    expect(guide[1].description).toBe("Rank of the first relevant chunk.");
+  });
+
+  it("leaves out a column no variant has a value for", () => {
+    expect(metricGuide([{ metrics: [METRIC] }], [{ key: "mrr", label: "mrr" }])).toEqual([]);
   });
 });

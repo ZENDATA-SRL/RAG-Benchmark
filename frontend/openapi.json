@@ -9781,6 +9781,17 @@
             "type": "string",
             "title": "Direction"
           },
+          "aggregation": {
+            "type": "string",
+            "title": "Aggregation",
+            "description": "The statistic the metric is read on: `mean` or `median`."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "What the metric measures and how it is computed.",
+            "default": ""
+          },
           "mean": {
             "anyOf": [
               {
@@ -9848,6 +9859,7 @@
           "family",
           "level",
           "direction",
+          "aggregation",
           "mean",
           "stddev",
           "median",

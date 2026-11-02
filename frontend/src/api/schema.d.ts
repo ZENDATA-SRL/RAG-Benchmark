@@ -3752,6 +3752,17 @@ export interface components {
             level: components["schemas"]["MetricLevel"] | null;
             /** Direction */
             direction: string;
+            /**
+             * Aggregation
+             * @description The statistic the metric is read on: `mean` or `median`.
+             */
+            aggregation: string;
+            /**
+             * Description
+             * @description What the metric measures and how it is computed.
+             * @default
+             */
+            description: string;
             /** Mean */
             mean: number | null;
             /** Stddev */

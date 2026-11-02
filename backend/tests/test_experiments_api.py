@@ -423,6 +423,12 @@ async def test_results_count_every_question_and_name_the_snapshot(
             )
             assert metric["n_effective"] == 2
             assert metric["n_excluded"] == 2
+        # Every metric says what it measures and the statistic its value is read on.
+        assert all(metric["description"] for metric in variant["metrics"])
+        assert {metric["aggregation"] for metric in variant["metrics"]} <= {
+            "mean",
+            "median",
+        }
     by_name = {_retrieval(variant["name"]): variant for variant in _variants(results)}
     large = {metric["key"]: metric for metric in by_name["dense top-6"]["metrics"]}
     # The query is the text of a chunk of the gold document, so it comes back first.

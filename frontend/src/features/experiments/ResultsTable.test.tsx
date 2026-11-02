@@ -14,6 +14,8 @@ function metric(key: string, mean: number, overrides: Partial<MetricResultRead> 
     family: "retrieval",
     level: key.startsWith("chunk_") ? "chunk" : "document",
     direction: "higher_is_better",
+    aggregation: "mean",
+    description: `What ${key} measures.`,
     mean,
     stddev: 0,
     median: mean,
@@ -96,6 +98,20 @@ describe("ResultsTable", () => {
     expect(screen.queryByRole("columnheader", { name: "set_recall" })).not.toBeInTheDocument();
     const cell = within(screen.getByTestId("result-row-small-a")).getByText("0.64 (38/50)");
     expect(cell).toHaveAttribute("title", "evidence not found: 9\nevidence not reviewed: 3");
+  });
+
+  it("explains every column in a tooltip and in a guide below the table", async () => {
+    const user = userEvent.setup();
+    render(<ResultsTable results={RESULTS} cutoff={5} />);
+
+    expect(screen.getByRole("columnheader", { name: "recall@5" })).toHaveAttribute(
+      "title",
+      "What recall@5 measures.",
+    );
+    const guide = screen.getByTestId("metric-guide");
+    await user.click(within(guide).getByText("How to read these metrics"));
+    expect(guide).toHaveTextContent("What chunk_recall@5 measures.");
+    expect(guide).toHaveTextContent("higher is better · mean over questions");
   });
 
   it("keeps chunk columns within a group and drops them across groups, saying why", async () => {

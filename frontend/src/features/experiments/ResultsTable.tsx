@@ -9,6 +9,7 @@ import {
   answerColumns,
   callMetricKeys,
   chunkMetricKeys,
+  allVariants,
   describeCoverage,
   excludedDetail,
   findMetric,
@@ -16,9 +17,31 @@ import {
   formatAnswerMetric,
   formatMetric,
   groupsOf,
+  metricGuide,
   metricKeys,
   setMetricKeys,
+  type MetricGuideEntry,
 } from "./metrics";
+
+/** The explanation of every column on screen, closed by default: it is reference, not content. */
+function MetricGuide({ entries }: { entries: MetricGuideEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <details className="mt-3 text-xs" data-testid="metric-guide">
+      <summary className="cursor-pointer font-medium">How to read these metrics</summary>
+      <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-[max-content_1fr]">
+        {entries.map((entry) => (
+          <div key={entry.label} className="contents">
+            <dt className="font-mono">{entry.label}</dt>
+            <dd className="text-ink-muted">
+              {entry.description} <span className="italic">({entry.reading})</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
 
 function SnapshotDeclared({ label, detail }: { label: string; detail: string }) {
   return (
@@ -81,6 +104,11 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
   const answers = qa ? answerColumns() : [];
   const valueKeys = [...documentKeys, ...chunkKeys, ...setKeys, ...callKeys];
   const span = 2 + valueKeys.length + answers.length;
+  const guide = metricGuide(allVariants(results.groups), [
+    ...valueKeys.map((key) => ({ key, label: key })),
+    ...answers.map(({ key, label, stat }) => ({ key, label, stat })),
+  ]);
+  const describe = (key: string) => guide.find((entry) => entry.label === key)?.description;
   const groups = results.groups
     .map((group) => ({
       ...group,
@@ -160,27 +188,31 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
               <th className="w-8 px-2 py-2" />
               <th className="px-4 py-2 font-medium">Variant</th>
               {documentKeys.map((key) => (
-                <th key={key} className="px-4 py-2 font-medium">
+                <th key={key} title={describe(key)} className="px-4 py-2 font-medium">
                   {key}
                 </th>
               ))}
               {chunkKeys.map((key) => (
-                <th key={key} className="bg-teal/5 px-4 py-2 font-medium">
+                <th key={key} title={describe(key)} className="bg-teal/5 px-4 py-2 font-medium">
                   {key}
                 </th>
               ))}
               {setKeys.map((key) => (
-                <th key={key} className="bg-amber/5 px-4 py-2 font-medium">
+                <th key={key} title={describe(key)} className="bg-amber/5 px-4 py-2 font-medium">
                   {key}
                 </th>
               ))}
               {callKeys.map((key) => (
-                <th key={key} className="bg-ink/5 px-4 py-2 font-medium">
+                <th key={key} title={describe(key)} className="bg-ink/5 px-4 py-2 font-medium">
                   {key}
                 </th>
               ))}
               {answers.map((column) => (
-                <th key={column.label} className="bg-rust/5 px-4 py-2 font-medium">
+                <th
+                  key={column.label}
+                  title={describe(column.label)}
+                  className="bg-rust/5 px-4 py-2 font-medium"
+                >
                   {column.label}
                 </th>
               ))}
@@ -237,11 +269,14 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
           </tbody>
         </table>
       </TableFrame>
+      <MetricGuide entries={guide} />
       <p className="mt-2 text-xs text-ink-muted">
-        Each value is the mean over questions, with (questions counted / questions asked); hover a
-        value for why questions were excluded. Chunk-level values count only the questions whose
-        evidence was confirmed under that configuration: not reviewed and not found are excluded,
-        never scored zero.
+        Each value is the mean over questions (the median for the rank and call-position metrics),
+        with (questions counted / questions asked); hover a value for why questions were excluded
+        and a column name for what it measures. A question with no value, such as a first relevant
+        rank when nothing relevant was found, is not counted. Chunk-level values count only the
+        questions whose evidence was confirmed under that configuration: not reviewed and not found
+        are excluded, never scored zero.
         {qa
           ? " Set metrics count each distinct chunk once; read them next to the set size and the share of repeated hits. Refusal accuracy counts the unanswerable questions too: refusing them is the right answer."
           : null}

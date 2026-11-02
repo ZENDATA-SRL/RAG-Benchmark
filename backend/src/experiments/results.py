@@ -143,6 +143,9 @@ class ResultsService:
         definitions = await self.evaluations.metric_definitions()
         by_id = {definition.id: definition for definition in definitions.values()}
         order = {spec.key: index for index, spec in enumerate(metric_specs())}
+        # The wording comes from the code and not from the stored definition: seeding
+        # leaves existing rows untouched, so a clearer description would never reach them.
+        descriptions = {spec.key: spec.description for spec in metric_specs()}
         aggregates = await self.evaluations.aggregates_for_run(
             run_id, slice_key=slice_key, slice_value=slice_value
         )
@@ -155,6 +158,10 @@ class ResultsService:
                     level=definition.level,
                     family=definition.family,
                     direction=definition.direction,
+                    aggregation=definition.aggregation,
+                    description=descriptions.get(definition.key)
+                    or definition.description
+                    or "",
                     mean=aggregate.mean,
                     stddev=aggregate.stddev,
                     median=aggregate.median,

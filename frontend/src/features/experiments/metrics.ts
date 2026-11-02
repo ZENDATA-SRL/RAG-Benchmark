@@ -126,6 +126,38 @@ export function excludedDetail(
   return reasons.map(([reason, count]) => `${reason.replaceAll("_", " ")}: ${count}`).join("\n");
 }
 
+/** One line of the metric guide: a column of the results table and how to read it. */
+export interface MetricGuideEntry {
+  label: string;
+  description: string;
+  reading: string;
+}
+
+/**
+ * The explanation of the columns on screen, from the description the API serves with each
+ * metric, with whether higher or lower is better and the statistic the cell reports.
+ * A column no variant has a value for is left out: there is nothing to read.
+ */
+export function metricGuide(
+  variants: Pick<VariantResultRead, "metrics">[],
+  columns: { key: string; label: string; stat?: "mean" | "median" | "p95" }[],
+): MetricGuideEntry[] {
+  const entries: MetricGuideEntry[] = [];
+  for (const column of columns) {
+    const metric = variants
+      .map((variant) => findMetric(variant, column.key))
+      .find((found) => found !== undefined);
+    if (!metric) continue;
+    const stat = column.stat ?? (metric.aggregation === "median" ? "median" : "mean");
+    entries.push({
+      label: column.label,
+      description: metric.description,
+      reading: `${metric.direction === "lower_is_better" ? "lower is better" : "higher is better"} · ${stat === "p95" ? "95th percentile" : stat} over questions`,
+    });
+  }
+  return entries;
+}
+
 /** The review state of a configuration's evidence, in one line. */
 export function describeCoverage(coverage: EvidenceCountsRead | null | undefined): string {
   if (!coverage) return "evidence not recorded: re-evaluate the run";

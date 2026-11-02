@@ -131,8 +131,9 @@ def document_metric_specs() -> list[MetricSpec]:
             FIRST_RELEVANT_RANK,
             "lower_is_better",
             "median",
-            "Rank of the first chunk from a gold document; empty when none was "
-            "retrieved.",
+            "Rank of the first chunk from a gold document. A question where none was "
+            "retrieved has no value: it is left out of the median and of the count, so "
+            "read it with the share of questions counted.",
         )
     )
     return specs
@@ -213,7 +214,9 @@ def chunk_metric_specs() -> list[MetricSpec]:
             CHUNK_FIRST_RELEVANT_RANK,
             "lower_is_better",
             "median",
-            "Rank of the first evidence chunk; empty when none was retrieved.",
+            "Rank of the first evidence chunk. A question where none was retrieved has "
+            "no value: it is left out of the median and of the count, so read it with "
+            "the share of questions counted.",
             chunk,
         )
     )
@@ -247,8 +250,9 @@ def set_metric_specs() -> list[MetricSpec]:
             FIRST_RELEVANT_CALL,
             "lower_is_better",
             "median",
-            "Position of the first call that returned a chunk from a gold document; empty "
-            "when none did.",
+            "Position, from 1, of the first call that returned a chunk from a gold "
+            "document. A question where no call did has no value: it is left out of the "
+            "median and of the count, so read it with the share of questions counted.",
             experiment_types=QA_ONLY,
         ),
         MetricSpec(
@@ -271,8 +275,9 @@ def set_metric_specs() -> list[MetricSpec]:
             CHUNK_FIRST_RELEVANT_CALL,
             "lower_is_better",
             "median",
-            "Position of the first call that returned an evidence chunk; empty when none "
-            "did.",
+            "Position, from 1, of the first call that returned an evidence chunk. A "
+            "question where no call did has no value: it is left out of the median and of "
+            "the count, so read it with the share of questions counted.",
             chunk,
             experiment_types=QA_ONLY,
         ),

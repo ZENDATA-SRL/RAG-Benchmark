@@ -208,6 +208,12 @@ class MetricResultRead(BaseModel):
         description="Empty for the call metrics, which read no gold."
     )
     direction: str
+    aggregation: str = Field(
+        description="The statistic the metric is read on: `mean` or `median`."
+    )
+    description: str = Field(
+        default="", description="What the metric measures and how it is computed."
+    )
     mean: float | None
     stddev: float | None
     median: float | None
