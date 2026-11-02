@@ -4338,6 +4338,25 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "qa_set_snapshot_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the experiments run on this QA set snapshot.",
+              "title": "Qa Set Snapshot Id"
+            },
+            "description": "Only the experiments run on this QA set snapshot."
           }
         ],
         "responses": {
@@ -4401,6 +4420,58 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CoverageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/comparison": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Compare Experiments",
+        "description": "Put the variants of every experiment on a QA set snapshot side by side.\n\nEach experiment contributes its latest finished run. Retrieval and Q&A experiments\nmeasure different things, so one type is compared at a time.",
+        "operationId": "compare_experiments_api_v1_experiments_comparison_get",
+        "parameters": [
+          {
+            "name": "qa_set_snapshot_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Set Snapshot Id"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExperimentType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonRead"
                 }
               }
             }
@@ -6537,6 +6608,158 @@
         "title": "ChunkingProfileRead",
         "description": "A chunking profile as exposed by the API."
       },
+      "ComparisonRead": {
+        "properties": {
+          "qa_set_snapshot": {
+            "$ref": "#/components/schemas/SnapshotDeclaredRead"
+          },
+          "experiment_type": {
+            "$ref": "#/components/schemas/ExperimentType"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonVariantRead"
+            },
+            "type": "array",
+            "title": "Variants"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonSkippedRead"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_set_snapshot",
+          "experiment_type",
+          "variants",
+          "skipped"
+        ],
+        "title": "ComparisonRead",
+        "description": "The variants of the experiments of one type on a QA set snapshot.\n\nEvery metric is a ratio or an amount that reads the same whichever chunking\nconfiguration produced it, so all of them compare; each value carries the number of\nquestions it rests on, which is what tells two values apart when it differs."
+      },
+      "ComparisonSkippedRead": {
+        "properties": {
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "experiment_name": {
+            "type": "string",
+            "title": "Experiment Name"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "experiment_name",
+          "reason"
+        ],
+        "title": "ComparisonSkippedRead",
+        "description": "An experiment left out of the comparison, and why."
+      },
+      "ComparisonVariantRead": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_baseline": {
+            "type": "boolean",
+            "title": "Is Baseline"
+          },
+          "index_build_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Index Build Id"
+          },
+          "retrieval_profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Retrieval Profile Id"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricResultRead"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "experiment_name": {
+            "type": "string",
+            "title": "Experiment Name"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "corpus_snapshot": {
+            "$ref": "#/components/schemas/SnapshotDeclaredRead"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "chunking_configuration_name": {
+            "type": "string",
+            "title": "Chunking Configuration Name"
+          },
+          "recall_ceiling": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Ceiling",
+            "description": "Share of the reviewed questions whose evidence exists in its chunks."
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "name",
+          "is_baseline",
+          "index_build_id",
+          "retrieval_profile_id",
+          "top_k",
+          "metrics",
+          "experiment_id",
+          "experiment_name",
+          "run_id",
+          "corpus_snapshot",
+          "chunking_configuration_id",
+          "chunking_configuration_name"
+        ],
+        "title": "ComparisonVariantRead",
+        "description": "A variant in the comparison, with where it comes from and what it searched."
+      },
       "ComponentCreate": {
         "properties": {
           "type": {
@@ -7172,28 +7395,6 @@
         ],
         "title": "CoverageRead",
         "description": "How much of a QA snapshot a corpus snapshot can answer."
-      },
-      "CrossGroupRead": {
-        "properties": {
-          "keys": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Keys"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "keys",
-          "reason"
-        ],
-        "title": "CrossGroupRead",
-        "description": "Which metrics compare across chunking configurations, and why only those."
       },
       "DocumentChunksRead": {
         "properties": {
@@ -12260,9 +12461,6 @@
               }
             ]
           },
-          "cross_group_metrics": {
-            "$ref": "#/components/schemas/CrossGroupRead"
-          },
           "groups": {
             "items": {
               "$ref": "#/components/schemas/ResultGroupRead"
@@ -12283,11 +12481,10 @@
           "qa_set_snapshot",
           "slice_key",
           "slice_value",
-          "cross_group_metrics",
           "groups"
         ],
         "title": "RunResultsRead",
-        "description": "The aggregated metrics of a run, grouped by chunking configuration.\n\nChunk-level metrics only compare within a group, since the evidence is confirmed on\nthe chunks of one configuration; document-level metrics compare everywhere."
+        "description": "The aggregated metrics of a run, grouped by chunking configuration.\n\nThe evidence behind the chunk-level metrics is confirmed on the chunks of one\nconfiguration, so each group states how far it was reviewed; the metrics are shares of\nthat evidence and read next to the number of questions they rest on."
       },
       "RuntimeType": {
         "type": "string",

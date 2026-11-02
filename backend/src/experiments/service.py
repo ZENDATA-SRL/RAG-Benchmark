@@ -324,7 +324,11 @@ class ExperimentService:
         return views
 
     async def list(
-        self, *, limit: int = 50, offset: int = 0
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        qa_set_snapshot_id: uuid.UUID | None = None,
     ) -> tuple[
         Sequence[Experiment],
         dict[uuid.UUID, int],
@@ -335,14 +339,17 @@ class ExperimentService:
 
         Each experiment comes with its variant count and the corpus and QA set its
         snapshots were frozen from, so a listing can group experiments by what they compare.
+        With a QA set snapshot only the experiments run on it are listed.
         """
-        experiments = await self.experiments.list(limit=limit, offset=offset)
+        experiments = await self.experiments.list(
+            limit=limit, offset=offset, qa_set_snapshot_id=qa_set_snapshot_id
+        )
         ids = [item.id for item in experiments]
         return (
             experiments,
             await self.experiments.variant_counts(ids),
             await self.experiments.snapshot_origins(ids),
-            await self.experiments.count(),
+            await self.experiments.count(qa_set_snapshot_id=qa_set_snapshot_id),
         )
 
     async def _answer_profiles(

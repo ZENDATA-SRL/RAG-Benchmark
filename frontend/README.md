@@ -18,6 +18,7 @@ queries against it; then compare retrievers, or answer systems, in experiments.
 | `/transfers/:transferId` | A suggestion job: ranking progress, reviewed and confirmed counts, recall ceiling, its weights and thresholds, the questions by state, *Start review* |
 | `/answer-profiles` | Answer profiles: name, start of the system prompt, the profile each was derived from; *New answer profile*, *Derive*, and a detail with the parameters and what changed from the parent |
 | `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with their type and the snapshots each one uses, and the wizard that creates one; an experiment's type, corpus and QA set, variants (with the answer profile for Q&A), runs and the *Launch run* action |
+| `/experiments/compare` | Comparison of every variant run on one QA set snapshot (see below) |
 | `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down |
 | `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
 
@@ -112,8 +113,7 @@ parameters whose key ends in `prompt` in a multi-line text area.
   Every value is shown as `mean (effective/asked)`, with the excluded questions per reason on
   hover, so excluded questions are never hidden, together with the corpus and QA set snapshot
   the numbers were computed on. Selecting variants and *Compare selected* shows only those;
-  when they come from different groups the chunk-level columns are dropped and the reason is
-  shown. A Q&A run adds two sections after the ranked columns (which are then those of each
+  every column stays whichever groups they come from. A Q&A run adds two sections after the ranked columns (which are then those of each
   execution's first call): *Set*, with the set recall next to the set size and the share of
   repeated hits, and *Calls*; a retrieval run shows neither. *Re-evaluate* scores the run
   again on the worker on the evidence as it is now, with a progress bar while it runs and the
@@ -137,6 +137,23 @@ parameters whose key ends in `prompt` in a multi-line text area.
   metric measures, and the *How to read these metrics* section under the table lists each
   column on screen with that description, whether higher or lower is better and the statistic
   the cell reports (mean, median or p95). The wording is served by the API with each metric.
+- **Comparison page** (`/experiments/compare`, from the *Compare variants* button of the
+  experiments list): pick a QA set and one of its snapshots, then *Retrieval* or *Q&A*, which
+  are never mixed. Every variant of every experiment run on that snapshot is drawn, each
+  experiment with its latest finished run. A *Best on* strip counts how many metrics each
+  variant leads, out of the same total for all (the metrics at least two variants have a value
+  on), flagging the variants with no value on some, such as the chunk-level ones, and naming
+  the metrics left out because a single variant has a value; below, every metric is a small bar chart on a shared scale (0–1 for a
+  score), in sections: documents, chunks and, for Q&A, the retrieved set, the searches and
+  the answers. The best bar is highlighted, a dashed line marks the baseline (the one marked
+  in its experiment, or the variant chosen in *Baseline*), and each row shows the value, the
+  change against the baseline (in points for a score, in % for a time or a count, with an
+  arrow and green or red when it is an improvement or a regression) and the number of
+  questions it rests on, flagged when it is fewer than the largest sample. The cutoff applies
+  to the ranked metrics, and *Variants shown* hides variants without moving the baseline.
+  Variants on different corpus snapshots are drawn together with a warning, and experiments
+  without a finished run are listed as left out. The selection lives in the URL
+  (`?qaSet=&snapshot=&type=`), so a view can be shared.
 
 ## Stack
 

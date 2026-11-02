@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Query, Response, status
 
@@ -10,6 +10,7 @@ from src.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
 from src.dependencies import SessionDep, WorkflowsDep
 from src.experiments.results import ResultsService
 from src.experiments.schemas import (
+    ComparisonRead,
     CoverageRead,
     ExperimentCreate,
     ExperimentDetail,
@@ -35,6 +36,7 @@ from src.experiments.service import (
     VariantInput,
     VariantView,
 )
+from src.infrastructure.database.enums import ExperimentType
 
 if TYPE_CHECKING:
     from src.experiments.models import Experiment
@@ -139,10 +141,14 @@ async def list_experiments(
     session: SessionDep,
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
+    qa_set_snapshot_id: Annotated[
+        uuid.UUID | None,
+        Query(description="Only the experiments run on this QA set snapshot."),
+    ] = None,
 ) -> Page[ExperimentRead]:
     """List the experiments, newest first."""
     experiments, counts, origins, total = await ExperimentService(session).list(
-        limit=limit, offset=offset
+        limit=limit, offset=offset, qa_set_snapshot_id=qa_set_snapshot_id
     )
     items = [
         _experiment_read(
@@ -163,6 +169,18 @@ async def check_coverage(
             corpus_snapshot_id, qa_set_snapshot_id
         )
     )
+
+
+@router.get("/comparison", response_model=ComparisonRead)
+async def compare_experiments(
+    session: SessionDep, qa_set_snapshot_id: uuid.UUID, type: ExperimentType
+) -> ComparisonRead:
+    """Put the variants of every experiment on a QA set snapshot side by side.
+
+    Each experiment contributes its latest finished run. Retrieval and Q&A experiments
+    measure different things, so one type is compared at a time.
+    """
+    return await ResultsService(session).comparison(qa_set_snapshot_id, type)
 
 
 @router.get("/{experiment_id}", response_model=ExperimentDetail)

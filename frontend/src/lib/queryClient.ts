@@ -69,6 +69,8 @@ export const queryKeys = {
   qaSetSnapshots: (id: string) => ["qa-sets", id, "snapshots"] as const,
   experiments: ["experiments"] as const,
   experiment: (id: string) => ["experiments", id] as const,
+  comparison: (qaSetSnapshotId: string, type: string) =>
+    ["experiments", "comparison", qaSetSnapshotId, type] as const,
   coverageCheck: (corpusSnapshotId: string, qaSetSnapshotId: string) =>
     ["experiments", "coverage", corpusSnapshotId, qaSetSnapshotId] as const,
   run: (experimentId: string, runId: string) =>

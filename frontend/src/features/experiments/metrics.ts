@@ -19,7 +19,7 @@ export function metricKeys(cutoff: number): string[] {
   ];
 }
 
-/** Chunk-level columns for one cutoff: they only compare within one chunking configuration. */
+/** Chunk-level columns for one cutoff, scored on the evidence confirmed under each configuration. */
 export function chunkMetricKeys(cutoff: number): string[] {
   return [
     `chunk_recall@${cutoff}`,
@@ -172,14 +172,6 @@ export function describeCoverage(coverage: EvidenceCountsRead | null | undefined
 
 export function formatCeiling(ceiling: number | null | undefined): string {
   return ceiling === null || ceiling === undefined ? "—" : ceiling.toFixed(2);
-}
-
-/** The groups the selected variants come from: more than one means chunk metrics do not compare. */
-export function groupsOf(groups: ResultGroupRead[], variantIds: Iterable<string>): string[] {
-  const wanted = new Set(variantIds);
-  return groups
-    .filter((group) => group.variants.some((variant) => wanted.has(variant.variant_id)))
-    .map((group) => group.chunking_configuration_id);
 }
 
 /** Every variant of the run, in group order. */

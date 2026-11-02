@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetricResultRead, ResultGroupRead, VariantResultRead } from "@/api/types";
+import type { MetricResultRead } from "@/api/types";
 
 import {
   callMetricKeys,
@@ -11,7 +11,6 @@ import {
   formatAnswerMetric,
   formatCeiling,
   formatMetric,
-  groupsOf,
   metricGuide,
   metricKeys,
   sampleSize,
@@ -61,23 +60,6 @@ describe("metric formatting", () => {
 });
 
 describe("chunk-level results", () => {
-  const variant = (id: string): VariantResultRead => ({
-    variant_id: id,
-    name: id,
-    is_baseline: false,
-    index_build_id: "build",
-    retrieval_profile_id: "profile",
-    top_k: 5,
-    metrics: [],
-  });
-  const group = (id: string, variants: string[]): ResultGroupRead => ({
-    chunking_configuration_id: id,
-    chunking_configuration_name: id,
-    parsing: "pypdf",
-    chunking: "recursive",
-    variants: variants.map(variant),
-  });
-
   it("builds the chunk columns of a cutoff", () => {
     expect(chunkMetricKeys(5)).toEqual([
       "chunk_recall@5",
@@ -97,14 +79,6 @@ describe("chunk-level results", () => {
       }),
     ).toBe("evidence not found: 9\nevidence not reviewed: 3");
     expect(excludedDetail({ n_excluded: 0, excluded_reasons: {} })).toBe("No question excluded");
-  });
-
-  it("tells when selected variants span chunking configurations", () => {
-    const groups = [group("small", ["a", "b"]), group("large", ["c"])];
-
-    expect(groupsOf(groups, ["a", "b"])).toEqual(["small"]);
-    expect(groupsOf(groups, ["a", "c"])).toEqual(["small", "large"]);
-    expect(groupsOf(groups, [])).toEqual([]);
   });
 
   it("describes the evidence of a group and its recall ceiling", () => {

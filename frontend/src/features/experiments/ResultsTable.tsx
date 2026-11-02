@@ -16,7 +16,6 @@ import {
   formatCeiling,
   formatAnswerMetric,
   formatMetric,
-  groupsOf,
   metricGuide,
   metricKeys,
   setMetricKeys,
@@ -81,9 +80,9 @@ function SectionHeader({ label, span, tone }: { label: string; span: number; ton
 }
 
 /**
- * Rows are variants, grouped by the chunking configuration they search: chunk-level metrics
- * only compare within a group. Selecting variants of different groups keeps the
- * document-level columns and says why the chunk-level ones are gone.
+ * Rows are variants, grouped by the chunking configuration they search, each group stating
+ * how far its evidence was reviewed. Every column compares across groups; the question
+ * count shown with each value tells when two values rest on different questions.
  *
  * A retrieval run shows the ranked metrics only. A Q&A run adds the metrics on the set of
  * chunks its executions gathered, on their calls and on the answers (refusals, latency,
@@ -95,12 +94,11 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
   const [comparing, setComparing] = useState(false);
   const corpus = results.corpus_snapshot;
   const qaSnapshot = results.qa_set_snapshot;
-  const crossGroup = comparing && groupsOf(results.groups, selected).length > 1;
   const qa = results.experiment_type === "qa";
   const documentKeys = metricKeys(cutoff);
-  const chunkKeys = crossGroup ? [] : chunkMetricKeys(cutoff);
-  const setKeys = qa ? setMetricKeys(!crossGroup) : [];
-  const callKeys = qa ? callMetricKeys(!crossGroup) : [];
+  const chunkKeys = chunkMetricKeys(cutoff);
+  const setKeys = qa ? setMetricKeys(true) : [];
+  const callKeys = qa ? callMetricKeys(true) : [];
   const answers = qa ? answerColumns() : [];
   const valueKeys = [...documentKeys, ...chunkKeys, ...setKeys, ...callKeys];
   const span = 2 + valueKeys.length + answers.length;
@@ -160,14 +158,6 @@ export function ResultsTable({ results, cutoff }: { results: RunResultsRead; cut
             </>
           )}
         </div>
-      ) : null}
-      {crossGroup ? (
-        <p
-          className="mb-2 rounded-md bg-amber/15 p-3 text-xs leading-5"
-          data-testid="cross-group-reason"
-        >
-          Only document-level metrics are shown. {results.cross_group_metrics.reason}
-        </p>
       ) : null}
       <TableFrame>
         <table className="w-full text-left text-sm">

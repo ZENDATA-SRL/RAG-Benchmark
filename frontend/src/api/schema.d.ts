@@ -1312,6 +1312,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/experiments/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare Experiments
+         * @description Put the variants of every experiment on a QA set snapshot side by side.
+         *
+         *     Each experiment contributes its latest finished run. Retrieval and Q&A experiments
+         *     measure different things, so one type is compared at a time.
+         */
+        get: operations["compare_experiments_api_v1_experiments_comparison_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/experiments/{experiment_id}": {
         parameters: {
             query?: never;
@@ -2214,6 +2237,91 @@ export interface components {
             created_at: string;
         };
         /**
+         * ComparisonRead
+         * @description The variants of the experiments of one type on a QA set snapshot.
+         *
+         *     Every metric is a ratio or an amount that reads the same whichever chunking
+         *     configuration produced it, so all of them compare; each value carries the number of
+         *     questions it rests on, which is what tells two values apart when it differs.
+         */
+        ComparisonRead: {
+            qa_set_snapshot: components["schemas"]["SnapshotDeclaredRead"];
+            experiment_type: components["schemas"]["ExperimentType"];
+            /** Variants */
+            variants: components["schemas"]["ComparisonVariantRead"][];
+            /** Skipped */
+            skipped: components["schemas"]["ComparisonSkippedRead"][];
+        };
+        /**
+         * ComparisonSkippedRead
+         * @description An experiment left out of the comparison, and why.
+         */
+        ComparisonSkippedRead: {
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /** Experiment Name */
+            experiment_name: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * ComparisonVariantRead
+         * @description A variant in the comparison, with where it comes from and what it searched.
+         */
+        ComparisonVariantRead: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            /** Name */
+            name: string;
+            /** Is Baseline */
+            is_baseline: boolean;
+            /**
+             * Index Build Id
+             * Format: uuid
+             */
+            index_build_id: string;
+            /**
+             * Retrieval Profile Id
+             * Format: uuid
+             */
+            retrieval_profile_id: string;
+            /** Top K */
+            top_k: number;
+            /** Metrics */
+            metrics: components["schemas"]["MetricResultRead"][];
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /** Experiment Name */
+            experiment_name: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            corpus_snapshot: components["schemas"]["SnapshotDeclaredRead"];
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Chunking Configuration Name */
+            chunking_configuration_name: string;
+            /**
+             * Recall Ceiling
+             * @description Share of the reviewed questions whose evidence exists in its chunks.
+             */
+            recall_ceiling?: number | null;
+        };
+        /**
          * ComponentCreate
          * @description Payload registering a component.
          */
@@ -2528,16 +2636,6 @@ export interface components {
             uncovered_count: number;
             /** Uncovered */
             uncovered: components["schemas"]["UncoveredQuestionRead"][];
-        };
-        /**
-         * CrossGroupRead
-         * @description Which metrics compare across chunking configurations, and why only those.
-         */
-        CrossGroupRead: {
-            /** Keys */
-            keys: string[];
-            /** Reason */
-            reason: string;
         };
         /**
          * DocumentChunksRead
@@ -4800,8 +4898,9 @@ export interface components {
          * RunResultsRead
          * @description The aggregated metrics of a run, grouped by chunking configuration.
          *
-         *     Chunk-level metrics only compare within a group, since the evidence is confirmed on
-         *     the chunks of one configuration; document-level metrics compare everywhere.
+         *     The evidence behind the chunk-level metrics is confirmed on the chunks of one
+         *     configuration, so each group states how far it was reviewed; the metrics are shares of
+         *     that evidence and read next to the number of questions they rest on.
          */
         RunResultsRead: {
             /**
@@ -4828,7 +4927,6 @@ export interface components {
             /** Slice Value */
             slice_value: string;
             chunk_gold?: components["schemas"]["ChunkGoldRead"] | null;
-            cross_group_metrics: components["schemas"]["CrossGroupRead"];
             /** Groups */
             groups: components["schemas"]["ResultGroupRead"][];
         };
@@ -7926,6 +8024,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                /** @description Only the experiments run on this QA set snapshot. */
+                qa_set_snapshot_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -8005,6 +8105,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_experiments_api_v1_experiments_comparison_get: {
+        parameters: {
+            query: {
+                qa_set_snapshot_id: string;
+                type: components["schemas"]["ExperimentType"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonRead"];
                 };
             };
             /** @description Validation Error */

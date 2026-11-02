@@ -46,9 +46,11 @@ import type {
   EvidenceRead,
   EvidenceWrite,
   ImportSummaryRead,
+  ComparisonRead,
   ExperimentCreate,
   ExperimentDetail,
   ExperimentRead,
+  ExperimentType,
   CoverageRead,
   RunAccepted,
   RunRead,
@@ -289,6 +291,11 @@ export const questionsApi = {
 export const experimentsApi = {
   list: () => api.get<Page<ExperimentRead>>("/api/v1/experiments", { limit: 200 }),
   get: (id: string) => api.get<ExperimentDetail>(`/api/v1/experiments/${id}`),
+  compare: (qaSetSnapshotId: string, type: ExperimentType) =>
+    api.get<ComparisonRead>("/api/v1/experiments/comparison", {
+      qa_set_snapshot_id: qaSetSnapshotId,
+      type,
+    }),
   create: (body: ExperimentCreate) => api.post<ExperimentDetail>("/api/v1/experiments", body),
   coverage: (corpusSnapshotId: string, qaSetSnapshotId: string) =>
     api.get<CoverageRead>("/api/v1/experiments/coverage", {

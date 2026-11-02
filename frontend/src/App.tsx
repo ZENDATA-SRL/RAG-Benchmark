@@ -8,6 +8,7 @@ import { ConfigurationWizard } from "@/features/configurations/ConfigurationWiza
 import { ConfigurationsPage } from "@/features/configurations/ConfigurationsPage";
 import { CorporaPage } from "@/features/corpora/CorporaPage";
 import { CorpusDetailPage } from "@/features/corpora/CorpusDetailPage";
+import { ComparisonPage } from "@/features/experiments/ComparisonPage";
 import { ExperimentDetailPage } from "@/features/experiments/ExperimentDetailPage";
 import { ExperimentsPage } from "@/features/experiments/ExperimentsPage";
 import { RunPage } from "@/features/experiments/RunPage";
@@ -41,6 +42,7 @@ export function App() {
         <Route path="/transfers/:transferId" element={<TransferPage />} />
         <Route path="/answer-profiles" element={<AnswerProfilesPage />} />
         <Route path="/experiments" element={<ExperimentsPage />} />
+        <Route path="/experiments/compare" element={<ComparisonPage />} />
         <Route path="/experiments/:experimentId" element={<ExperimentDetailPage />} />
         <Route path="/experiments/:experimentId/runs/:runId" element={<RunPage />} />
         <Route path="/components" element={<ComponentsPage />} />

@@ -267,11 +267,41 @@ class ResultGroupRead(BaseModel):
     variants: list[VariantResultRead]
 
 
-class CrossGroupRead(BaseModel):
-    """Which metrics compare across chunking configurations, and why only those."""
+class ComparisonVariantRead(VariantResultRead):
+    """A variant in the comparison, with where it comes from and what it searched."""
 
-    keys: list[str]
+    experiment_id: uuid.UUID
+    experiment_name: str
+    run_id: uuid.UUID
+    corpus_snapshot: SnapshotDeclaredRead
+    chunking_configuration_id: uuid.UUID
+    chunking_configuration_name: str
+    recall_ceiling: float | None = Field(
+        default=None,
+        description="Share of the reviewed questions whose evidence exists in its chunks.",
+    )
+
+
+class ComparisonSkippedRead(BaseModel):
+    """An experiment left out of the comparison, and why."""
+
+    experiment_id: uuid.UUID
+    experiment_name: str
     reason: str
+
+
+class ComparisonRead(BaseModel):
+    """The variants of the experiments of one type on a QA set snapshot.
+
+    Every metric is a ratio or an amount that reads the same whichever chunking
+    configuration produced it, so all of them compare; each value carries the number of
+    questions it rests on, which is what tells two values apart when it differs.
+    """
+
+    qa_set_snapshot: SnapshotDeclaredRead
+    experiment_type: ExperimentType
+    variants: list[ComparisonVariantRead]
+    skipped: list[ComparisonSkippedRead]
 
 
 class ChunkGoldRead(BaseModel):
@@ -284,8 +314,9 @@ class ChunkGoldRead(BaseModel):
 class RunResultsRead(BaseModel):
     """The aggregated metrics of a run, grouped by chunking configuration.
 
-    Chunk-level metrics only compare within a group, since the evidence is confirmed on
-    the chunks of one configuration; document-level metrics compare everywhere.
+    The evidence behind the chunk-level metrics is confirmed on the chunks of one
+    configuration, so each group states how far it was reviewed; the metrics are shares of
+    that evidence and read next to the number of questions they rest on.
     """
 
     run_id: uuid.UUID
@@ -304,7 +335,6 @@ class RunResultsRead(BaseModel):
     slice_key: str
     slice_value: str
     chunk_gold: ChunkGoldRead | None = None
-    cross_group_metrics: CrossGroupRead
     groups: list[ResultGroupRead]
 
 

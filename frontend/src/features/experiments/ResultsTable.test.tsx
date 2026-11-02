@@ -51,10 +51,6 @@ const RESULTS: RunResultsRead = {
   slice_key: "all",
   slice_value: "all",
   chunk_gold: { evaluated_at: "2026-10-26T10:00:00Z", hash: "abc" },
-  cross_group_metrics: {
-    keys: ["recall@5"],
-    reason: "Chunk-level metrics only compare within one chunking configuration.",
-  },
   groups: [
     {
       chunking_configuration_id: "small",
@@ -114,26 +110,17 @@ describe("ResultsTable", () => {
     expect(guide).toHaveTextContent("higher is better · mean over questions");
   });
 
-  it("keeps chunk columns within a group and drops them across groups, saying why", async () => {
+  it("keeps every column when the selected variants come from different groups", async () => {
     const user = userEvent.setup();
     render(<ResultsTable results={RESULTS} cutoff={5} />);
 
     await user.click(screen.getByLabelText("Select small-a"));
-    await user.click(screen.getByLabelText("Select small-b"));
-    await user.click(screen.getByRole("button", { name: "Compare selected (2)" }));
-    expect(screen.queryByTestId("result-row-large-a")).not.toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "chunk_recall@5" })).toBeInTheDocument();
-    expect(screen.queryByTestId("cross-group-reason")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Show all" }));
-    await user.click(screen.getByLabelText("Select small-b"));
     await user.click(screen.getByLabelText("Select large-a"));
     await user.click(screen.getByRole("button", { name: "Compare selected (2)" }));
-    expect(screen.queryByRole("columnheader", { name: "chunk_recall@5" })).not.toBeInTheDocument();
+
+    expect(screen.queryByTestId("result-row-small-b")).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "chunk_recall@5" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "recall@5" })).toBeInTheDocument();
-    expect(screen.getByTestId("cross-group-reason")).toHaveTextContent(
-      "only compare within one chunking configuration",
-    );
   });
 });
 
@@ -189,7 +176,7 @@ describe("ResultsTable on a Q&A run", () => {
     expect(row.getByText("4100 (38/50)")).toBeTruthy();
   });
 
-  it("drops the chunk-level set columns across chunking configurations", async () => {
+  it("keeps the chunk-level set columns across chunking configurations", async () => {
     const user = userEvent.setup();
     render(<ResultsTable results={qa} cutoff={5} />);
 
@@ -198,8 +185,6 @@ describe("ResultsTable on a Q&A run", () => {
     await user.click(screen.getByRole("button", { name: "Compare selected (2)" }));
 
     expect(screen.getByRole("columnheader", { name: "set_recall" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("columnheader", { name: "chunk_set_recall" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "chunk_set_recall" })).toBeInTheDocument();
   });
 });

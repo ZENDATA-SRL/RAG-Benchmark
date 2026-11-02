@@ -1273,10 +1273,6 @@ async def test_variants_on_two_chunking_configurations_are_two_groups(
         str(world.build.chunking_configuration_id): [world.scenario.configuration.name],
     }
     assert groups[str(other.id)]["chunking"] == "recursive@1 300/50"
-    cross = results["cross_group_metrics"]
-    assert "recall@5" in cross["keys"]
-    assert not any(key.startswith("chunk_") for key in cross["keys"])
-    assert "chunking configuration" in cross["reason"]
 
 
 async def test_the_drilldown_marks_evidence_chunks_and_lists_those_not_retrieved(
@@ -1553,3 +1549,77 @@ async def test_a_rerun_of_an_answered_execution_changes_nothing(
     await _answer_run(session, run["id"])
 
     assert len(chat_model.prompts) == prompts
+
+
+# -- comparison ---------------------------------------------------------------------------
+
+
+async def test_experiments_are_listed_per_qa_set_snapshot(client, world) -> None:
+    await _create(client, world)
+
+    on_snapshot = await client.get(
+        EXPERIMENTS, params={"qa_set_snapshot_id": world.qa_snapshot_id}
+    )
+    elsewhere = await client.get(
+        EXPERIMENTS, params={"qa_set_snapshot_id": str(uuid.uuid4())}
+    )
+
+    assert on_snapshot.json()["total"] == 1
+    assert elsewhere.json()["items"] == []
+    assert elsewhere.json()["total"] == 0
+
+
+async def test_the_comparison_puts_every_variant_of_a_snapshot_side_by_side(
+    client, session, world
+) -> None:
+    finished = await _create(client, world, name="finished")
+    run = (await client.post(f"{EXPERIMENTS}/{finished['id']}/runs", json={})).json()
+    await _execute_run(session, run["id"])
+    await _create(client, world, name="never run")
+
+    response = await client.get(
+        f"{EXPERIMENTS}/comparison",
+        params={"qa_set_snapshot_id": world.qa_snapshot_id, "type": "retrieval"},
+    )
+
+    assert response.status_code == 200, response.text
+    comparison = response.json()
+    assert comparison["qa_set_snapshot"]["id"] == world.qa_snapshot_id
+    assert comparison["qa_set_snapshot"]["question_count"] == 4
+    assert [item["experiment_name"] for item in comparison["variants"]] == [
+        "finished",
+        "finished",
+    ]
+    first = comparison["variants"][0]
+    assert first["run_id"] == run["id"]
+    assert first["corpus_snapshot"]["id"] == finished["corpus_snapshot_id"]
+    assert first["chunking_configuration_name"]
+    assert {metric["key"] for metric in first["metrics"]} >= {"recall@5", "mrr"}
+    assert [item["experiment_name"] for item in comparison["skipped"]] == ["never run"]
+    assert comparison["skipped"][0]["reason"] == "no finished run"
+
+
+async def test_the_comparison_keeps_retrieval_and_qa_apart(
+    client, session, world
+) -> None:
+    created = await _create(client, world)
+    run = (await client.post(f"{EXPERIMENTS}/{created['id']}/runs", json={})).json()
+    await _execute_run(session, run["id"])
+
+    response = await client.get(
+        f"{EXPERIMENTS}/comparison",
+        params={"qa_set_snapshot_id": world.qa_snapshot_id, "type": "qa"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["variants"] == []
+    assert response.json()["skipped"] == []
+
+
+async def test_the_comparison_of_an_unknown_snapshot_is_not_found(client) -> None:
+    response = await client.get(
+        f"{EXPERIMENTS}/comparison",
+        params={"qa_set_snapshot_id": str(uuid.uuid4()), "type": "retrieval"},
+    )
+
+    assert response.status_code == 404

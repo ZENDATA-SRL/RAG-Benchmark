@@ -24,7 +24,9 @@ from src.experiments.repository import (
 from src.experiments.schemas import (
     CallDetailRead,
     ChunkGoldRead,
-    CrossGroupRead,
+    ComparisonRead,
+    ComparisonSkippedRead,
+    ComparisonVariantRead,
     EvidenceCountsRead,
     ExecutionDetailRead,
     GoldChunkRead,
@@ -44,10 +46,12 @@ from src.experiments.schemas import (
 from src.experiments.service import ExperimentService, RunService
 from src.infrastructure.database.enums import (
     EvidenceLinkStatus,
-    MetricLevel,
+    ExecutionStatus,
+    ExperimentType,
     RelevanceGrade,
 )
 from src.pipelines.service import ChunkingConfigurationService, ProfileService
+from src.qa_sets.exceptions import QASetSnapshotNotFoundError
 from src.qa_sets.repository import (
     EvidenceRepository,
     QASetSnapshotRepository,
@@ -93,13 +97,6 @@ ANSWER_CSV_COLUMNS = (
     "output_tokens",
     "total_ms",
     "error",
-)
-
-
-CROSS_GROUP_REASON = (
-    "Chunk-level metrics are computed against evidence confirmed on the chunks of one "
-    "chunking configuration, so they only compare variants that search the same "
-    "configuration. Across configurations only document-level and call metrics compare."
 )
 
 
@@ -224,16 +221,70 @@ class ResultsService:
             )
             if chunk_gold
             else None,
-            cross_group_metrics=CrossGroupRead(
-                keys=[
-                    spec.key
-                    for spec in metric_specs()
-                    if spec.level != MetricLevel.CHUNK
-                    and experiment.type in spec.experiment_types
-                ],
-                reason=CROSS_GROUP_REASON,
-            ),
             groups=list(groups.values()),
+        )
+
+    async def comparison(
+        self, qa_set_snapshot_id: uuid.UUID, experiment_type: ExperimentType
+    ) -> ComparisonRead:
+        """The variants of every experiment of one type on a QA set snapshot, flattened.
+
+        Each experiment contributes the metrics of its latest finished run; one without a
+        finished run is reported as skipped rather than silently missing. The chunking
+        configuration stays on each variant as information: every metric is a ratio or an
+        amount, so they compare across configurations, and the question count behind each
+        value is what shows when two values do not rest on the same questions.
+
+        Raises:
+            QASetSnapshotNotFoundError: If the QA set snapshot does not exist.
+        """
+        snapshot = await self.qa_snapshots.get_by_id(qa_set_snapshot_id)
+        if snapshot is None:
+            raise QASetSnapshotNotFoundError(qa_set_snapshot_id)
+        variants: list[ComparisonVariantRead] = []
+        skipped: list[ComparisonSkippedRead] = []
+        experiments = await self.experiments.experiments.list_for_comparison(
+            qa_set_snapshot_id, experiment_type
+        )
+        for experiment in experiments:
+            runs = await self.runs.runs.list_by_experiment(experiment.id)
+            run = next(
+                (item for item in runs if item.status == ExecutionStatus.SUCCEEDED),
+                None,
+            )
+            if run is None:
+                skipped.append(
+                    ComparisonSkippedRead(
+                        experiment_id=experiment.id,
+                        experiment_name=experiment.name,
+                        reason="no finished run",
+                    )
+                )
+                continue
+            results = await self.results(experiment.id, run.id)
+            for group in results.groups:
+                for variant in group.variants:
+                    variants.append(
+                        ComparisonVariantRead(
+                            **variant.model_dump(),
+                            experiment_id=experiment.id,
+                            experiment_name=experiment.name,
+                            run_id=run.id,
+                            corpus_snapshot=results.corpus_snapshot,
+                            chunking_configuration_id=group.chunking_configuration_id,
+                            chunking_configuration_name=group.chunking_configuration_name,
+                            recall_ceiling=group.recall_ceiling,
+                        )
+                    )
+        return ComparisonRead(
+            qa_set_snapshot=SnapshotDeclaredRead(
+                id=snapshot.id,
+                label=snapshot.label,
+                question_count=snapshot.question_count,
+            ),
+            experiment_type=experiment_type,
+            variants=variants,
+            skipped=skipped,
         )
 
     async def results_csv(self, experiment_id: uuid.UUID, run_id: uuid.UUID) -> str:

@@ -109,8 +109,11 @@ relevant.
 **Chunk level.** A chunk is relevant when it is a confirmed evidence chunk of the question
 under the chunking configuration the variant searches (`variant → index build → chunking
 configuration`): evidence confirmed under another configuration says nothing about these
-chunks, which is why chunk metrics only compare variants of the same configuration. A chunk
-retrieved twice by one execution keeps its first rank and counts once.
+chunks. The metrics are shares of that evidence (or ranks of it), so they read as how well
+the evidence was surfaced and compare across configurations, next to the number of questions
+each rests on; the recall ceiling of each configuration says how much of the evidence
+exists in its chunks. A chunk retrieved twice by one execution keeps its first rank and
+counts once.
 
 | Metric | Definition |
 |---|---|
@@ -216,12 +219,13 @@ the answer metrics from the stored answers, without calling the model again.
 
 | Route | Purpose |
 |---|---|
-| `POST /experiments`, `GET /experiments`, `GET /experiments/{id}` | Create (with the guards above; `type`, `retrieval_scope` and, per variant, `answer_profile_id`); list; detail with variants (with `answer_profile_id` and `answer_profile_name`), runs and coverage. Both list and detail name the corpus and the QA set behind the two snapshots (`corpus_id`, `corpus_name`, `corpus_snapshot_label`, `qa_set_id`, `qa_set_name`, `qa_set_snapshot_label`) |
+| `POST /experiments`, `GET /experiments[?qa_set_snapshot_id=]`, `GET /experiments/{id}` | Create (with the guards above; `type`, `retrieval_scope` and, per variant, `answer_profile_id`); list, optionally only the experiments run on one QA set snapshot; detail with variants (with `answer_profile_id` and `answer_profile_name`), runs and coverage. Both list and detail name the corpus and the QA set behind the two snapshots (`corpus_id`, `corpus_name`, `corpus_snapshot_label`, `qa_set_id`, `qa_set_name`, `qa_set_snapshot_label`) |
 | `GET /experiments/coverage?corpus_snapshot_id=&qa_set_snapshot_id=` | The questions with gold documents outside a corpus snapshot |
+| `GET /experiments/comparison?qa_set_snapshot_id=&type=` | The variants of every experiment of one type (`retrieval` or `qa`, which measure different things and are never mixed) on a QA set snapshot, flat: each with its experiment, the run it comes from (the experiment's latest finished one), the corpus snapshot, the chunking configuration with its `recall_ceiling`, and the same metrics as the results, with `n_effective`. Experiments without a finished run are listed in `skipped`. The baseline to measure against is chosen by the client |
 | `POST /experiments/{id}/runs`, `GET …/runs/{run_id}` | Launch (`202`, `started=false` if already running); read a run with progress and configuration, served from the row |
 | `POST …/runs/{run_id}/cancel`, `POST …/runs/{run_id}/resume` | See above |
 | `POST …/runs/{run_id}/evaluate` | `202`: start re-scoring a finished run on the current evidence, on the worker; returns the run with `progress.evaluation` |
-| `GET …/runs/{run_id}/results[?tag=]` | `experiment_type`; `groups`, one per chunking configuration (parser, chunker, `evidence_coverage`, `recall_ceiling`), each with its variants and their metrics (with `family`, `level`, `direction`, `aggregation` and a `description` of what it measures, taken from the metric catalog in code) with `n_effective`, `n_excluded` and `excluded_reasons`; `cross_group_metrics` names the keys that compare across groups (document-level and call metrics) and why; `chunk_gold` gives the date and fingerprint of the evidence; and the corpus and QA snapshots |
+| `GET …/runs/{run_id}/results[?tag=]` | `experiment_type`; `groups`, one per chunking configuration (parser, chunker, `evidence_coverage`, `recall_ceiling`), each with its variants and their metrics (with `family`, `level`, `direction`, `aggregation` and a `description` of what it measures, taken from the metric catalog in code) with `n_effective`, `n_excluded` and `excluded_reasons`; `chunk_gold` gives the date and fingerprint of the evidence; and the corpus and QA snapshots |
 | `GET …/runs/{run_id}/results.csv` | The same as CSV, one row per variant and metric, with the chunking configuration, the family and the level |
 | `GET …/runs/{run_id}/questions[?limit=&offset=]` | The questions of the run with each variant's first-repetition outcome at both levels; in a Q&A run also each variant's `answer_text` and `refused`, and the question's primary `expected_answer` |
 | `GET …/runs/{run_id}/answers.csv` | Every answer of the run, one row per question, variant and repetition, in snapshot order: the question, its tags, `answerable` and expected answer, the variant, status, `refused`, the answer, the number of cited chunks, model, tokens, total time and error. A retrieval run has the answer columns empty |

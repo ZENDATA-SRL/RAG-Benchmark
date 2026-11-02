@@ -26,6 +26,7 @@ from src.indexes.models import IndexBuild
 from src.infrastructure.database.enums import (
     EvidenceLinkStatus,
     ExecutionStatus,
+    ExperimentType,
     RelevanceGrade,
     RetrievalStage,
 )
@@ -99,19 +100,42 @@ class ExperimentRepository:
     async def get_variant(self, variant_id: uuid.UUID) -> Variant | None:
         return await self.session.get(Variant, variant_id)
 
-    async def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[Experiment]:
+    async def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        qa_set_snapshot_id: uuid.UUID | None = None,
+    ) -> Sequence[Experiment]:
         stmt = (
             select(Experiment)
             .order_by(Experiment.created_at.desc(), Experiment.id.desc())
             .limit(limit)
             .offset(offset)
         )
+        if qa_set_snapshot_id is not None:
+            stmt = stmt.where(Experiment.qa_set_snapshot_id == qa_set_snapshot_id)
         return (await self.session.scalars(stmt)).all()
 
-    async def count(self) -> int:
-        return (
-            await self.session.scalar(select(func.count()).select_from(Experiment)) or 0
+    async def count(self, *, qa_set_snapshot_id: uuid.UUID | None = None) -> int:
+        stmt = select(func.count()).select_from(Experiment)
+        if qa_set_snapshot_id is not None:
+            stmt = stmt.where(Experiment.qa_set_snapshot_id == qa_set_snapshot_id)
+        return await self.session.scalar(stmt) or 0
+
+    async def list_for_comparison(
+        self, qa_set_snapshot_id: uuid.UUID, experiment_type: ExperimentType
+    ) -> Sequence[Experiment]:
+        """Every experiment of one type run on a QA set snapshot, oldest first."""
+        stmt = (
+            select(Experiment)
+            .where(
+                Experiment.qa_set_snapshot_id == qa_set_snapshot_id,
+                Experiment.type == experiment_type,
+            )
+            .order_by(Experiment.created_at, Experiment.id)
         )
+        return (await self.session.scalars(stmt)).all()
 
     async def list_variants(self, experiment_id: uuid.UUID) -> Sequence[Variant]:
         stmt = (

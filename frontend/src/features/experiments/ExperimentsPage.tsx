@@ -63,7 +63,12 @@ export function ExperimentsPage() {
             questions.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>New experiment</Button>
+        <div className="flex gap-2">
+          <Link to="/experiments/compare">
+            <Button variant="secondary">Compare variants</Button>
+          </Link>
+          <Button onClick={() => setCreating(true)}>New experiment</Button>
+        </div>
       </div>
 
       {experiments.isLoading ? <TableSkeleton /> : null}
