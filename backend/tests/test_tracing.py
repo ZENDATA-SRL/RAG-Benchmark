@@ -3,8 +3,14 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from langfuse import Langfuse
 from src.experiments.models import Execution
-from src.experiments.tracing import dataset_item_id, trace_metadata, trace_tags
+from src.experiments.tracing import (
+    dataset_item_id,
+    experiment_name,
+    trace_metadata,
+    trace_tags,
+)
 from src.infrastructure.observability import (
     NULL_TRACER,
     LangfuseTracer,
@@ -131,3 +137,63 @@ def test_the_trace_metadata_names_the_configuration_that_ran() -> None:
         "experiment:prompts",
         "variant:dense top-5 · rag_simple",
     ]
+
+
+def test_an_experiment_trace_carries_the_item_on_every_observation() -> None:
+    # The real SDK, exporting to memory: what Langfuse would receive.
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    client = Langfuse(
+        public_key="pk-test",
+        secret_key="sk-test",
+        host="http://localhost:9",
+        tracer_provider=TracerProvider(),
+        span_exporter=exporter,
+    )
+    tracer = LangfuseTracer(client)
+    trace_id = tracer.trace_id("execution-1")
+
+    with (
+        tracer.observe("qa-answer", trace_id=trace_id) as root,
+        tracer.experiment(
+            root,
+            experiment_id="experiment-1",
+            name="qa · variant",
+            dataset_id="dataset-1",
+            item_id="item-1",
+            expected_output={"answer": "Tre anni."},
+            metadata={"variant": "variant"},
+            item_metadata={"question_id": "q-1"},
+        ),
+        tracer.observe("retrieval", as_type="retriever"),
+    ):
+        pass
+    client.flush()
+
+    spans = {span.name: span for span in exporter.get_finished_spans()}
+    assert set(spans) == {"qa-answer", "retrieval"}
+    for span in spans.values():
+        attributes = span.attributes
+        assert attributes["langfuse.experiment.id"] == "experiment-1"
+        assert attributes["langfuse.experiment.name"] == "qa · variant"
+        assert attributes["langfuse.experiment.dataset.id"] == "dataset-1"
+        assert attributes["langfuse.experiment.item.id"] == "item-1"
+        assert attributes["langfuse.experiment.item.root_observation_id"] == root.id
+        assert attributes["langfuse.experiment.metadata.variant"] == "variant"
+    expected = spans["qa-answer"].attributes["langfuse.experiment.item.expected_output"]
+    assert expected == '{"answer": "Tre anni."}'
+
+
+def test_a_long_experiment_name_keeps_the_run_and_the_end_of_the_variant() -> None:
+    run = "QA Su dataset generato · 2026-11-03 13:46 · 3564b919"
+    variant = "pdfplumber@1 → markdown@1 1000/200 · " * 5 + "t=0 #3cf2ec"
+    name = experiment_name(run, variant)
+    # Over the length Langfuse keeps for a propagated value, it would have no name.
+    assert len(name) == 200
+    assert name.startswith(run)
+    assert name.endswith("t=0 #3cf2ec")
+    assert experiment_name(run, "short") == f"{run} · short"

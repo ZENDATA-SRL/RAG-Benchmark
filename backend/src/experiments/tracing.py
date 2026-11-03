@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import uuid
 from typing import Any
@@ -7,7 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.experiments.models import Execution, Experiment, Run
-from src.infrastructure.observability import Tracer
+from src.infrastructure.observability import Observation, Tracer
 from src.pipelines.models import ChunkingConfiguration, ChunkingProfile, ParsingProfile
 from src.qa_sets.models import QASet, QASetSnapshot, Question
 from src.qa_sets.repository import QuestionRepository
@@ -21,18 +22,22 @@ _MAX_VALUE = 200
 
 @dataclasses.dataclass(frozen=True)
 class ExecutionTrace:
-    """Where an execution is traced and how it is filed in the dataset run of its variant.
+    """Where an execution is traced and how it is filed in the experiment of its variant.
 
-    `trace_id` is `None` when tracing is off; `dataset_run_name` is `None` when the run
-    has no dataset on Langfuse, and the execution is then traced but not filed.
+    `trace_id` is `None` when tracing is off; `experiment_id` is `None` when the run has
+    no dataset on Langfuse, or the question's item could not be written, and the
+    execution is then traced but not filed.
     """
 
     trace_id: str | None
     metadata: dict[str, str] = dataclasses.field(default_factory=dict)
     tags: list[str] = dataclasses.field(default_factory=list)
+    dataset_id: str | None = None
     dataset_name: str | None = None
     dataset_item_id: str | None = None
-    dataset_run_name: str | None = None
+    experiment_id: str | None = None
+    experiment_name: str | None = None
+    expected_output: Any = None
 
 
 def dataset_name(qa_set_name: str, snapshot: QASetSnapshot) -> str:
@@ -50,8 +55,30 @@ def dataset_item_id(snapshot_id: uuid.UUID, question_id: uuid.UUID) -> str:
 
 
 def run_name(experiment_name: str, run: Run) -> str:
-    """The prefix of the dataset runs of a run; each variant appends its own name."""
+    """The prefix of the Langfuse experiments of a run; each variant appends its name."""
     return f"{experiment_name} · {run.created_at:%Y-%m-%d %H:%M} · {run.id.hex[:8]}"
+
+
+def experiment_name(run_name: str, variant_name: str) -> str:
+    """The Langfuse experiment of a variant: the run's name, then the variant's.
+
+    Langfuse drops a propagated value over its length limit, which would leave the
+    experiment without a name, and variant names are long: the middle is cut, so the
+    run's name and the end of the variant's, which tells variants apart, stay.
+    """
+    return _middle_cut(f"{run_name} · {variant_name}", _MAX_VALUE)
+
+
+def _middle_cut(text: str, size: int) -> str:
+    if len(text) <= size:
+        return text
+    head = (size - 1) // 2
+    return f"{text[:head]}…{text[len(text) - (size - 1 - head) :]}"
+
+
+def langfuse_experiment_id(run_id: uuid.UUID, variant_id: uuid.UUID) -> str:
+    """The Langfuse experiment of a variant in a run: the same for each of its traces."""
+    return str(uuid.uuid5(run_id, str(variant_id)))
 
 
 def trace_metadata(
@@ -117,11 +144,12 @@ def _variant(config_snapshot: dict[str, Any], variant_id: uuid.UUID) -> dict[str
 
 
 class ExperimentTracing:
-    """Files the traces of a Q&A run under a Langfuse dataset and its dataset runs.
+    """Files the traces of a Q&A run under a Langfuse dataset and its experiments.
 
-    The frozen question set is a dataset, each variant of a run a dataset run, and each
-    execution an item of it: Langfuse's own comparison of runs then lines up the same
-    questions the platform compares. Everything here is best-effort, as the tracer is.
+    The frozen question set is a dataset, each variant of a run an experiment over it,
+    and each execution the outcome of a question's item: Langfuse's own comparison of
+    experiments then lines up the same questions the platform compares. Everything here
+    is best-effort, as the tracer is.
     """
 
     def __init__(self, session: AsyncSession, tracer: Tracer) -> None:
@@ -154,8 +182,15 @@ class ExperimentTracing:
             run.langfuse_run_name = run_name(experiment.name, run)
         await self.session.flush()
 
-    async def for_execution(self, execution: Execution) -> ExecutionTrace:
-        """The trace id, metadata, tags and dataset run of an execution."""
+    async def for_execution(
+        self, execution: Execution, question: Question
+    ) -> ExecutionTrace:
+        """The trace id, metadata, tags and experiment of an execution.
+
+        The question's item is written here, before the trace is opened, so the
+        experiment links each trace to an item that exists; items appear as executions
+        reach them and a run never copies the whole set up front.
+        """
         trace_id = self.tracer.trace_id(str(execution.id))
         if trace_id is None:
             return ExecutionTrace(trace_id=None)
@@ -182,40 +217,21 @@ class ExperimentTracing:
         if snapshot.langfuse_dataset_id is None:
             return trace
         qa_set = await self.session.get(QASet, snapshot.qa_set_id)
-        return dataclasses.replace(
-            trace,
-            dataset_name=dataset_name(qa_set.name, snapshot),
-            dataset_item_id=dataset_item_id(snapshot.id, execution.question_id),
-            dataset_run_name=f"{run.langfuse_run_name} · {variant.get('name', '')}",
-        )
-
-    async def file(
-        self,
-        trace: ExecutionTrace,
-        question: Question,
-        execution: Execution,
-        observation_id: str | None,
-    ) -> None:
-        """File an execution's trace as the outcome of its question in the variant's run.
-
-        The question's item is written first, by its derived id, so items appear as
-        executions reach them and a run never has to copy the whole set up front.
-        """
-        if (
-            trace.trace_id is None
-            or trace.dataset_run_name is None
-            or trace.dataset_name is None
-            or trace.dataset_item_id is None
-        ):
-            return
         expected = (
             await QuestionRepository(self.session).answers_by_question([question.id])
         ).get(question.id, [])
+        trace = dataclasses.replace(
+            trace,
+            dataset_id=snapshot.langfuse_dataset_id,
+            dataset_name=dataset_name(qa_set.name, snapshot),
+            dataset_item_id=dataset_item_id(snapshot.id, execution.question_id),
+            expected_output={"answer": expected[0].text} if expected else None,
+        )
         written = await self.tracer.upsert_dataset_item(
             trace.dataset_name,
             trace.dataset_item_id,
             input={"question": question.text},
-            expected_output={"answer": expected[0].text} if expected else None,
+            expected_output=trace.expected_output,
             metadata={
                 "question_id": str(question.id),
                 "answerable": question.answerable,
@@ -223,15 +239,42 @@ class ExperimentTracing:
             },
         )
         if not written:
-            return
-        await self.tracer.link_dataset_run(
-            trace.dataset_run_name,
-            trace.dataset_item_id,
-            trace_id=trace.trace_id,
-            observation_id=observation_id,
+            return trace
+        return dataclasses.replace(
+            trace,
+            experiment_id=langfuse_experiment_id(run.id, execution.variant_id),
+            experiment_name=experiment_name(
+                run.langfuse_run_name, variant.get("name", "")
+            ),
+        )
+
+    def experiment(
+        self, trace: ExecutionTrace, root: Observation
+    ) -> contextlib.AbstractContextManager[None]:
+        """File the execution's trace in its variant's experiment, inside the root."""
+        if (
+            trace.experiment_id is None
+            or trace.experiment_name is None
+            or trace.dataset_id is None
+            or trace.dataset_item_id is None
+        ):
+            return contextlib.nullcontext()
+        return self.tracer.experiment(
+            root,
+            experiment_id=trace.experiment_id,
+            name=trace.experiment_name,
+            dataset_id=trace.dataset_id,
+            item_id=trace.dataset_item_id,
+            expected_output=trace.expected_output,
             metadata={
-                "execution_id": str(execution.id),
-                "repetition": execution.repetition,
+                key: trace.metadata[key]
+                for key in ("experiment_id", "run_id", "variant_id", "variant")
+                if key in trace.metadata
+            },
+            item_metadata={
+                key: trace.metadata[key]
+                for key in ("question_id", "execution_id", "repetition")
+                if key in trace.metadata
             },
         )
 

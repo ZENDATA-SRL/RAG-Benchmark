@@ -50,7 +50,7 @@ startup the worker marks an answer system unavailable, with the reason, when it 
 Q&A executions are traced on Langfuse when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`
 are set in `.env` (Langfuse Cloud by default, any instance with `LANGFUSE_HOST`): one trace
 per execution with each search and the call to the model, the configuration in its metadata,
-and the frozen question set as a dataset with one dataset run per variant. Without the keys
+and the frozen question set as a dataset with one Langfuse experiment per variant. Without the keys
 nothing is traced and the runs are unchanged. Langfuse is not part of the Compose stack.
 The `LANGFUSE_*` values of `.env` win over variables of the same name exported in the shell.
 

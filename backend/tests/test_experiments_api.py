@@ -1596,16 +1596,26 @@ async def test_a_traced_qa_run_files_each_answer_in_langfuse(
         ]["variants"]
     }
 
-    # One dataset for the frozen set, one item per question, one run per variant.
+    # One dataset for the frozen set, one item per question, one experiment per
+    # variant, each trace filed under its root as the outcome of its question's item.
     assert len(langfuse.datasets) == 1
+    filed = langfuse.experiments
     assert {item["id"] for item in langfuse.items} == {
-        item["dataset_item_id"] for item in langfuse.run_items
+        item["experiment_item_id"] for item in filed
     }
     assert len({item["id"] for item in langfuse.items}) == 4
-    assert len(langfuse.run_items) == 8
-    run_names = {item["run_name"] for item in langfuse.run_items}
-    assert len(run_names) == 2
-    assert all(name.startswith("qa · ") for name in run_names)
+    assert len(filed) == 8
+    assert {item["experiment_dataset_id"] for item in filed} == {"dataset-1"}
+    roots = {item["experiment_item_root_observation_id"] for item in filed}
+    assert roots == {"obs-qa-answer"}
+    experiments = {(item["experiment_id"], item["experiment_name"]) for item in filed}
+    assert len(experiments) == 2
+    assert all(name.startswith("qa · ") for _, name in experiments)
+    # The run's name, then the variant's.
+    assert all(
+        item["experiment_name"].endswith(" · " + item["experiment_metadata"]["variant"])
+        for item in filed
+    )
     expected = next(
         item for item in langfuse.items if item["metadata"]["question_id"] == first
     )

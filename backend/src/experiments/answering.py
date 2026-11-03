@@ -78,7 +78,7 @@ class AnswerRunner:
         execution.status = ExecutionStatus.RUNNING
         await self.executions.clear_calls(execution.id)
         clear_answer(execution)
-        trace = await self.tracing.for_execution(execution)
+        trace = await self.tracing.for_execution(execution, question)
         execution.langfuse_trace_id = trace.trace_id
         await self.session.flush()
 
@@ -91,6 +91,7 @@ class AnswerRunner:
             self.tracer.attributes(
                 metadata=trace.metadata, tags=trace.tags, trace_name=TRACE_NAME
             ),
+            self.tracing.experiment(trace, root),
         ):
             try:
                 if variant.answer_profile_id is None:
@@ -123,11 +124,9 @@ class AnswerRunner:
                 raise
             except DomainError as error:
                 root.update(level="ERROR", status_message=error.message)
-                outcome = await ExecutionRunner(self.session).fail(
+                return await ExecutionRunner(self.session).fail(
                     execution.id, error.message
                 )
-                await self.tracing.file(trace, question, execution, root.id)
-                return outcome
             root.update(
                 output={
                     "answer": result.answer,
@@ -145,7 +144,6 @@ class AnswerRunner:
         execution.error = None
         await self.session.flush()
         await self.evaluation.evaluate_execution(execution.id)
-        await self.tracing.file(trace, question, execution, root.id)
         return ExecutionOutcome(execution.id, ExecutionStatus.SUCCEEDED)
 
 

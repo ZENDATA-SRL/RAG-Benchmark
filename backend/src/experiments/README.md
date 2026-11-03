@@ -91,9 +91,15 @@ When tracing is on, each attempt is a Langfuse trace (`tracing.py`, `ExperimentT
 - **Dataset**: opening a Q&A run (`open_run`) creates one Langfuse dataset per QA set
   snapshot, its id kept in `qa_set_snapshots.langfuse_dataset_id`, and names the run in
   `runs.langfuse_run_name` (`<experiment> · <date> · <short id>`). Each execution then
-  writes its question's item (id derived from snapshot and question, so it is unique across
-  the project; expected output the primary answer) and files its trace in the dataset run
-  `<run name> · <variant>`: one dataset run per variant.
+  writes its question's item before its trace is opened (id derived from snapshot and
+  question, so it is unique across the project; expected output the primary answer) and
+  files its trace in the Langfuse **experiment** `<run name> · <variant>`, one per variant
+  (id derived from run and variant; the name cut in the middle to 200 characters, the
+  most Langfuse keeps): the experiment and the item are attributes of the root and of
+  every observation under it, the way Langfuse's own SDK experiments are recorded, so the
+  experiment shows in Langfuse with each answer next to the expected one. An item that
+  could not be written leaves the trace outside the experiment. Each run is a new set of
+  experiments over the same dataset, so runs of the same configuration compare there.
 
 Everything is best-effort: without the keys, or with Langfuse unreachable, executions run
 and score exactly the same, without trace ids.

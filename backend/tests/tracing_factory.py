@@ -49,13 +49,12 @@ class FakeLangfuse:
         self.propagated: list[dict[str, Any]] = []
         self.datasets: list[dict[str, Any]] = []
         self.items: list[dict[str, Any]] = []
-        self.run_items: list[dict[str, Any]] = []
+        self.experiments: list[dict[str, Any]] = []
         self.flushed = 0
         self._stack: list[FakeObservation] = []
         self.async_api = types.SimpleNamespace(
             datasets=_Calls(self.datasets, types.SimpleNamespace(id="dataset-1")),
             dataset_items=_Calls(self.items),
-            dataset_run_items=_Calls(self.run_items),
         )
 
     def start_as_current_observation(

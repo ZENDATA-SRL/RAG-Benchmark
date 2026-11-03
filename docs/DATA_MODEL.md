@@ -780,7 +780,7 @@ Una esecuzione dell'esperimento, con **snapshot integrale della configurazione**
 | `config_snapshot` | JSONB | NOT NULL | copia integrale profili/varianti al lancio; a ogni valutazione si aggiunge `chunk_gold`: data, impronta dei legami di evidenza usati (stato e chunk), conteggi per configurazione di chunking ed elenco dei legami |
 | `progress` | JSONB | NOT NULL DEFAULT '{}' | copia denormalizzata dei contatori delle esecuzioni (`total`, `succeeded`, `failed`, `pending`) per il polling della UI; in `evaluation` lo stato dell'ultima rivalutazione (`status`, `evaluated`, `total`, `attempt`, `error`), che gira come workflow |
 | `error` | TEXT | | motivo se il run si è fermato per una ragione propria (per esempio `cancelled`) |
-| `langfuse_run_name` | TEXT | | prefisso dei dataset run Langfuse del run (`<esperimento> · <data> · <id breve>`); ogni variante aggiunge ` · <variante>`. NULL se il dataset non esiste (RT-L01) |
+| `langfuse_run_name` | TEXT | | prefisso degli experiment Langfuse del run (`<esperimento> · <data> · <id breve>`); ogni variante aggiunge ` · <variante>`. NULL se il dataset non esiste (RT-L01) |
 | `started_at` | TIMESTAMPTZ | | |
 | `finished_at` | TIMESTAMPTZ | | |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |

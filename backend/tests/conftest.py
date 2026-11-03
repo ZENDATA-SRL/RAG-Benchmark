@@ -47,6 +47,13 @@ def langfuse(monkeypatch) -> FakeLangfuse:
         yield
 
     monkeypatch.setattr(tracing, "propagate_attributes", propagate)
+
+    @contextlib.contextmanager
+    def propagate_experiment(*, experiment: dict[str, Any]):
+        client.experiments.append(experiment)
+        yield
+
+    monkeypatch.setattr(tracing, "_propagate_attributes", propagate_experiment)
     set_tracer(LangfuseTracer(client))
     return client
 

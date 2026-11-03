@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 from collections.abc import Callable, Iterator
 from typing import Any, Protocol
 
-from langfuse import Langfuse, propagate_attributes
+from langfuse import Langfuse, LangfuseOtelSpanAttributes, propagate_attributes
+
+# The public `propagate_attributes` takes no experiment: the SDK's own `run_experiment`
+# links its traces to an experiment through this one, and so does `LangfuseTracer`.
+try:
+    from langfuse._client.propagation import _propagate_attributes
+except ImportError:  # pragma: no cover - an SDK that moved it: experiments are off
+    _propagate_attributes = None
 
 from src.settings import Settings, get_settings
 
@@ -82,16 +90,24 @@ class Tracer(Protocol):
         """Create or replace a dataset item by id; whether it succeeded."""
         ...
 
-    async def link_dataset_run(
+    def experiment(
         self,
-        run_name: str,
-        item_id: str,
+        root: Observation,
         *,
-        trace_id: str,
-        observation_id: str | None,
-        metadata: dict[str, Any],
-    ) -> None:
-        """Record a trace as the outcome of a dataset item in a named dataset run."""
+        experiment_id: str,
+        name: str,
+        dataset_id: str,
+        item_id: str,
+        expected_output: Any,
+        metadata: dict[str, str],
+        item_metadata: dict[str, str],
+    ) -> contextlib.AbstractContextManager[None]:
+        """File the trace of `root` as the outcome of a dataset item in an experiment.
+
+        Entered inside the root observation, so the root and every observation opened
+        in the block carry the experiment and the item: Langfuse groups the traces of
+        one `experiment_id` as one experiment over the dataset, item by item.
+        """
         ...
 
     async def flush(self) -> None:
@@ -161,16 +177,20 @@ class NullTracer:
     ) -> bool:
         return False
 
-    async def link_dataset_run(
+    @contextlib.contextmanager
+    def experiment(
         self,
-        run_name: str,
-        item_id: str,
+        root: Observation,
         *,
-        trace_id: str,
-        observation_id: str | None,
-        metadata: dict[str, Any],
-    ) -> None:
-        pass
+        experiment_id: str,
+        name: str,
+        dataset_id: str,
+        item_id: str,
+        expected_output: Any,
+        metadata: dict[str, str],
+        item_metadata: dict[str, str],
+    ) -> Iterator[None]:
+        yield None
 
     async def flush(self) -> None:
         pass
@@ -300,30 +320,51 @@ class LangfuseTracer:
             return False
         return True
 
-    async def link_dataset_run(
+    @contextlib.contextmanager
+    def experiment(
         self,
-        run_name: str,
-        item_id: str,
+        root: Observation,
         *,
-        trace_id: str,
-        observation_id: str | None,
-        metadata: dict[str, Any],
-    ) -> None:
-        try:
-            await self.client.async_api.dataset_run_items.create(
-                run_name=run_name,
-                dataset_item_id=item_id,
-                trace_id=trace_id,
-                observation_id=observation_id,
-                metadata=metadata,
+        experiment_id: str,
+        name: str,
+        dataset_id: str,
+        item_id: str,
+        expected_output: Any,
+        metadata: dict[str, str],
+        item_metadata: dict[str, str],
+    ) -> Iterator[None]:
+        if _propagate_attributes is None or root.id is None:
+            yield None
+            return
+        # The expected output goes on the root only, as the SDK's experiments put it.
+        span = getattr(getattr(root, "_observation", None), "_otel_span", None)
+        if span is not None:
+            try:
+                span.set_attributes(
+                    {
+                        LangfuseOtelSpanAttributes.EXPERIMENT_ITEM_EXPECTED_OUTPUT: (
+                            json.dumps(expected_output, ensure_ascii=False, default=str)
+                        )
+                    }
+                )
+            except Exception:
+                logger.warning(
+                    "langfuse: no expected output on the trace", exc_info=True
+                )
+        with _guarded(
+            lambda: _propagate_attributes(
+                experiment={
+                    "experiment_id": experiment_id,
+                    "experiment_name": name,
+                    "experiment_metadata": metadata,
+                    "experiment_dataset_id": dataset_id,
+                    "experiment_item_id": item_id,
+                    "experiment_item_metadata": item_metadata,
+                    "experiment_item_root_observation_id": root.id,
+                }
             )
-        except Exception:
-            logger.warning(
-                "langfuse: could not link trace %s to run %r",
-                trace_id,
-                run_name,
-                exc_info=True,
-            )
+        ):
+            yield None
 
     async def flush(self) -> None:
         try:
