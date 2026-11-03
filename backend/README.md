@@ -54,6 +54,7 @@ was `created` or reused.
 | `qa_sets/` | Question sets: authoring of questions, gold documents, expected answers, evidence chunks confirmed per chunking configuration, CSV/JSONL import and export, immutable snapshots |
 | `experiments/` | Retrieval and Q&A experiments: variants, guards, runs on Temporal, document- and chunk-level metrics, set, call and answer metrics for Q&A, re-evaluation, results grouped by chunking configuration |
 | `transfers/` | Suggested evidence chunks: jobs that rank the chunks of each question's gold documents in a configuration (from the question and answer, or from the evidence confirmed in another configuration) on Temporal, and their review queue |
+| `generation/` | Generated questions: jobs where an agent reads the documents of a set's corpus in the chunks of a configuration and proposes questions with their answer and quoted evidence chunks, on Temporal, checked before they are saved, and their review queue; an accepted question enters the set with confirmed evidence and the `generated` tags |
 
 The pipeline modules depend on each other in one direction only:
 
@@ -61,6 +62,7 @@ The pipeline modules depend on each other in one direction only:
 pipelines ← artifacts ← materializations
           ↖ indexes ← retrieval ← experiments → qa_sets
                           retrieval ← transfers → qa_sets
+                          answering ← generation → qa_sets
 ```
 
 `retrieval` also reads `experiments.repository` to record the calls of an execution.
@@ -247,6 +249,20 @@ Metrics, guards and the run lifecycle are described in [`src/experiments/README.
 
 Signals, bands and pre-selection are described in [`src/transfers/README.md`](src/transfers/README.md).
 
+### `generation/`
+
+| Route | Purpose |
+|---|---|
+| `POST /generation-jobs/estimate` | Validate a job and return its cost at most (units, steps, model calls) and the documents of the corpus with whether each can be read |
+| `POST /generation-jobs`, `GET /generation-jobs[/{id}]` | Create a job generating questions from the set's origin corpus, or only the documents chosen in it (guard: documents without chunks or text in the configuration are listed and excluded only explicitly), list and read with progress by phase, discards by reason, proposals by status and kind, coverage |
+| `GET /generation-jobs/{id}/units` | The runs of the agent: target, produced, end reason, summary, trace link |
+| `POST /generation-jobs/{id}/cancel`, `POST /generation-jobs/{id}/resume` | Stop; relaunch only the units not done |
+| `GET /generation-jobs/{id}/proposals[?status=&kind=]`, `GET /generated-questions/{id}` | The review queue, and one proposal with its chunks, quotes and the next one waiting |
+| `POST /generated-questions/{id}/accept`, `POST /generated-questions/{id}/reject` | Accept (text, answer and chunks correctable) into a question with confirmed evidence and the `generated` tags, or reject |
+
+Tools, checks, the two phases and the bias of the generating configuration are described in
+[`src/generation/README.md`](src/generation/README.md).
+
 ### Data tables
 
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
@@ -288,6 +304,7 @@ the Temporal README.
 POST /qa-sets                         a question set (optionally with its origin corpus)
 POST /qa-sets/{id}/import             CSV/JSONL: question, answer, gold files, tags → summary of every row
 POST /qa-sets/{id}/questions          or write the questions one by one
+POST /generation-jobs                 or let an agent propose questions from the corpus, then accept them in a queue
 POST /transfers                       or have the worker rank the likely chunks first, then review them in a queue
 PUT  /questions/{id}/evidence         confirm the chunks that hold the answer, per chunking configuration
 POST /qa-sets/{id}/snapshots          freeze the questions → QASetSnapshot (same questions, same snapshot)

@@ -129,6 +129,7 @@ backend/
     qa_sets/          question sets, authoring, gold documents and evidence chunks, import/export, snapshots
     experiments/      retrieval and Q&A experiments: variants, runs, metrics chosen by experiment type (ranked; set, call and answer metrics for Q&A), results by chunking configuration
     transfers/        suggested evidence chunks: proposal for imported questions, transfer between configurations, review queue
+    generation/       generated questions: an agent proposes questions with quoted evidence chunks, checked, then reviewed
     sources/          connections and imports
     dependencies.py   FastAPI dependencies (object storage, workflow client)
   tests/

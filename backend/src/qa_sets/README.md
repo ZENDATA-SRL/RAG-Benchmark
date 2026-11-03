@@ -68,6 +68,18 @@ because it is what an import deduplicates on (`409 question_already_in_set`).
   removed (`409 gold_document_has_evidence`). Gold documents must be in the origin corpus
   when the set has one.
 
+## Generated questions
+
+A set with an origin corpus can also be filled by **generation** (the `generation` module):
+an agent proposes questions from the documents of the corpus, and a person accepts them in a
+review queue. An accepted question is created here like any other, through
+`QuestionService.create` and `EvidenceService.put` with `confirmed`, so the same rules and the
+same derivation of the gold documents apply. It is marked by tags only, no column of its own:
+`generated` and `generated:single`, `generated:multi` or `generated:cross` by the shape of its
+evidence. Edited later, it keeps them, so the slicing by tag keeps reading generated questions
+apart from those written by hand. Proposals live in the generation tables, never in the set:
+export, freeze and the deduplication of an import only see accepted questions.
+
 ## Evidence (`evidence.py`, `EvidenceService`)
 
 `PUT /questions/{id}/evidence` writes the whole evidence of a question under one chunking
@@ -130,4 +142,4 @@ experiments that are really comparable.
 
 Depends on `corpora` (origin corpus, membership), `documents` (resolution of gold files),
 `pipelines` (chunking configurations) and `artifacts` (the chunks evidence points to).
-`experiments` depends on this module, never the reverse.
+`experiments`, `transfers` and `generation` depend on this module, never the reverse.

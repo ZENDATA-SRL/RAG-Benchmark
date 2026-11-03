@@ -23,6 +23,8 @@ from src.corpora.router import router as corpora_router
 from src.documents.router import router as documents_router
 from src.experiments.router import router as experiments_router
 from src.experiments.seed import seed_metric_catalog
+from src.generation.router import proposals_router as generated_questions_router
+from src.generation.router import router as generation_router
 from src.indexes.router import router as indexes_router
 from src.infrastructure.database.session import dispose_engine, session_factory
 from src.infrastructure.temporal import reset_workflow_client
@@ -120,6 +122,8 @@ def create_app() -> FastAPI:
     app.include_router(answer_profiles_router, prefix=API_PREFIX)
     app.include_router(experiments_router, prefix=API_PREFIX)
     app.include_router(transfers_router, prefix=API_PREFIX)
+    app.include_router(generation_router, prefix=API_PREFIX)
+    app.include_router(generated_questions_router, prefix=API_PREFIX)
 
     return app
 
