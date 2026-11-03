@@ -14,6 +14,7 @@ INDEX_CORPUS_WORKFLOW = "IndexCorpusWorkflow"
 RUN_EXPERIMENT_WORKFLOW = "RunExperimentWorkflow"
 EVALUATE_RUN_WORKFLOW = "EvaluateRunWorkflow"
 TRANSFER_DATASET_WORKFLOW = "TransferDatasetWorkflow"
+GENERATE_QUESTIONS_WORKFLOW = "GenerateQuestionsWorkflow"
 CHUNKING_TASK_QUEUE = "chunking"
 EMBEDDING_TASK_QUEUE = "embedding"
 EXPERIMENTS_TASK_QUEUE = "experiments"
@@ -89,3 +90,8 @@ def evaluate_run_workflow_id(run_id: uuid.UUID | str, attempt: int) -> str:
 def transfer_dataset_workflow_id(transfer_job_id: uuid.UUID | str) -> str:
     """Deterministic id of a `TransferDatasetWorkflow`, reused when the job is resumed."""
     return f"transfer-dataset-{transfer_job_id}"
+
+
+def generate_questions_workflow_id(generation_job_id: uuid.UUID | str) -> str:
+    """Deterministic id of a `GenerateQuestionsWorkflow`, reused when the job is resumed."""
+    return f"generate-questions-{generation_job_id}"
