@@ -136,8 +136,8 @@ backend/
 frontend/             React + Vite UI: corpora, upload, snapshots, configurations, chunks, indexes, question sets, annotation and its review queue, answer profiles, experiments (retrieval and Q&A), components
 scripts/              mvp_smoke.py, the end-to-end check of the backend flow (and, opt-in, of retrieval, of a retrieval experiment and of its re-evaluation on confirmed evidence)
 temporal/             worker, workflows, activities and builtin implementations
-  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs (retrieve or answer), chunk ranking
-  workflows/          ProcessDocument, MaterializeChunks, IndexCorpus, RunExperiment, RunVariant, EvaluateRun, TransferDataset
+  activities/         parsing, chunking, materialisation, indexing, embedding, vector store writes, experiment runs (retrieve or answer), chunk ranking, question generation
+  workflows/          ProcessDocument, MaterializeChunks, IndexCorpus, RunExperiment, RunVariant, EvaluateRun, TransferDataset, GenerateQuestions
   components/         parser, chunker and vector store write code, invoked only by the worker
   tests/
 docs/                 requirements and data model

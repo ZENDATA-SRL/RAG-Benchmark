@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from temporal.workflows.evaluate_run import EvaluateRunInput, EvaluateRunWorkflow
+from temporal.workflows.generate_questions import (
+    GenerateQuestionsInput,
+    GenerateQuestionsWorkflow,
+)
 from temporal.workflows.index_corpus import IndexCorpusInput, IndexCorpusWorkflow
 from temporal.workflows.materialize_chunks import (
     MaterializeChunksWorkflow,
@@ -26,12 +30,15 @@ ALL_WORKFLOWS = [
     RunVariantWorkflow,
     EvaluateRunWorkflow,
     TransferDatasetWorkflow,
+    GenerateQuestionsWorkflow,
 ]
 
 __all__ = [
     "ALL_WORKFLOWS",
     "EvaluateRunInput",
     "EvaluateRunWorkflow",
+    "GenerateQuestionsInput",
+    "GenerateQuestionsWorkflow",
     "IndexCorpusInput",
     "IndexCorpusWorkflow",
     "MaterializeChunksWorkflow",
