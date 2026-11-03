@@ -29,6 +29,19 @@ class DocumentRepository:
         stmt = select(Document).where(Document.content_hash == content_hash)
         return await self.session.scalar(stmt)
 
+    async def list_by_ids(
+        self, document_ids: Sequence[uuid.UUID]
+    ) -> Sequence[Document]:
+        """Documents with the given ids; unknown ids are simply absent from the result."""
+        if not document_ids:
+            return []
+        stmt = (
+            select(Document)
+            .where(Document.id.in_(document_ids))
+            .order_by(Document.created_at, Document.id)
+        )
+        return (await self.session.scalars(stmt)).all()
+
     async def list(
         self, *, status: DocumentStatus | None = None, limit: int = 50, offset: int = 0
     ) -> Sequence[Document]:
@@ -36,7 +49,9 @@ class DocumentRepository:
         if status is not None:
             stmt = stmt.where(Document.status == status)
         stmt = (
-            stmt.order_by(Document.created_at.desc(), Document.id).limit(limit).offset(offset)
+            stmt.order_by(Document.created_at.desc(), Document.id)
+            .limit(limit)
+            .offset(offset)
         )
         result = await self.session.scalars(stmt)
         return result.all()
