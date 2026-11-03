@@ -12,7 +12,6 @@ import { queryKeys } from "@/lib/queryClient";
 import {
   corpusSnapshotLabels,
   defaultBaseline,
-  formatDelta,
   formatValue,
   metricBars,
   notComparedLabels,
@@ -21,6 +20,7 @@ import {
   type ComparisonColumn,
   type MetricBars,
 } from "./comparison";
+import { Delta, GroupedChart, MetricTable } from "./ComparisonCharts";
 import {
   answerColumns,
   callMetricKeys,
@@ -104,23 +104,6 @@ function Select({
         {children}
       </select>
     </label>
-  );
-}
-
-/** The change against the baseline, as an arrow and a signed number: never colour alone. */
-function Delta({ bar, unit }: { bar: Bar; unit: MetricBars["unit"] }) {
-  if (bar.delta === null || bar.verdict === null) return <span className="w-16" />;
-  const tone =
-    bar.verdict === "better"
-      ? "text-teal"
-      : bar.verdict === "worse"
-        ? "text-danger"
-        : "text-ink-muted";
-  const arrow = bar.verdict === "same" ? "=" : bar.delta > 0 ? "▲" : "▼";
-  return (
-    <span className={`w-16 text-right ${tone}`} data-testid="delta">
-      {arrow} {formatDelta(bar.delta, unit)}
-    </span>
   );
 }
 
@@ -270,6 +253,65 @@ function Summary({
   );
 }
 
+/**
+ * One collapsible section. Scores on the 0–1 scale share one grouped chart; the metrics on
+ * their own unit are a table; the per-metric bars stay available underneath for the detail.
+ */
+function SectionPanel({
+  section,
+  variants,
+  baselineId,
+  open,
+  onToggle,
+}: {
+  section: Section & { charts: MetricBars[] };
+  variants: ComparisonVariantRead[];
+  baselineId: string | null;
+  open: boolean;
+  onToggle: (open: boolean) => void;
+}) {
+  const ratios = section.charts.filter((chart) => chart.unit === "ratio");
+  const amounts = section.charts.filter((chart) => chart.unit === "amount");
+  return (
+    <details
+      id={sectionId(section.title)}
+      open={open}
+      onToggle={(event) => onToggle(event.currentTarget.open)}
+      className="mb-3 rounded-lg border border-line bg-paper-raised"
+      data-testid={`section-${section.title}`}
+    >
+      <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 px-4 py-3">
+        <h2 className="text-base font-semibold">{section.title}</h2>
+        <span className="text-xs text-ink-muted">
+          {section.charts.length} metrics · {section.hint}
+        </span>
+      </summary>
+      <div className="space-y-4 border-t border-line p-4">
+        {ratios.length > 0 ? (
+          <GroupedChart charts={ratios} variants={variants} baselineId={baselineId} />
+        ) : null}
+        {amounts.length > 0 ? (
+          <MetricTable charts={amounts} variants={variants} baselineId={baselineId} />
+        ) : null}
+        {ratios.length > 0 ? (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-xs font-medium text-ink-muted">
+              Per-metric detail with the change from the baseline
+            </summary>
+            <div className="mt-3 grid gap-4">
+              {ratios.map((chart) => (
+                <MetricChart key={chart.column.label} chart={chart} baselineId={baselineId} />
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+const sectionId = (title: string) => `section-${title.toLowerCase().replace(/\s+/g, "-")}`;
+
 function Notices({ comparison }: { comparison: ComparisonRead }) {
   const corpora = corpusSnapshotLabels(comparison.variants);
   return (
@@ -317,8 +359,8 @@ function Legend() {
 
 /**
  * Side-by-side comparison of every variant run on one QA set snapshot. Each metric is a
- * small bar chart on a shared scale, so the best variant and the distance from the baseline
- * can be read at a glance; the number of questions behind each value stays on the row.
+ * collapsible section: scores share one grouped chart, other units are a table, and the
+ * per-metric bars with the change from the baseline stay one click away.
  */
 export function ComparisonPage() {
   const [params, setParams] = useSearchParams();
@@ -327,6 +369,7 @@ export function ComparisonPage() {
   const [cutoff, setCutoff] = useState<number>(DEFAULT_CUTOFF);
   const [baselineChoice, setBaselineChoice] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const qaSets = useQuery({ queryKey: queryKeys.qaSets, queryFn: qaSetsApi.list });
   const snapshots = useQuery({
@@ -368,6 +411,19 @@ export function ComparisonPage() {
     }),
   }));
   const allCharts = sections.flatMap((section) => section.charts);
+
+  const visible = sections.filter((section) => section.charts.length > 0);
+  const setSectionOpen = (title: string, open: boolean) =>
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (open) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  const jumpTo = (title: string) => {
+    setSectionOpen(title, true);
+    document.getElementById(sectionId(title))?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const toggle = (variantId: string) =>
     setHidden((current) => {
@@ -494,23 +550,37 @@ export function ComparisonPage() {
           </details>
           <Legend />
           <Summary variants={shown} charts={allCharts} baselineId={baselineId} />
-          {sections.map((section) =>
-            section.charts.length === 0 ? null : (
-              <section
-                key={section.title}
-                className="mb-8"
-                data-testid={`section-${section.title}`}
+          <nav
+            aria-label="Sections"
+            className="sticky top-0 z-20 -mx-1 mb-3 flex flex-wrap items-center gap-2 bg-paper/95 px-1 py-2 backdrop-blur"
+          >
+            {visible.map((section) => (
+              <Button key={section.title} variant="secondary" onClick={() => jumpTo(section.title)}>
+                {section.title}
+              </Button>
+            ))}
+            <span className="ml-auto flex gap-2">
+              <Button variant="secondary" onClick={() => setCollapsed(new Set())}>
+                Expand all
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setCollapsed(new Set(visible.map((section) => section.title)))}
               >
-                <h2 className="text-lg font-semibold">{section.title}</h2>
-                <p className="mb-3 text-xs text-ink-muted">{section.hint}</p>
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {section.charts.map((chart) => (
-                    <MetricChart key={chart.column.label} chart={chart} baselineId={baselineId} />
-                  ))}
-                </div>
-              </section>
-            ),
-          )}
+                Collapse all
+              </Button>
+            </span>
+          </nav>
+          {visible.map((section) => (
+            <SectionPanel
+              key={section.title}
+              section={section}
+              variants={shown}
+              baselineId={baselineId}
+              open={!collapsed.has(section.title)}
+              onToggle={(open) => setSectionOpen(section.title, open)}
+            />
+          ))}
         </div>
       ) : null}
     </div>

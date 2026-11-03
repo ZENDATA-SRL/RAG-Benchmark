@@ -143,10 +143,13 @@ parameters whose key ends in `prompt` in a multi-line text area.
   experiment with its latest finished run. A *Best on* strip counts how many metrics each
   variant leads, out of the same total for all (the metrics at least two variants have a value
   on), flagging the variants with no value on some, such as the chunk-level ones, and naming
-  the metrics left out because a single variant has a value; below, every metric is a small bar chart on a shared scale (0–1 for a
-  score), in sections: documents, chunks and, for Q&A, the retrieved set, the searches and
-  the answers. The best bar is highlighted, a dashed line marks the baseline (the one marked
-  in its experiment, or the variant chosen in *Baseline*), and each row shows the value, the
+  the metrics left out because a single variant has a value; below, the metrics are in collapsible sections (a sticky bar jumps to
+  one, with *Expand all* and *Collapse all*): documents, chunks and, for Q&A, the retrieved
+  set, the searches and the answers. The 0–1 scores of a section share one grouped chart, a
+  column per variant, as wide as the section; the metrics with their own unit (a rank, a
+  count, a time) are a table with the best highlighted. Under each chart the per-metric bars
+  stay available, with a dashed line marking the baseline (the one marked in its experiment,
+  or the variant chosen in *Baseline*); every value shows the
   change against the baseline (in points for a score, in % for a time or a count, with an
   arrow and green or red when it is an improvement or a regression) and the number of
   questions it rests on, flagged when it is fewer than the largest sample. The cutoff applies
