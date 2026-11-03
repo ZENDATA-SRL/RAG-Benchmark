@@ -12,6 +12,8 @@ import { ComparisonPage } from "@/features/experiments/ComparisonPage";
 import { ExperimentDetailPage } from "@/features/experiments/ExperimentDetailPage";
 import { ExperimentsPage } from "@/features/experiments/ExperimentsPage";
 import { RunPage } from "@/features/experiments/RunPage";
+import { GenerationPage } from "@/features/generation/GenerationPage";
+import { GenerationReviewPage } from "@/features/generation/GenerationReviewPage";
 import { IndexesPage } from "@/features/indexes/IndexesPage";
 
 import { AnnotationPage } from "@/features/qa-sets/AnnotationPage";
@@ -40,6 +42,11 @@ export function App() {
           element={<AnnotationPage />}
         />
         <Route path="/transfers/:transferId" element={<TransferPage />} />
+        <Route path="/generation-jobs/:jobId" element={<GenerationPage />} />
+        <Route
+          path="/generation-jobs/:jobId/review/:proposalId"
+          element={<GenerationReviewPage />}
+        />
         <Route path="/answer-profiles" element={<AnswerProfilesPage />} />
         <Route path="/experiments" element={<ExperimentsPage />} />
         <Route path="/experiments/compare" element={<ComparisonPage />} />

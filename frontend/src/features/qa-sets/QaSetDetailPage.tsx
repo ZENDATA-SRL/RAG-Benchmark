@@ -13,6 +13,8 @@ import { TableFrame } from "@/components/ui/TableFrame";
 import { formatDate, shortHash } from "@/lib/format";
 import { queryKeys } from "@/lib/queryClient";
 
+import { GenerationDialog } from "../generation/GenerationDialog";
+import { GenerationJobs } from "../generation/GenerationJobs";
 import { TransferDialog } from "../transfers/TransferDialog";
 import { TransferJobs } from "../transfers/TransferJobs";
 import { filterQuestions, type StatusFilter } from "./evidence";
@@ -99,6 +101,7 @@ export function QaSetDetailPage() {
   const [frozen, setFrozen] = useState<QASetSnapshotCreated | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [suggesting, setSuggesting] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const qaSet = useQuery({
     queryKey: queryKeys.qaSet(qaSetId, configurationId),
@@ -178,6 +181,15 @@ export function QaSetDetailPage() {
           <Button variant="secondary" onClick={() => setImporting(true)}>
             Import questions
           </Button>
+          {originCorpusId ? (
+            <Button
+              variant="secondary"
+              onClick={() => setGenerating(true)}
+              title="Let an agent propose questions from the documents of the corpus, for review"
+            >
+              Generate questions
+            </Button>
+          ) : null}
           <Button
             onClick={() => freeze.mutate()}
             disabled={freeze.isPending || questions.length === 0}
@@ -241,6 +253,14 @@ export function QaSetDetailPage() {
         ) : null}
       </div>
       <TransferJobs qaSetId={qaSetId} />
+      <GenerationJobs qaSetId={qaSetId} />
+      {generating ? (
+        <GenerationDialog
+          qaSetId={qaSetId}
+          configurationId={configurationId}
+          onClose={() => setGenerating(false)}
+        />
+      ) : null}
       {suggesting ? (
         <TransferDialog
           qaSetId={qaSetId}

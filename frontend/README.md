@@ -7,20 +7,22 @@ queries against it; then compare retrievers, or answer systems, in experiments.
 
 ## Pages
 
-| Route | Page |
-|---|---|
-| `/corpora`, `/corpora/:corpusId` | Corpora list; corpus detail with upload, documents, snapshots, preview and materialisation |
-| `/corpora/:corpusId/documents/:documentId/chunks` | Chunk viewer on the native PDF, with the parse text, sized to the window so the PDF and the chunk list scroll in their own panes; `?configuration=` picks the configuration and `?chunk=` opens on one chunk |
-| `/configurations`, `/configurations/new` | Chunking configurations with their coverage; the wizard that composes one |
-| `/indexes` | Embedding and vector store profiles, index builds, and the query panel of a ready build |
-| `/qa-sets`, `/qa-sets/:qaSetId` | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts, *Suggest chunks* and the set's suggestion jobs |
-| `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; *Next to review* goes on to the next question waiting. With `?transfer=` it is the review queue of a suggestion job |
-| `/transfers/:transferId` | A suggestion job: ranking progress, reviewed and confirmed counts, recall ceiling, its weights and thresholds, the questions by state, *Start review* |
-| `/answer-profiles` | Answer profiles: name, start of the system prompt, the profile each was derived from; *New answer profile*, *Derive*, and a detail with the parameters and what changed from the parent |
-| `/experiments`, `/experiments/:experimentId` | Experiments grouped by corpus and then by QA set, with their type and the snapshots each one uses, and the wizard that creates one; an experiment's type, corpus and QA set, variants (with the answer profile for Q&A), runs and the *Launch run* action |
-| `/experiments/compare` | Comparison of every variant run on one QA set snapshot (see below) |
-| `/experiments/:experimentId/runs/:runId` | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down |
-| `/components` | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default) |
+| Route                                              | Page                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/corpora`, `/corpora/:corpusId`                   | Corpora list; corpus detail with upload, documents, snapshots, preview and materialisation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `/corpora/:corpusId/documents/:documentId/chunks`  | Chunk viewer on the native PDF, with the parse text, sized to the window so the PDF and the chunk list scroll in their own panes; `?configuration=` picks the configuration and `?chunk=` opens on one chunk                                                                                                                                                                                                                                                                                                                                                                              |
+| `/configurations`, `/configurations/new`           | Chunking configurations with their coverage; the wizard that composes one                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/indexes`                                         | Embedding and vector store profiles, index builds, and the query panel of a ready build                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/qa-sets`, `/qa-sets/:qaSetId`                    | QA sets grouped by origin corpus (a new set takes the corpus name until renamed); the origin corpus of a set, its questions with their gold documents, new/edit/replace/delete of a question (gold documents picked from the origin corpus, with a filename filter), CSV/JSONL import with its summary, export, freeze; `?configuration=` shows the evidence status of each question under a chunking configuration, with a filter and the counts, _Suggest chunks_ and the set's suggestion jobs; _Generate questions_ (when the set has an origin corpus) and the set's generation jobs |
+| `/qa-sets/:qaSetId/questions/:questionId/annotate` | Annotation of one question under the chunking configuration in `?configuration=`: the chunk viewer on a gold (★) or corpus document (`?document=`), chunks marked sufficient or supporting, and the evidence panel to save a draft, confirm, or record not found; _Next to review_ goes on to the next question waiting. With `?transfer=` it is the review queue of a suggestion job                                                                                                                                                                                                     |
+| `/transfers/:transferId`                           | A suggestion job: ranking progress, reviewed and confirmed counts, recall ceiling, its weights and thresholds, the questions by state, _Start review_                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/generation-jobs/:jobId`                          | A generation job: questions produced per document and across documents against their targets, proposals pending, accepted and rejected by kind, documents covered, submissions refused by reason, the proposals filtered by status and kind, the units with their end reason, summary and trace link; cancel, resume, _Start review_                                                                                                                                                                                                                                                      |
+| `/generation-jobs/:jobId/review/:proposalId`       | Review of one generated question: question and answer editable, its kind, the cited chunks with the quoted passage underlined and their page in the PDF, chunks regraded, removed or added from a search, _Accept_ / _Reject_ / _Next_; `?kind=` keeps _Next_ within a kind                                                                                                                                                                                                                                                                                                               |
+| `/answer-profiles`                                 | Answer profiles: name, start of the system prompt, the profile each was derived from; _New answer profile_, _Derive_, and a detail with the parameters and what changed from the parent                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/experiments`, `/experiments/:experimentId`       | Experiments grouped by corpus and then by QA set, with their type and the snapshots each one uses, and the wizard that creates one; an experiment's type, corpus and QA set, variants (with the answer profile for Q&A), runs and the _Launch run_ action                                                                                                                                                                                                                                                                                                                                 |
+| `/experiments/compare`                             | Comparison of every variant run on one QA set snapshot (see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `/experiments/:experimentId/runs/:runId`           | A run: polled progress with cancel and resume, results grouped by chunking configuration, re-evaluation, questions and their drill-down                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/components`                                      | The component registry, one collapsible section per pipeline stage (source → judge) with its icon, component count and availability; each version expands to its parameters (name, type, default)                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Every table sits in a frame bounded to the window (`TableFrame`): long lists scroll inside it
 with the column names kept visible, instead of stretching the page.
@@ -28,16 +30,16 @@ with the column names kept visible, instead of stretching the page.
 ## Indexing
 
 - **Corpus page → Freeze snapshot**: every stored document, or the selected ones. The
-  corpus page lists its snapshots, each with a *Build index* shortcut.
+  corpus page lists its snapshots, each with a _Build index_ shortcut.
 - **Indexes page** (`/indexes`): embedding and vector store profiles (forms generated from
   the registry schema, like the configuration wizard; no name field, since the server names
   profiles, configurations, index builds and variants after what they are), index builds with their status
-  (polled while one is running), a *Start/Restart* action and a detail view with the chunk
+  (polled while one is running), a _Start/Restart_ action and a detail view with the chunk
   count and the vector store collection.
 
 ## Trying queries
 
-On the indexes page a `ready` build has a *Try query* action (`features/retrieval/`). The
+On the indexes page a `ready` build has a _Try query_ action (`features/retrieval/`). The
 panel picks or creates a retrieval profile — search strategy (every value of the enum;
 only dense is accepted by the API today), top-k and score threshold from a generated form — sends the query to `POST /api/v1/retrieve` and
 lists the hits with rank, score, file, page and the start of the text, plus where the time
@@ -54,41 +56,52 @@ parameters whose key ends in `prompt` in a multi-line text area.
 - **QA sets** (`features/qa-sets/`): create a set, import questions from CSV (columns
   `question`, optional `answer`, `gold_files` separated by `|`, `tags` separated by `|`,
   `answerable`) or JSONL, or write them one by one (`QuestionEditor`). A question a snapshot
-  holds is marked *frozen*: it cannot be edited or deleted, and saving it *replaces* it with a
-  new question. *Export* downloads the set, or a snapshot, as CSV or JSONL in the import
+  holds is marked _frozen_: it cannot be edited or deleted, and saving it _replaces_ it with a
+  new question. _Export_ downloads the set, or a snapshot, as CSV or JSONL in the import
   format. The questions table shows the expected answer next to each question.
 - **Annotation** (`AnnotationPage`, `EvidencePanel`, `evidence.ts`): pick a chunking
-  configuration on the set page, then *Annotate* a question. Chunks are marked with the
-  *sufficient* / *supporting* toggles on each row, or with the keys `s`, `p`, `x` on the
+  configuration on the set page, then _Annotate_ a question. Chunks are marked with the
+  _sufficient_ / _supporting_ toggles on each row, or with the keys `s`, `p`, `x` on the
   selected chunk; the panel lists the picked chunks across documents, and its buttons explain
   why they are disabled (no chunk to confirm, chunks on a not-found, no annotator name). The
   annotator's name is remembered in the browser. The chunk rows come from the same
   `ChunkNavigator` the chunk viewer uses, through its `renderChunkActions` prop.
-- **Suggested chunks** (`features/transfers/`): *Suggest chunks* on the set page starts a job
+- **Suggested chunks** (`features/transfers/`): _Suggest chunks_ on the set page starts a job
   under the chosen configuration, from the question and its answer or from the evidence
   confirmed in another configuration, with the embedder and, folded away, the weights and
   thresholds; questions whose documents have no chunks there are listed and can be left
-  out. The job page polls the ranking and lists the questions by state. *Start review* opens
-  the annotation page in queue mode: a *Candidates* tab lists every chunk of the gold
+  out. The job page polls the ranking and lists the questions by state. _Start review_ opens
+  the annotation page in queue mode: a _Candidates_ tab lists every chunk of the gold
   documents best first, with band, combined and per-signal scores and the grade toggles
   (texts flowed onto one line, as some extractions break after every word); pre-selected
-  candidates come ticked but unsaved; *Document* shows the chunk viewer with each
-  candidate's rank and score; *Search* finds chunks by their words when nothing is plausible.
+  candidates come ticked but unsaved; _Document_ shows the chunk viewer with each
+  candidate's rank and score; _Search_ finds chunks by their words when nothing is plausible.
   With a source, the chunks confirmed there are shown above. Keys: `j`/`k` or `↑`/`↓` move,
   `s`/`p`/`x` grade, `Enter` confirms and goes to the next question waiting, `n` records not
   found and goes on; at the end of the queue the job page opens again.
   The import summary counts imported, already present, unresolved, ambiguous and invalid rows
-  and lists every row that was left out with its reason. *Freeze* creates the snapshot an
+  and lists every row that was left out with its reason. _Freeze_ creates the snapshot an
   experiment uses; if the questions did not change, the existing snapshot is shown with the
   server's message.
+- **Generated questions** (`features/generation/`): _Generate questions_ on the set page opens
+  a dialog with the chunking configuration, the questions per document and across documents,
+  the documents to read, all of the corpus with any unticked or only the ones ticked, with a
+  filter by name (those without chunks or text there shown as left out), provider, model, temperature, language, steps per unit and a free
+  instruction; it shows what the job costs at most and recalls that the generating
+  configuration starts favoured. The job page polls the progress. _Start review_ opens the
+  first pending proposal: the reviewer corrects the text and answer, keeps, regrades or
+  removes chunks, adds others through _Add chunks_ (the same search as above), and accepts
+  or rejects; the kind shown follows the chunks kept. Keys: `a` accepts, `r` rejects, `n`
+  skips; after a decision the next pending proposal opens, and the job page at the end. The
+  annotator's name is the one the annotation page remembers.
 - **Answer profiles** (`features/answer-profiles/`): the form is generated from the schema of
-  an `answer_system` component (provider, model, system prompt, temperature, ...). *Derive
-  from* copies another profile's parameters and records it as the parent, so the detail lists
+  an `answer_system` component (provider, model, system prompt, temperature, ...). _Derive
+  from_ copies another profile's parameters and records it as the parent, so the detail lists
   what changed; the server names the profile and returns the existing one for the same
   parameters. An answer system the worker marked unavailable (no model credentials) is shown
   with its reason and cannot be used. Emptied text fields are dropped before sending, so they
   hash like fields left out.
-- **Experiment wizard** (`features/experiments/`): the type (*Retrieval* or *Q&A*), corpus
+- **Experiment wizard** (`features/experiments/`): the type (_Retrieval_ or _Q&A_), corpus
   snapshot, QA set snapshot, then variants. Only `ready` index builds of the chosen corpus snapshot are offered, each crossed
   with the chosen retrieval profiles and listed by index build and retrieval profile until
   the server names them; one variant can be the baseline. A Q&A experiment adds the answer
@@ -100,7 +113,7 @@ parameters whose key ends in `prompt` in a multi-line text area.
   `answer_profile_required`, `citations_not_supported` and `answer_system_not_available` are
   shown inline. The coverage check runs
   as soon as both snapshots are chosen: if some questions have gold documents outside the
-  corpus snapshot they are listed, and *Create* stays disabled until they are explicitly
+  corpus snapshot they are listed, and _Create_ stays disabled until they are explicitly
   excluded from the metrics. `variants_outside_snapshot` and `gold_coverage_choice_required`
   are shown inline. Once index builds are chosen, the chunk-level evidence of each of their
   configurations is shown (confirmed, not found, still to review): informative only, since
@@ -112,10 +125,10 @@ parameters whose key ends in `prompt` in a multi-line text area.
   document-level and the chunk-level columns, the cutoff (1/3/5/10) and an optional tag slice.
   Every value is shown as `mean (effective/asked)`, with the excluded questions per reason on
   hover, so excluded questions are never hidden, together with the corpus and QA set snapshot
-  the numbers were computed on. Selecting variants and *Compare selected* shows only those;
+  the numbers were computed on. Selecting variants and _Compare selected_ shows only those;
   every column stays whichever groups they come from. A Q&A run adds two sections after the ranked columns (which are then those of each
-  execution's first call): *Set*, with the set recall next to the set size and the share of
-  repeated hits, and *Calls*; a retrieval run shows neither. *Re-evaluate* scores the run
+  execution's first call): _Set_, with the set recall next to the set size and the share of
+  repeated hits, and _Calls_; a retrieval run shows neither. _Re-evaluate_ scores the run
   again on the worker on the evidence as it is now, with a progress bar while it runs and the
   results reloaded when it ends; the date and fingerprint of the evidence used are shown
   above the table. A CSV download and the questions table (document and chunk outcome per
@@ -127,33 +140,33 @@ parameters whose key ends in `prompt` in a multi-line text area.
   shows each call and rank (`×2 · call 1 rank 1, call 2 rank 2`), and chunks cited without
   being retrieved come last. In a Q&A run the questions table shows, under each question, its expected answer (or that
   it is not answerable) and, for each variant, the start of its answer (whole on hover),
-  whether it refused and whether that was right, then the retrieval outcome; *Download
-  answers* gets every answer of the run as CSV, one row per question, variant and
-  repetition. A Q&A run also adds an *Answer* section to the results:
+  whether it refused and whether that was right, then the retrieval outcome; _Download
+  answers_ gets every answer of the run as CSV, one row per question, variant and
+  repetition. A Q&A run also adds an _Answer_ section to the results:
   `refusal_accuracy`, latency p50 and p95, model latency p50, tokens in and out, each with
   its sample. Its drill-down shows the question's expected answer and, for each execution,
   the answer, whether it refused and whether that was right, the model, the tokens and where
   the time went, with a link to the execution's trace on Langfuse when the run was traced. Every results column explains itself: hovering its name shows what the
-  metric measures, and the *How to read these metrics* section under the table lists each
+  metric measures, and the _How to read these metrics_ section under the table lists each
   column on screen with that description, whether higher or lower is better and the statistic
   the cell reports (mean, median or p95). The wording is served by the API with each metric.
-- **Comparison page** (`/experiments/compare`, from the *Compare variants* button of the
-  experiments list): pick a QA set and one of its snapshots, then *Retrieval* or *Q&A*, which
+- **Comparison page** (`/experiments/compare`, from the _Compare variants_ button of the
+  experiments list): pick a QA set and one of its snapshots, then _Retrieval_ or _Q&A_, which
   are never mixed. Every variant of every experiment run on that snapshot is drawn, each
-  experiment with its latest finished run. A *Best on* strip counts how many metrics each
+  experiment with its latest finished run. A _Best on_ strip counts how many metrics each
   variant leads, out of the same total for all (the metrics at least two variants have a value
   on), flagging the variants with no value on some, such as the chunk-level ones, and naming
   the metrics left out because a single variant has a value; below, the metrics are in collapsible sections (a sticky bar jumps to
-  one, with *Expand all* and *Collapse all*): documents, chunks and, for Q&A, the retrieved
+  one, with _Expand all_ and _Collapse all_): documents, chunks and, for Q&A, the retrieved
   set, the searches and the answers. The 0–1 scores of a section share one grouped chart, a
-  column per variant, as wide as the section; the metrics with their own unit (a rank, a
-  count, a time) are a table with the best highlighted. Under each chart the per-metric bars
-  stay available, with a dashed line marking the baseline (the one marked in its experiment,
-  or the variant chosen in *Baseline*); every value shows the
+  column per variant; the metrics with their own unit (a rank, a count, a time) are a table
+  with the best highlighted. Under each chart the per-metric bars stay available, with a
+  dashed line marking the baseline (the one marked in its experiment, or the variant chosen
+  in _Baseline_); every value shows the
   change against the baseline (in points for a score, in % for a time or a count, with an
   arrow and green or red when it is an improvement or a regression) and the number of
   questions it rests on, flagged when it is fewer than the largest sample. The cutoff applies
-  to the ranked metrics, and *Variants shown* hides variants without moving the baseline.
+  to the ranked metrics, and _Variants shown_ hides variants without moving the baseline.
   Variants on different corpus snapshots are drawn together with a warning, and experiments
   without a finished run are listed as left out. The selection lives in the URL
   (`?qaSet=&snapshot=&type=`), so a view can be shared.
