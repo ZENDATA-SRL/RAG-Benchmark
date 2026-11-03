@@ -57,6 +57,13 @@ class Tracer(Protocol):
         """Put trace-level metadata and tags on every observation opened in the block."""
         ...
 
+    def langchain_callbacks(self) -> list[Any]:
+        """LangChain callbacks tracing an agent's steps under the current observation.
+
+        Empty when tracing is off, so a caller passes them along without checking.
+        """
+        ...
+
     async def create_dataset(
         self, name: str, *, description: str, metadata: dict[str, Any]
     ) -> str | None:
@@ -135,6 +142,9 @@ class NullTracer:
     ) -> Iterator[None]:
         yield None
 
+    def langchain_callbacks(self) -> list[Any]:
+        return []
+
     async def create_dataset(
         self, name: str, *, description: str, metadata: dict[str, Any]
     ) -> str | None:
@@ -199,8 +209,9 @@ class LangfuseTracer:
 
     enabled = True
 
-    def __init__(self, client: Langfuse) -> None:
+    def __init__(self, client: Langfuse, public_key: str | None = None) -> None:
         self.client = client
+        self.public_key = public_key
 
     def trace_id(self, seed: str) -> str | None:
         return Langfuse.create_trace_id(seed=seed)
@@ -241,6 +252,17 @@ class LangfuseTracer:
             )
         ):
             yield None
+
+    def langchain_callbacks(self) -> list[Any]:
+        # The handler opens its observations in the current OpenTelemetry context, so a
+        # chain run inside `observe` lands under that observation, in the same trace.
+        try:
+            from langfuse.langchain import CallbackHandler
+
+            return [CallbackHandler(public_key=self.public_key)]
+        except Exception:
+            logger.warning("langfuse: no LangChain callback handler", exc_info=True)
+            return []
 
     async def create_dataset(
         self, name: str, *, description: str, metadata: dict[str, Any]
@@ -375,7 +397,7 @@ def build_tracer(settings: Settings) -> Tracer:
     except Exception:
         logger.warning("langfuse: client not created, tracing is off", exc_info=True)
         return NULL_TRACER
-    return LangfuseTracer(client)
+    return LangfuseTracer(client, public_key=settings.langfuse_public_key)
 
 
 _tracer: Tracer | None = None
