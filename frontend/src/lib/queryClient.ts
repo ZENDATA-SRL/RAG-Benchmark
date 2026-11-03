@@ -86,6 +86,13 @@ export const queryKeys = {
   transferQueue: (id: string, state: string) => ["transfers", id, "queue", state] as const,
   transferQuestion: (id: string, questionId: string) =>
     ["transfers", id, "questions", questionId] as const,
+  generations: (qaSetId: string) => ["generations", "list", qaSetId] as const,
+  generation: (id: string) => ["generations", id] as const,
+  generationUnits: (id: string) => ["generations", id, "units"] as const,
+  generationProposals: (id: string) => ["generations", id, "proposals"] as const,
+  proposal: (proposalId: string, kind: string) =>
+    ["generations", "proposal", proposalId, kind] as const,
+  generationEstimate: (key: string) => ["generations", "estimate", key] as const,
   chunkSearch: (configurationId: string, text: string) =>
     ["chunks", "search", configurationId, text] as const,
   chunks: (documentId: string, configurationId: string) =>

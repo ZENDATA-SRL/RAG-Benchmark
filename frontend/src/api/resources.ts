@@ -74,6 +74,17 @@ import type {
   TransferCreate,
   TransferCreated,
   TransferRead,
+  EstimateResult,
+  GeneratedKind,
+  GenerationCreate,
+  GenerationCreated,
+  GenerationRead,
+  GenerationUnitRead,
+  ProposalAccept,
+  ProposalDecision,
+  ProposalRead,
+  ProposalReviewRead,
+  ProposalStatus,
 } from "./types";
 
 export const corporaApi = {
@@ -229,6 +240,32 @@ export const transfersApi = {
     }),
   question: (id: string, questionId: string) =>
     api.get<QuestionReviewRead>(`/api/v1/transfers/${id}/questions/${questionId}`),
+};
+
+export const generationApi = {
+  estimate: (body: GenerationCreate) =>
+    api.post<EstimateResult>("/api/v1/generation-jobs/estimate", body),
+  create: (body: GenerationCreate) => api.post<GenerationCreated>("/api/v1/generation-jobs", body),
+  list: (qaSetId?: string) =>
+    api.get<Page<GenerationRead>>("/api/v1/generation-jobs", { qa_set_id: qaSetId, limit: 50 }),
+  get: (id: string) => api.get<GenerationRead>(`/api/v1/generation-jobs/${id}`),
+  units: (id: string) => api.get<GenerationUnitRead[]>(`/api/v1/generation-jobs/${id}/units`),
+  cancel: (id: string) => api.post<GenerationRead>(`/api/v1/generation-jobs/${id}/cancel`),
+  resume: (id: string) => api.post<GenerationRead>(`/api/v1/generation-jobs/${id}/resume`, {}),
+  proposals: (id: string, status?: ProposalStatus, kind?: GeneratedKind) =>
+    api.get<Page<ProposalRead>>(`/api/v1/generation-jobs/${id}/proposals`, {
+      status,
+      kind,
+      limit: 200,
+    }),
+  proposal: (proposalId: string, kind?: GeneratedKind) =>
+    api.get<ProposalReviewRead>(`/api/v1/generated-questions/${proposalId}`, { kind }),
+  accept: (proposalId: string, body: ProposalAccept) =>
+    api.post<ProposalDecision>(`/api/v1/generated-questions/${proposalId}/accept`, body),
+  reject: (proposalId: string, annotator: string) =>
+    api.post<ProposalDecision>(`/api/v1/generated-questions/${proposalId}/reject`, {
+      annotator: annotator || null,
+    }),
 };
 
 export const qaSetsApi = {

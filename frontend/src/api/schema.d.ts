@@ -1684,10 +1684,223 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/generation-jobs/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estimate Generation
+         * @description Validate a job and say what it would cost, without creating anything.
+         */
+        post: operations["estimate_generation_api_v1_generation_jobs_estimate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Generations
+         * @description List the jobs, newest first, optionally of one QA set.
+         */
+        get: operations["list_generations_api_v1_generation_jobs_get"];
+        put?: never;
+        /**
+         * Create Generation
+         * @description Create a job generating questions and start it on the worker.
+         */
+        post: operations["create_generation_api_v1_generation_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs/{generation_job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Generation
+         * @description Return a job with its progress, discards and coverage.
+         */
+        get: operations["get_generation_api_v1_generation_jobs__generation_job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs/{generation_job_id}/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Generation Units
+         * @description The runs of the agent of a job, with their target, outcome and trace.
+         */
+        get: operations["list_generation_units_api_v1_generation_jobs__generation_job_id__units_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs/{generation_job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Generation
+         * @description Stop a job; the questions already proposed stay reviewable.
+         */
+        post: operations["cancel_generation_api_v1_generation_jobs__generation_job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs/{generation_job_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Generation
+         * @description Relaunch a job, running only the units that did not succeed.
+         */
+        post: operations["resume_generation_api_v1_generation_jobs__generation_job_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generation-jobs/{generation_job_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The review queue: the proposals of a job in the order they were saved.
+         */
+        get: operations["list_proposals_api_v1_generation_jobs__generation_job_id__proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generated-questions/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description A proposal opened for review, with the next one waiting (of a kind, if given).
+         */
+        get: operations["get_proposal_api_v1_generated_questions__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generated-questions/{proposal_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Proposal
+         * @description Accept a proposal, corrected or not: it becomes a question with confirmed evidence.
+         */
+        post: operations["accept_proposal_api_v1_generated_questions__proposal_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generated-questions/{proposal_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Proposal
+         * @description Reject a proposal; it leaves no trace in the set.
+         */
+        post: operations["reject_proposal_api_v1_generated_questions__proposal_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptedChunk */
+        AcceptedChunk: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            relevance: components["schemas"]["RelevanceGrade"];
+        };
         /** AmbiguousCandidateRead */
         AmbiguousCandidateRead: {
             /**
@@ -2476,6 +2689,29 @@ export interface components {
             description?: string | null;
         };
         /**
+         * CorpusDocumentRead
+         * @description A document of the set's corpus and whether a job would read it.
+         */
+        CorpusDocumentRead: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Materialised
+             * @description Ready chunks and parsed text here.
+             */
+            materialised: boolean;
+            /**
+             * Excluded
+             * @description Left out by the caller, or not among the documents chosen.
+             */
+            excluded: boolean;
+        };
+        /**
          * CorpusDocumentRemoved
          * @description Result of detaching a document from a corpus.
          *
@@ -2888,6 +3124,38 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * EstimateRead
+         * @description What a job will cost at most, before it is launched.
+         */
+        EstimateRead: {
+            /** Documents */
+            documents: number;
+            /** Document Units */
+            document_units: number;
+            /** Cross Units */
+            cross_units: number;
+            /** Max Steps */
+            max_steps: number;
+            /**
+             * Max Model Calls
+             * @description Units times the steps of each, at most.
+             */
+            max_model_calls: number;
+            /** Target Questions */
+            target_questions: number;
+        };
+        /**
+         * EstimateResult
+         * @description The estimate of a job, with the documents of the corpus and those it leaves out.
+         */
+        EstimateResult: {
+            estimate: components["schemas"]["EstimateRead"];
+            /** Excluded */
+            excluded: components["schemas"]["UnmaterializedDocumentRead"][];
+            /** Documents */
+            documents: components["schemas"]["CorpusDocumentRead"][];
         };
         /**
          * EvaluationProgressRead
@@ -3323,6 +3591,208 @@ export interface components {
          * @enum {string}
          */
         FileOutcome: "imported" | "skipped_duplicate" | "skipped_unsupported" | "failed";
+        /**
+         * GeneratedKind
+         * @description What the evidence of a generated question spans.
+         *
+         *     `single` is one chunk, `multi` several chunks of one document, `cross` chunks of
+         *     several documents.
+         * @enum {string}
+         */
+        GeneratedKind: "single" | "multi" | "cross";
+        /**
+         * GenerationCreate
+         * @description A job generating questions from the documents of a QA set's origin corpus.
+         */
+        GenerationCreate: {
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /**
+             * Per Document
+             * @description Questions for each document, answered by chunks of that document.
+             * @default 3
+             */
+            per_document: number;
+            /**
+             * Cross Document
+             * @description Questions whose answer needs chunks of two or three documents.
+             * @default 0
+             */
+            cross_document: number;
+            /**
+             * Document Ids
+             * @description Only these documents of the corpus are read; all of them when absent.
+             */
+            document_ids?: string[] | null;
+            /**
+             * Excluded Document Ids
+             * @description Documents of the corpus to leave out.
+             */
+            excluded_document_ids?: string[];
+            /**
+             * Exclude Unmaterialized
+             * @description Leave out the documents without chunks or text in the configuration, instead of refusing the job.
+             * @default false
+             */
+            exclude_unmaterialized: boolean;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "openai" | "bedrock";
+            /** Model */
+            model: string;
+            /**
+             * Region
+             * @description Bedrock only.
+             */
+            region?: string | null;
+            /**
+             * Temperature
+             * @default 0.3
+             */
+            temperature: number;
+            /**
+             * Language
+             * @description Language of the questions; the documents' if absent.
+             */
+            language?: string | null;
+            /**
+             * Instructions
+             * @description Free instruction for the generator, e.g. the kind of user asking.
+             */
+            instructions?: string | null;
+            /**
+             * Max Steps
+             * @description Model calls per unit.
+             */
+            max_steps?: number | null;
+            /** Concurrency */
+            concurrency?: number | null;
+        };
+        /**
+         * GenerationCreated
+         * @description A created job, with the documents it left out.
+         */
+        GenerationCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Document Ids */
+            document_ids: string[];
+            status: components["schemas"]["GenerationStatus"];
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Prompt Version */
+            prompt_version: string;
+            progress: components["schemas"]["GenerationProgressRead"];
+            estimate: components["schemas"]["EstimateRead"];
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Excluded */
+            excluded: components["schemas"]["UnmaterializedDocumentRead"][];
+        };
+        /**
+         * GenerationPhase
+         * @description Where a unit of a generation job looks: one document, or all of them together.
+         * @enum {string}
+         */
+        GenerationPhase: "document" | "cross";
+        /** GenerationProgressRead */
+        GenerationProgressRead: {
+            document: components["schemas"]["PhaseProgressRead"];
+            cross: components["schemas"]["PhaseProgressRead"];
+            /**
+             * Discards
+             * @description Submissions refused, by reason.
+             */
+            discards: {
+                [key: string]: number;
+            };
+            proposals: components["schemas"]["ProposalCountsRead"];
+            /**
+             * Documents Covered
+             * @description Documents cited by at least one proposal not rejected.
+             */
+            documents_covered: number;
+            /**
+             * Combinations
+             * @description Distinct sets of documents of the cross ones.
+             */
+            combinations: number;
+        };
+        /**
+         * GenerationRead
+         * @description A job with its parameters and its live progress.
+         */
+        GenerationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            /** Document Ids */
+            document_ids: string[];
+            status: components["schemas"]["GenerationStatus"];
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Prompt Version */
+            prompt_version: string;
+            progress: components["schemas"]["GenerationProgressRead"];
+            estimate: components["schemas"]["EstimateRead"];
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * GenerationStatus
+         * @description Lifecycle of a job generating questions from the documents of a corpus.
+         * @enum {string}
+         */
+        GenerationStatus: "pending" | "running" | "completed" | "failed" | "cancelled";
         /**
          * GoldChunkRead
          * @description An evidence chunk of the question, and whether the variant retrieved it.
@@ -3985,6 +4455,17 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[GenerationRead] */
+        Page_GenerationRead_: {
+            /** Items */
+            items?: components["schemas"]["GenerationRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[IndexBuildRead] */
         Page_IndexBuildRead_: {
             /** Items */
@@ -4011,6 +4492,17 @@ export interface components {
         Page_ParsingProfileRead_: {
             /** Items */
             items?: components["schemas"]["ParsingProfileRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[ProposalRead] */
+        Page_ProposalRead_: {
+            /** Items */
+            items?: components["schemas"]["ProposalRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -4183,6 +4675,21 @@ export interface components {
              */
             created_at: string;
         };
+        /** PhaseProgressRead */
+        PhaseProgressRead: {
+            /** Units */
+            units: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Failed */
+            failed: number;
+            /** Running */
+            running: number;
+            /** Target */
+            target: number;
+            /** Produced */
+            produced: number;
+        };
         /**
          * ProgressRead
          * @description Execution counters of a run: pending includes the ones still running.
@@ -4211,6 +4718,172 @@ export interface components {
             /** @description Absent until the run is re-evaluated. */
             evaluation?: components["schemas"]["EvaluationProgressRead"] | null;
         };
+        /**
+         * ProposalAccept
+         * @description The question as the reviewer accepts it, corrected or as proposed.
+         */
+        ProposalAccept: {
+            /** Text */
+            text: string;
+            /** Answer */
+            answer: string;
+            /** Chunks */
+            chunks: components["schemas"]["AcceptedChunk"][];
+            /** Annotator */
+            annotator: string;
+        };
+        /**
+         * ProposalChunkRead
+         * @description A chunk a proposal cites, with the quote the agent gave for it.
+         */
+        ProposalChunkRead: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page */
+            page: number | null;
+            /** Text */
+            text: string;
+            /** Quote */
+            quote: string;
+            relevance: components["schemas"]["RelevanceGrade"];
+            /** Rank */
+            rank: number;
+        };
+        /** ProposalCountsRead */
+        ProposalCountsRead: {
+            /** Pending */
+            pending: number;
+            /** Accepted */
+            accepted: number;
+            /** Rejected */
+            rejected: number;
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * ProposalDecision
+         * @description The outcome of a decision, with the next proposal to review.
+         */
+        ProposalDecision: {
+            proposal: components["schemas"]["ProposalRead"];
+            /** Question Id */
+            question_id: string | null;
+            /** Next Proposal Id */
+            next_proposal_id: string | null;
+        };
+        /**
+         * ProposalRead
+         * @description A generated question as listed in the review queue.
+         */
+        ProposalRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Generation Job Id
+             * Format: uuid
+             */
+            generation_job_id: string;
+            kind: components["schemas"]["GeneratedKind"];
+            /** Text */
+            text: string;
+            /** Answer */
+            answer: string;
+            status: components["schemas"]["ProposalStatus"];
+            /** Accepted Question Id */
+            accepted_question_id: string | null;
+            /** Reviewed By */
+            reviewed_by: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Chunks */
+            chunks: components["schemas"]["ProposalChunkRead"][];
+        };
+        /** ProposalReject */
+        ProposalReject: {
+            /** Annotator */
+            annotator?: string | null;
+        };
+        /**
+         * ProposalReviewRead
+         * @description A generated question opened for review.
+         */
+        ProposalReviewRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Generation Job Id
+             * Format: uuid
+             */
+            generation_job_id: string;
+            kind: components["schemas"]["GeneratedKind"];
+            /** Text */
+            text: string;
+            /** Answer */
+            answer: string;
+            status: components["schemas"]["ProposalStatus"];
+            /** Accepted Question Id */
+            accepted_question_id: string | null;
+            /** Reviewed By */
+            reviewed_by: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Chunks */
+            chunks: components["schemas"]["ProposalChunkRead"][];
+            /**
+             * Qa Set Id
+             * Format: uuid
+             */
+            qa_set_id: string;
+            /**
+             * Chunking Configuration Id
+             * Format: uuid
+             */
+            chunking_configuration_id: string;
+            phase: components["schemas"]["GenerationPhase"];
+            /** Trace Url */
+            trace_url: string | null;
+            /**
+             * Next Proposal Id
+             * @description The next proposal waiting for a decision, for a review in sequence.
+             */
+            next_proposal_id: string | null;
+        };
+        /**
+         * ProposalStatus
+         * @description Review state of a generated question: nothing is gold until a person accepts it.
+         * @enum {string}
+         */
+        ProposalStatus: "pending" | "accepted" | "rejected";
         /**
          * QASetCreate
          * @description Payload creating a QA set.
@@ -5161,6 +5834,53 @@ export interface components {
             text: string;
             /** Missing Documents */
             missing_documents: components["schemas"]["UncoveredDocumentRead"][];
+        };
+        /**
+         * UnitRead
+         * @description A run of the agent within a job.
+         */
+        UnitRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            phase: components["schemas"]["GenerationPhase"];
+            /** Position */
+            position: number;
+            /** Document Id */
+            document_id: string | null;
+            /** Filename */
+            filename: string | null;
+            /** Target */
+            target: number;
+            /** Produced */
+            produced: number;
+            status: components["schemas"]["ExecutionStatus"];
+            /** End Reason */
+            end_reason: string | null;
+            /** Error */
+            error: string | null;
+            /** Summary */
+            summary: string | null;
+            /** Topics */
+            topics: string[];
+            /** Discards */
+            discards: {
+                [key: string]: number;
+            };
+            /** Trace Url */
+            trace_url: string | null;
+        };
+        /** UnmaterializedDocumentRead */
+        UnmaterializedDocumentRead: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
         };
         /**
          * UnresolvedRowRead
@@ -8729,6 +9449,368 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuestionReviewRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    estimate_generation_api_v1_generation_jobs_estimate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstimateResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_generations_api_v1_generation_jobs_get: {
+        parameters: {
+            query?: {
+                qa_set_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GenerationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_generation_api_v1_generation_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_generation_api_v1_generation_jobs__generation_job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                generation_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_generation_units_api_v1_generation_jobs__generation_job_id__units_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                generation_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_generation_api_v1_generation_jobs__generation_job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                generation_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_generation_api_v1_generation_jobs__generation_job_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                generation_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_proposals_api_v1_generation_jobs__generation_job_id__proposals_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ProposalStatus"] | null;
+                kind?: components["schemas"]["GeneratedKind"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                generation_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ProposalRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_api_v1_generated_questions__proposal_id__get: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["GeneratedKind"] | null;
+            };
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalReviewRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_proposal_api_v1_generated_questions__proposal_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalDecision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_proposal_api_v1_generated_questions__proposal_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalDecision"];
                 };
             };
             /** @description Validation Error */

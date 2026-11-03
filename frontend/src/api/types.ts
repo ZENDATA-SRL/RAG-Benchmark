@@ -130,3 +130,16 @@ export type QueueState = QueueRowRead["state"];
 export type CandidateRead = components["schemas"]["CandidateRead"];
 export type QuestionReviewRead = components["schemas"]["QuestionReviewRead"];
 export type ChunkSearchHit = components["schemas"]["ChunkSearchHit"];
+
+export type GenerationCreate = components["schemas"]["GenerationCreate"];
+export type GenerationRead = components["schemas"]["GenerationRead"];
+export type GenerationCreated = components["schemas"]["GenerationCreated"];
+export type EstimateResult = components["schemas"]["EstimateResult"];
+export type GenerationUnitRead = components["schemas"]["UnitRead"];
+export type ProposalRead = components["schemas"]["ProposalRead"];
+export type ProposalChunkRead = components["schemas"]["ProposalChunkRead"];
+export type ProposalReviewRead = components["schemas"]["ProposalReviewRead"];
+export type ProposalAccept = components["schemas"]["ProposalAccept"];
+export type ProposalDecision = components["schemas"]["ProposalDecision"];
+export type GeneratedKind = components["schemas"]["GeneratedKind"];
+export type ProposalStatus = components["schemas"]["ProposalStatus"];

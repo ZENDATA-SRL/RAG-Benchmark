@@ -5517,10 +5517,631 @@
           }
         }
       }
+    },
+    "/api/v1/generation-jobs/estimate": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Estimate Generation",
+        "description": "Validate a job and say what it would cost, without creating anything.",
+        "operationId": "estimate_generation_api_v1_generation_jobs_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Create Generation",
+        "description": "Create a job generating questions and start it on the worker.",
+        "operationId": "create_generation_api_v1_generation_jobs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Generations",
+        "description": "List the jobs, newest first, optionally of one QA set.",
+        "operationId": "list_generations_api_v1_generation_jobs_get",
+        "parameters": [
+          {
+            "name": "qa_set_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qa Set Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_GenerationRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs/{generation_job_id}": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Get Generation",
+        "description": "Return a job with its progress, discards and coverage.",
+        "operationId": "get_generation_api_v1_generation_jobs__generation_job_id__get",
+        "parameters": [
+          {
+            "name": "generation_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs/{generation_job_id}/units": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Generation Units",
+        "description": "The runs of the agent of a job, with their target, outcome and trace.",
+        "operationId": "list_generation_units_api_v1_generation_jobs__generation_job_id__units_get",
+        "parameters": [
+          {
+            "name": "generation_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitRead"
+                  },
+                  "title": "Response List Generation Units Api V1 Generation Jobs  Generation Job Id  Units Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs/{generation_job_id}/cancel": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Cancel Generation",
+        "description": "Stop a job; the questions already proposed stay reviewable.",
+        "operationId": "cancel_generation_api_v1_generation_jobs__generation_job_id__cancel_post",
+        "parameters": [
+          {
+            "name": "generation_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs/{generation_job_id}/resume": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Resume Generation",
+        "description": "Relaunch a job, running only the units that did not succeed.",
+        "operationId": "resume_generation_api_v1_generation_jobs__generation_job_id__resume_post",
+        "parameters": [
+          {
+            "name": "generation_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generation-jobs/{generation_job_id}/proposals": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Proposals",
+        "description": "The review queue: the proposals of a job in the order they were saved.",
+        "operationId": "list_proposals_api_v1_generation_jobs__generation_job_id__proposals_get",
+        "parameters": [
+          {
+            "name": "generation_job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Job Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProposalStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GeneratedKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ProposalRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generated-questions/{proposal_id}": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Get Proposal",
+        "description": "A proposal opened for review, with the next one waiting (of a kind, if given).",
+        "operationId": "get_proposal_api_v1_generated_questions__proposal_id__get",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proposal Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GeneratedKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalReviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generated-questions/{proposal_id}/accept": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Accept Proposal",
+        "description": "Accept a proposal, corrected or not: it becomes a question with confirmed evidence.",
+        "operationId": "accept_proposal_api_v1_generated_questions__proposal_id__accept_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalAccept"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalDecision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generated-questions/{proposal_id}/reject": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Reject Proposal",
+        "description": "Reject a proposal; it leaves no trace in the set.",
+        "operationId": "reject_proposal_api_v1_generated_questions__proposal_id__reject_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalDecision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AcceptedChunk": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "relevance"
+        ],
+        "title": "AcceptedChunk"
+      },
       "AmbiguousCandidateRead": {
         "properties": {
           "document_id": {
@@ -7094,6 +7715,38 @@
         "title": "CorpusCreate",
         "description": "Payload creating a corpus."
       },
+      "CorpusDocumentRead": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "materialised": {
+            "type": "boolean",
+            "title": "Materialised",
+            "description": "Ready chunks and parsed text here."
+          },
+          "excluded": {
+            "type": "boolean",
+            "title": "Excluded",
+            "description": "Left out by the caller, or not among the documents chosen."
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename",
+          "materialised",
+          "excluded"
+        ],
+        "title": "CorpusDocumentRead",
+        "description": "A document of the set's corpus and whether a job would read it."
+      },
       "CorpusDocumentRemoved": {
         "properties": {
           "corpus_id": {
@@ -7864,6 +8517,75 @@
         ],
         "title": "EmbeddingProfileRead",
         "description": "An embedding profile as exposed by the API."
+      },
+      "EstimateRead": {
+        "properties": {
+          "documents": {
+            "type": "integer",
+            "title": "Documents"
+          },
+          "document_units": {
+            "type": "integer",
+            "title": "Document Units"
+          },
+          "cross_units": {
+            "type": "integer",
+            "title": "Cross Units"
+          },
+          "max_steps": {
+            "type": "integer",
+            "title": "Max Steps"
+          },
+          "max_model_calls": {
+            "type": "integer",
+            "title": "Max Model Calls",
+            "description": "Units times the steps of each, at most."
+          },
+          "target_questions": {
+            "type": "integer",
+            "title": "Target Questions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents",
+          "document_units",
+          "cross_units",
+          "max_steps",
+          "max_model_calls",
+          "target_questions"
+        ],
+        "title": "EstimateRead",
+        "description": "What a job will cost at most, before it is launched."
+      },
+      "EstimateResult": {
+        "properties": {
+          "estimate": {
+            "$ref": "#/components/schemas/EstimateRead"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/UnmaterializedDocumentRead"
+            },
+            "type": "array",
+            "title": "Excluded"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusDocumentRead"
+            },
+            "type": "array",
+            "title": "Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estimate",
+          "excluded",
+          "documents"
+        ],
+        "title": "EstimateResult",
+        "description": "The estimate of a job, with the documents of the corpus and those it leaves out."
       },
       "EvaluationProgressRead": {
         "properties": {
@@ -8818,6 +9540,393 @@
           "failed"
         ],
         "title": "FileOutcome"
+      },
+      "GeneratedKind": {
+        "type": "string",
+        "enum": [
+          "single",
+          "multi",
+          "cross"
+        ],
+        "title": "GeneratedKind",
+        "description": "What the evidence of a generated question spans.\n\n`single` is one chunk, `multi` several chunks of one document, `cross` chunks of\nseveral documents."
+      },
+      "GenerationCreate": {
+        "properties": {
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "per_document": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Per Document",
+            "description": "Questions for each document, answered by chunks of that document.",
+            "default": 3
+          },
+          "cross_document": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Cross Document",
+            "description": "Questions whose answer needs chunks of two or three documents.",
+            "default": 0
+          },
+          "document_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Ids",
+            "description": "Only these documents of the corpus are read; all of them when absent."
+          },
+          "excluded_document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Excluded Document Ids",
+            "description": "Documents of the corpus to leave out."
+          },
+          "exclude_unmaterialized": {
+            "type": "boolean",
+            "title": "Exclude Unmaterialized",
+            "description": "Leave out the documents without chunks or text in the configuration, instead of refusing the job.",
+            "default": false
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "bedrock"
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region",
+            "description": "Bedrock only."
+          },
+          "temperature": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Temperature",
+            "default": 0.3
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Language of the questions; the documents' if absent."
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions",
+            "description": "Free instruction for the generator, e.g. the kind of user asking."
+          },
+          "max_steps": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Steps",
+            "description": "Model calls per unit."
+          },
+          "concurrency": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concurrency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_set_id",
+          "chunking_configuration_id",
+          "provider",
+          "model"
+        ],
+        "title": "GenerationCreate",
+        "description": "A job generating questions from the documents of a QA set's origin corpus."
+      },
+      "GenerationCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Document Ids"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GenerationStatus"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GenerationProgressRead"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/EstimateRead"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/UnmaterializedDocumentRead"
+            },
+            "type": "array",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "qa_set_id",
+          "chunking_configuration_id",
+          "document_ids",
+          "status",
+          "params",
+          "prompt_version",
+          "progress",
+          "estimate",
+          "error",
+          "created_at",
+          "excluded"
+        ],
+        "title": "GenerationCreated",
+        "description": "A created job, with the documents it left out."
+      },
+      "GenerationPhase": {
+        "type": "string",
+        "enum": [
+          "document",
+          "cross"
+        ],
+        "title": "GenerationPhase",
+        "description": "Where a unit of a generation job looks: one document, or all of them together."
+      },
+      "GenerationProgressRead": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/PhaseProgressRead"
+          },
+          "cross": {
+            "$ref": "#/components/schemas/PhaseProgressRead"
+          },
+          "discards": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Discards",
+            "description": "Submissions refused, by reason."
+          },
+          "proposals": {
+            "$ref": "#/components/schemas/ProposalCountsRead"
+          },
+          "documents_covered": {
+            "type": "integer",
+            "title": "Documents Covered",
+            "description": "Documents cited by at least one proposal not rejected."
+          },
+          "combinations": {
+            "type": "integer",
+            "title": "Combinations",
+            "description": "Distinct sets of documents of the cross ones."
+          }
+        },
+        "type": "object",
+        "required": [
+          "document",
+          "cross",
+          "discards",
+          "proposals",
+          "documents_covered",
+          "combinations"
+        ],
+        "title": "GenerationProgressRead"
+      },
+      "GenerationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Document Ids"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GenerationStatus"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GenerationProgressRead"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/EstimateRead"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "qa_set_id",
+          "chunking_configuration_id",
+          "document_ids",
+          "status",
+          "params",
+          "prompt_version",
+          "progress",
+          "estimate",
+          "error",
+          "created_at"
+        ],
+        "title": "GenerationRead",
+        "description": "A job with its parameters and its live progress."
+      },
+      "GenerationStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "GenerationStatus",
+        "description": "Lifecycle of a job generating questions from the documents of a corpus."
       },
       "GoldChunkRead": {
         "properties": {
@@ -10353,6 +11462,36 @@
         ],
         "title": "Page[ExperimentRead]"
       },
+      "Page_GenerationRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[GenerationRead]"
+      },
       "Page_IndexBuildRead_": {
         "properties": {
           "items": {
@@ -10442,6 +11581,36 @@
           "offset"
         ],
         "title": "Page[ParsingProfileRead]"
+      },
+      "Page_ProposalRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[ProposalRead]"
       },
       "Page_QASetRead_": {
         "properties": {
@@ -10813,6 +11982,44 @@
         "title": "ParsingProfileRead",
         "description": "A parsing profile as exposed by the API."
       },
+      "PhaseProgressRead": {
+        "properties": {
+          "units": {
+            "type": "integer",
+            "title": "Units"
+          },
+          "succeeded": {
+            "type": "integer",
+            "title": "Succeeded"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "running": {
+            "type": "integer",
+            "title": "Running"
+          },
+          "target": {
+            "type": "integer",
+            "title": "Target"
+          },
+          "produced": {
+            "type": "integer",
+            "title": "Produced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "units",
+          "succeeded",
+          "failed",
+          "running",
+          "target",
+          "produced"
+        ],
+        "title": "PhaseProgressRead"
+      },
       "ProgressRead": {
         "properties": {
           "total": {
@@ -10850,6 +12057,425 @@
         "type": "object",
         "title": "ProgressRead",
         "description": "Execution counters of a run: pending includes the ones still running."
+      },
+      "ProposalAccept": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Answer"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptedChunk"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Chunks"
+          },
+          "annotator": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Annotator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "answer",
+          "chunks",
+          "annotator"
+        ],
+        "title": "ProposalAccept",
+        "description": "The question as the reviewer accepts it, corrected or as proposed."
+      },
+      "ProposalChunkRead": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "relevance": {
+            "$ref": "#/components/schemas/RelevanceGrade"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "filename",
+          "ordinal",
+          "page",
+          "text",
+          "quote",
+          "relevance",
+          "rank"
+        ],
+        "title": "ProposalChunkRead",
+        "description": "A chunk a proposal cites, with the quote the agent gave for it."
+      },
+      "ProposalCountsRead": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "accepted",
+          "rejected",
+          "by_kind"
+        ],
+        "title": "ProposalCountsRead"
+      },
+      "ProposalDecision": {
+        "properties": {
+          "proposal": {
+            "$ref": "#/components/schemas/ProposalRead"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
+          },
+          "next_proposal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Proposal Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposal",
+          "question_id",
+          "next_proposal_id"
+        ],
+        "title": "ProposalDecision",
+        "description": "The outcome of a decision, with the next proposal to review."
+      },
+      "ProposalRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "generation_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Generation Job Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GeneratedKind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "accepted_question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Question Id"
+          },
+          "reviewed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalChunkRead"
+            },
+            "type": "array",
+            "title": "Chunks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "generation_job_id",
+          "kind",
+          "text",
+          "answer",
+          "status",
+          "accepted_question_id",
+          "reviewed_by",
+          "reviewed_at",
+          "created_at",
+          "chunks"
+        ],
+        "title": "ProposalRead",
+        "description": "A generated question as listed in the review queue."
+      },
+      "ProposalReject": {
+        "properties": {
+          "annotator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotator"
+          }
+        },
+        "type": "object",
+        "title": "ProposalReject"
+      },
+      "ProposalReviewRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "generation_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Generation Job Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GeneratedKind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "accepted_question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Question Id"
+          },
+          "reviewed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalChunkRead"
+            },
+            "type": "array",
+            "title": "Chunks"
+          },
+          "qa_set_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Qa Set Id"
+          },
+          "chunking_configuration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunking Configuration Id"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/GenerationPhase"
+          },
+          "trace_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Url"
+          },
+          "next_proposal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Proposal Id",
+            "description": "The next proposal waiting for a decision, for a review in sequence."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "generation_job_id",
+          "kind",
+          "text",
+          "answer",
+          "status",
+          "accepted_question_id",
+          "reviewed_by",
+          "reviewed_at",
+          "created_at",
+          "chunks",
+          "qa_set_id",
+          "chunking_configuration_id",
+          "phase",
+          "trace_url",
+          "next_proposal_id"
+        ],
+        "title": "ProposalReviewRead",
+        "description": "A generated question opened for review."
+      },
+      "ProposalStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "rejected"
+        ],
+        "title": "ProposalStatus",
+        "description": "Review state of a generated question: nothing is gold until a person accepts it."
       },
       "QASetCreate": {
         "properties": {
@@ -13042,6 +14668,152 @@
         ],
         "title": "UncoveredQuestionRead",
         "description": "A question with gold documents missing from the corpus snapshot."
+      },
+      "UnitRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/GenerationPhase"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "target": {
+            "type": "integer",
+            "title": "Target"
+          },
+          "produced": {
+            "type": "integer",
+            "title": "Produced"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "end_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Reason"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "discards": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Discards"
+          },
+          "trace_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "phase",
+          "position",
+          "document_id",
+          "filename",
+          "target",
+          "produced",
+          "status",
+          "end_reason",
+          "error",
+          "summary",
+          "topics",
+          "discards",
+          "trace_url"
+        ],
+        "title": "UnitRead",
+        "description": "A run of the agent within a job."
+      },
+      "UnmaterializedDocumentRead": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename"
+        ],
+        "title": "UnmaterializedDocumentRead"
       },
       "UnresolvedRowRead": {
         "properties": {
