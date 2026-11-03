@@ -241,10 +241,13 @@ Le citazioni sono opzionali: senza di esse le metriche di retrieval si calcolano
 | RF-D10 | Verificare in fase di import che ogni documento indicato esista nel corpus, segnalando i riferimenti irrisolti o ambigui; i chunk gold delle domande importate si ottengono poi con una proposta assistita confermata dall'utente |
 | RF-D11 | Esportare un dataset nello stesso formato accettato in import (simmetria per il ciclo esporta-correggi-reimporta) |
 | RF-D12 | L'authoring non richiede uno snapshot di corpus: si annota navigando i documenti gold e i loro chunk nella configurazione di chunking scelta |
+| RF-D13 | **Generazione assistita delle domande**: un agente legge i documenti del corpus di origine nei chunk di una configurazione e propone domande con risposta attesa e chunk di evidenza citati testualmente, per documento e fra documenti; le citazioni sono verificate prima della revisione, e una proposta entra nel QA set con evidenza confermata solo se accettata da una persona, con tag che la distinguono dalle domande scritte a mano |
 
 **Motivazione RF-D01/D12.** Per scrivere una domanda servono i documenti da leggere e i chunk da selezionare, entrambi disponibili per documento (RF-P10): l'annotazione tocca i due o tre file gold di quella domanda, non un insieme congelato. Legare il QA set a uno snapshot con un vincolo rigido lo renderebbe inutilizzabile appena il corpus si estende, reintroducendo il costo di ri-annotazione che §3.1 riserva al solo cambio di parsing o chunking. Il vincolo corretto è verificato al momento dell'esperimento (RF-E09): i documenti gold delle domande valutate devono essere contenuti nello snapshot indicizzato.
 
 **Motivazione RF-D09/D10.** L'evidenza gold è sempre un insieme di chunk confermati da una persona, mai una citazione testuale conservata a parte. Chi importa un dataset conosce la domanda, la risposta e i file in cui sta, ma non i chunk di una configurazione che magari non esisteva quando il dataset è stato scritto. L'import si ferma quindi ai documenti gold, e i chunk si ottengono con lo stesso meccanismo di proposta e conferma del trasferimento, senza una configurazione di origine.
+
+**Motivazione RF-D13.** L'annotazione è il rischio principale: un set vuoto non misura nulla. La generazione riduce il lavoro alla revisione di proposte già complete di evidenza, senza cambiare il modello del gold: i chunk restano confermati da una persona (RF-T05) attraverso lo stesso percorso dell'authoring manuale, e i documenti gold sono derivati dai chunk (RF-D06). Le domande nascono dai chunk di una sola configurazione, che parte quindi favorita: i tag permettono di leggerne le metriche a parte, e il confronto fra configurazioni passa dal trasferimento e dalle metriche a livello documento.
 
 **Motivazione RF-D04.** Il corpus di prova ha mostrato boilerplate identico fra documenti diversi (per esempio `Allegato C` e `Allegato C.2`). Se la risposta sta in un paragrafo presente in tre allegati, tutti e tre sono gold validi e il recall deve considerare rilevante qualsiasi documento della lista.
 
@@ -389,6 +392,11 @@ RunExperimentWorkflow(run_id)
 
 TransferDatasetWorkflow(transfer_job_id)
  └─ activity: rank_candidates(question)           → candidati ordinati, in attesa di conferma
+
+GenerateQuestionsWorkflow(generation_job_id)
+ ├─ activity: run_generation_unit(document)       [una per documento, parallelo, coda llm]
+ └─ activity: run_generation_unit(cross batch)    [in sequenza, dopo la fase per documento]
+                                                  → proposte verificate, in attesa di revisione
 ```
 
 La creazione di una configurazione di popolamento (RF-P09) è la composizione di `MaterializeChunksWorkflow` e `BuildIndexWorkflow`, preceduta dai get-or-create di snapshot e configurazione di chunking. `MaterializeChunksWorkflow` prende un elenco di documenti e non uno snapshot, così lo stesso workflow serve l'anteprima su un singolo documento (RF-P08) e la materializzazione di un corpus intero.
@@ -555,6 +563,14 @@ Questa è la parte in cui si concretizza la decisione di §3.1.
 **Invariante.** I candidati sono **proposte**: nessuno diventa evidenza gold senza conferma umana.
 
 **Nota.** Il trasferimento avviene fra configurazioni di chunking e non coinvolge alcuno snapshot: i candidati sono ristretti ai documenti gold della domanda, i cui chunk esistono per ogni configurazione indipendentemente da ciò che è indicizzato.
+
+| Entità | Ruolo |
+|---|---|
+| **Job di generazione** | per un QA set e una configurazione di chunking, sui documenti del corpus di origine; parametri del generatore e versione del prompt |
+| **Unità di generazione** | un'esecuzione dell'agente con un obiettivo: un documento, o un gruppo di domande fra documenti; unità di ripresa |
+| **Domanda generata** | proposta con risposta attesa, tipo (chunk singolo, multi-chunk, fra documenti) e chunk citati con la citazione; in attesa, accettata o rifiutata |
+
+**Invariante.** Come i candidati, le domande generate sono **proposte**: una domanda e la sua evidenza entrano nel QA set solo con l'accettazione di una persona.
 
 ### 6.7 Esperimenti, esecuzione e valutazione
 
