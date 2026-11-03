@@ -41,6 +41,10 @@ CREATE TYPE evidence_link_status AS ENUM ('to_review', 'confirmed', 'not_found')
 CREATE TYPE relevance_grade     AS ENUM ('sufficient', 'supporting');
 CREATE TYPE transfer_status     AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled');
 CREATE TYPE confidence_band     AS ENUM ('high', 'medium', 'low');
+CREATE TYPE generation_status   AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled');
+CREATE TYPE generation_phase    AS ENUM ('document', 'cross');
+CREATE TYPE generated_kind      AS ENUM ('single', 'multi', 'cross');
+CREATE TYPE proposal_status     AS ENUM ('pending', 'accepted', 'rejected');
 CREATE TYPE experiment_type     AS ENUM ('retrieval', 'qa');
 CREATE TYPE execution_status    AS ENUM ('pending', 'running', 'succeeded', 'failed', 'skipped');
 CREATE TYPE retrieval_stage     AS ENUM ('dense', 'sparse', 'fused', 'reranked', 'final');
@@ -648,6 +652,76 @@ Le domande che un job classifica: **unità di idempotenza e resume**, come `exec
 
 > **Il trasferimento non richiede uno snapshot.** I candidati sono ristretti ai documenti gold della domanda (RF-T03, RT-M03), e i chunk di quei documenti nella configurazione di destinazione esistono come `chunk_results` indipendentemente da qualsiasi insieme congelato. Un trasferimento si può quindi eseguire prima di costruire l'indice.
 
+### `generation_jobs`
+Un agente legge i documenti del corpus di origine di un QA set nei chunk di una configurazione e propone domande con risposta attesa e chunk di evidenza (RF-D13). Come il trasferimento, propone soltanto.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `qa_set_id` | UUID | FK → qa_sets ON DELETE CASCADE, NOT NULL | |
+| `chunking_configuration_id` | UUID | FK → chunking_configurations ON DELETE RESTRICT, NOT NULL | i chunk letti e citati |
+| `document_ids` | UUID[] | NOT NULL | i documenti letti, nell'ordine dei riferimenti brevi (`d1`, `d2`, …) |
+| `params` | JSONB | NOT NULL DEFAULT '{}' | `per_document`, `cross_document`, provider, modello, temperatura, lingua, istruzione, passi per unità, soglie e limiti delle verifiche: nel job e non in un profilo content-addressed |
+| `prompt_version` | TEXT | NOT NULL | versione del prompt nel codice |
+| `status` | generation_status | NOT NULL DEFAULT 'pending' | |
+| `progress` | JSONB | NOT NULL DEFAULT '{}' | copia per il polling; l'API la ricalcola da unità e proposte |
+| `workflow_id` | TEXT | UNIQUE | ID Temporal, riusato alla ripresa |
+| `error` | TEXT | | motivo se il job si è fermato per una ragione propria (credenziali mancanti incluse) |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+### `generation_units`
+Un'esecuzione dell'agente con un obiettivo: **unità di ripresa**. Fase `document` (un'unità per documento, con quel documento solo) o `cross` (gruppi di al più 5 domande fra documenti, in sequenza). Ogni domanda verificata è salvata subito, quindi un'unità interrotta riparte con l'obiettivo residuo.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `generation_job_id` | UUID | FK → generation_jobs ON DELETE CASCADE, NOT NULL | |
+| `phase` | generation_phase | NOT NULL | |
+| `document_id` | UUID | FK → documents ON DELETE CASCADE, NULL | solo fase `document` |
+| `position` | INTEGER | NOT NULL | ordine nella fase |
+| `target` | INTEGER | NOT NULL | domande chieste |
+| `produced` | INTEGER | NOT NULL DEFAULT 0 | domande salvate; un obiettivo non raggiunto non è un errore |
+| `status` | execution_status | NOT NULL DEFAULT 'pending' | |
+| `summary` | TEXT | | fase `document`: riassunto del documento, mostrato alla fase `cross` |
+| `topics` | JSONB | NOT NULL DEFAULT '[]' | temi principali del documento |
+| `discards` | JSONB | NOT NULL DEFAULT '{}' | proposte scartate dalle verifiche, per motivo |
+| `end_reason` | TEXT | | `target_reached`, `agent_finished`, `agent_stopped`, `max_steps`, `invalid_output` |
+| `error` | TEXT | | |
+| `langfuse_trace_id` | TEXT | | una trace per unità |
+| | | INDEX (generation_job_id, phase, status, position) | |
+
+### `generated_questions`
+Domanda **proposta**, in attesa di revisione. Nessuna domanda generata entra nel QA set senza accettazione (RF-T05): accettata, diventa una riga di `questions` con i tag `generated` e `generated:<kind>` e la sua evidenza confermata.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `generation_job_id` | UUID | FK → generation_jobs ON DELETE CASCADE, NOT NULL | |
+| `unit_id` | UUID | FK → generation_units ON DELETE CASCADE, NOT NULL | |
+| `kind` | generated_kind | NOT NULL | dall'evidenza: un chunk, più chunk di un documento, più documenti |
+| `text` | TEXT | NOT NULL | come l'ha scritta l'agente, anche dopo un'accettazione corretta |
+| `answer` | TEXT | NOT NULL | |
+| `status` | proposal_status | NOT NULL DEFAULT 'pending' | |
+| `accepted_question_id` | UUID | FK → questions ON DELETE SET NULL | la domanda creata |
+| `reviewed_by` | TEXT | | |
+| `reviewed_at` | TIMESTAMPTZ | | |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+| | | INDEX (generation_job_id, status) | |
+
+### `generated_question_chunks`
+Chunk citato da una proposta, con la citazione testuale verificata. La citazione serve alla verifica e alla revisione: il gold resta l'insieme dei chunk confermati.
+
+| Campo | Tipo | Vincoli | Note |
+|---|---|---|---|
+| `generated_question_id` | UUID | FK → generated_questions ON DELETE CASCADE, PK | |
+| `chunk_id` | UUID | FK → chunks ON DELETE RESTRICT, PK | |
+| `document_id` | UUID | FK → documents ON DELETE CASCADE, NOT NULL | |
+| `relevance` | relevance_grade | NOT NULL | dalla piattaforma: un solo chunk `sufficient`, più chunk tutti `supporting` |
+| `quote` | TEXT | NOT NULL | |
+| `rank` | INTEGER | NOT NULL | ordine di citazione |
+
+> **Bias della configurazione di generazione.** Una domanda a chunk singolo è contenuta per costruzione in un chunk della configurazione da cui è generata, che parte quindi favorita rispetto a configurazioni con altri confini. I tag permettono di leggere le metriche delle domande generate a parte; il confronto fra configurazioni passa dal trasferimento e dalle metriche a livello documento.
+
 ---
 
 ## Blocco 7 — Esperimenti, esecuzione e valutazione (§6.7)
@@ -911,6 +985,14 @@ erDiagram
     transfer_jobs ||--o{ transfer_questions : classifica
     chunks ||--o{ transfer_candidates : candidato
 
+    qa_sets ||--o{ generation_jobs : genera
+    chunking_configurations ||--o{ generation_jobs : legge
+    generation_jobs ||--o{ generation_units : divide
+    generation_units ||--o{ generated_questions : propone
+    generated_questions ||--o{ generated_question_chunks : cita
+    chunks ||--o{ generated_question_chunks : citato
+    generated_questions |o--o| questions : accettata
+
     corpus_snapshots ||--o{ experiments : su
     qa_set_snapshots ||--o{ experiments : su
     experiments ||--o{ variants : combina
@@ -936,7 +1018,7 @@ erDiagram
 ## Note trasversali di implementazione
 
 - **Confine con Langfuse (§5.3).** Trace/span vivono in Langfuse; PostgreSQL mantiene identificativi replicati (`langfuse_dataset_id`, `langfuse_run_name`, `langfuse_trace_id`, `langfuse_score_id`) e una **copia degli score** via webhook + poller di riconciliazione (RT-L03).
-- **Stato autorevole in Temporal (RT-O07).** I campi `status`/`progress`/`workflow_id` su `import_runs`, `runs`, `transfer_jobs`, `index_builds`, `executions` sono una copia denormalizzata per la reattività della UI.
+- **Stato autorevole in Temporal (RT-O07).** I campi `status`/`progress`/`workflow_id` su `import_runs`, `runs`, `transfer_jobs`, `generation_jobs`, `index_builds`, `executions` sono una copia denormalizzata per la reattività della UI.
 - **Content-addressing (RF-P07).** `config_hash`, `cache_key`, `composition_hash`, `chain_fingerprint` garantiscono riuso senza ricalcolo: variare solo il `top_k` non tocca `parsing_results`, `chunk_results`, `index_builds`; aggiungere documenti a un corpus non tocca i `chunk_results` di quelli già presenti. Tutte le creazioni di entità content-addressed vanno implementate come **get-or-create** sull'hash.
 - **Cosa costa lavoro umano.** Cambiare embedder, vector store, top-k, strategia, reranker o sistema di risposta: nulla. Aggiungere o togliere documenti da un corpus: nulla (solo chunking dei nuovi, automatico). Cambiare profilo di parsing o di chunking: conferme umane sui chunk gold, eventualmente parziali (RF-T08). È l'unica voce con costo, ed è deliberata (§3.1).
 - **Object storage (RT-O02, RT-P02).** In DB solo riferimenti (`storage_uri`, `output_uri`, `answer_payload_uri`), mai contenuti voluminosi. I documenti referenziati da uno snapshot non vanno mai cancellati fisicamente.
@@ -946,7 +1028,7 @@ erDiagram
 - **Estendibilità v2.** Multi-tenancy → aggiungere `tenant_id` come dimensione; costi → nuova entità `usage_records` collegata a `executions`; conversazioni multi-turno → `conversation_id`/`turn_index` su `questions`/`executions`; snapshot su più corpora → rendere `corpus_snapshots.corpus_id` nullable (additivo; l'operazione inversa non lo sarebbe).
 - **Chunker corpus-scoped (v2).** Se servisse un chunker che deduplica boilerplate sull'intero corpus, si aggiunge `chunk_results.corpus_snapshot_id` nullable: non nullo solo per quei chunker, che perdono il riuso cross-snapshot. Fino ad allora `capabilities.scope` ammette solo `document`.
 
-## Riepilogo tabelle (46)
+## Riepilogo tabelle (50)
 
 | # | Blocco | Tabella |
 |---|---|---|
@@ -996,6 +1078,10 @@ erDiagram
 | 44 | Esperimenti | `human_annotations` |
 | 45 | Esperimenti | `metric_aggregates` |
 | 46 | Pipeline | `materialization_runs` |
+| 47 | Generazione | `generation_jobs` |
+| 48 | Generazione | `generation_units` |
+| 49 | Generazione | `generated_questions` |
+| 50 | Generazione | `generated_question_chunks` |
 
 
 ---

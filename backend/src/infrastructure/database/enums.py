@@ -175,6 +175,43 @@ class TransferStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class GenerationStatus(str, enum.Enum):
+    """Lifecycle of a job generating questions from the documents of a corpus."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class GenerationPhase(str, enum.Enum):
+    """Where a unit of a generation job looks: one document, or all of them together."""
+
+    DOCUMENT = "document"
+    CROSS = "cross"
+
+
+class GeneratedKind(str, enum.Enum):
+    """What the evidence of a generated question spans.
+
+    `single` is one chunk, `multi` several chunks of one document, `cross` chunks of
+    several documents.
+    """
+
+    SINGLE = "single"
+    MULTI = "multi"
+    CROSS = "cross"
+
+
+class ProposalStatus(str, enum.Enum):
+    """Review state of a generated question: nothing is gold until a person accepts it."""
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 class ConfidenceBand(str, enum.Enum):
     """How plausible a proposed chunk is, from its combined score."""
 
@@ -221,3 +258,7 @@ EVIDENCE_LINK_STATUS = pg_enum(EvidenceLinkStatus, "evidence_link_status")
 RELEVANCE_GRADE = pg_enum(RelevanceGrade, "relevance_grade")
 TRANSFER_STATUS = pg_enum(TransferStatus, "transfer_status")
 CONFIDENCE_BAND = pg_enum(ConfidenceBand, "confidence_band")
+GENERATION_STATUS = pg_enum(GenerationStatus, "generation_status")
+GENERATION_PHASE = pg_enum(GenerationPhase, "generation_phase")
+GENERATED_KIND = pg_enum(GeneratedKind, "generated_kind")
+PROPOSAL_STATUS = pg_enum(ProposalStatus, "proposal_status")

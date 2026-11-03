@@ -252,13 +252,13 @@ Signals, bands and pre-selection are described in [`src/transfers/README.md`](sr
 `parsing_profiles`, `chunking_profiles`, `embedding_profiles`, `vector_store_profiles`,
 `retrieval_profiles`, `answer_profiles`, `parsing_results`, `chunking_configurations`, `chunk_results`,
 `chunks`, `index_builds`, `materialization_runs`, `qa_sets`, `questions`, `expected_answers`, `gold_documents`,
-`evidence_links`, `evidence_link_chunks`, `transfer_jobs`, `transfer_questions`, `transfer_candidates`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
+`evidence_links`, `evidence_link_chunks`, `transfer_jobs`, `transfer_questions`, `transfer_candidates`, `generation_jobs`, `generation_units`, `generated_questions`, `generated_question_chunks`, `qa_set_snapshots`, `qa_snapshot_questions`, `experiments`, `variants`, `runs`, `executions`,
 `retrieval_calls`, `retrieval_hits`, `metric_definitions`, `evaluators`, `evaluations`,
 `metric_aggregates`. Profiles and configurations are in
 `pipelines/models.py`, results and chunks in `artifacts/models.py`, runs in
 `materializations/models.py`, index builds in `indexes/models.py`, the question sets in
-`qa_sets/models.py`, the answer profiles in `answer_profiles/models.py` and the experiment
-tables in `experiments/models.py`.
+`qa_sets/models.py`, the answer profiles in `answer_profiles/models.py`, the generation jobs in
+`generation/models.py` and the experiment tables in `experiments/models.py`.
 Parse output lives on object storage and is referenced by `parsing_results.output_uri`;
 chunks are rows. The full schema and its rationale are in
 [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md).

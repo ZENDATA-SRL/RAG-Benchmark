@@ -22,6 +22,12 @@ from src.experiments.models import (
     Run,
     Variant,
 )
+from src.generation.models import (
+    GeneratedQuestion,
+    GeneratedQuestionChunk,
+    GenerationJob,
+    GenerationUnit,
+)
 from src.indexes.models import IndexBuild
 from src.infrastructure.database.base import Base
 from src.materializations.models import MaterializationRun
@@ -75,6 +81,10 @@ __all__ = [
     "Execution",
     "ExpectedAnswer",
     "Experiment",
+    "GeneratedQuestion",
+    "GeneratedQuestionChunk",
+    "GenerationJob",
+    "GenerationUnit",
     "GoldDocument",
     "ImportFileResult",
     "ImportRun",
